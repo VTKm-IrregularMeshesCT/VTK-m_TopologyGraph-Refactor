@@ -116,6 +116,7 @@ vtkm::Id ContourTreeAugmented::GetNumIterations() const
 //-----------------------------------------------------------------------------
 vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& input)
 {
+  std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute()\n";
   vtkm::cont::Timer timer;
   timer.Start();
 
@@ -213,7 +214,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
              std::endl
                << "    " << std::setw(38) << std::left << "Contour Tree Filter DoExecute"
                << ": " << timer.GetElapsedTime() << " seconds");
-
+  std::cout << "sc_tp/ContourTreeUniformAugmented.cxx : ContourTreeAugmented::DoExecute() finished}\n";
   return result;
 } // ContourTreeAugmented::DoExecute
 
@@ -257,6 +258,7 @@ template <typename T>
 VTKM_CONT void ContourTreeAugmented::DoPostExecute(const vtkm::cont::PartitionedDataSet& input,
                                                    vtkm::cont::PartitionedDataSet& output)
 {
+  std::cout << "DoPostExecute()\n";
   auto comm = vtkm::cont::EnvironmentTracker::GetCommunicator();
   vtkm::Id size = comm.size();
   vtkm::Id rank = comm.rank();
@@ -428,6 +430,8 @@ VTKM_CONT void ContourTreeAugmented::DoPostExecute(const vtkm::cont::Partitioned
     auto meshBoundaryExecObj =
       contourTreeMeshOut.GetMeshBoundaryExecutionObject(globalPointDimensions, minIdx, maxIdx);
     // Run the worklet to compute the final contour tree
+    std::cout << "using meshBoundaryExecObj inside worklet.Run()\n";
+    std::cout << "... alternative suggested was copying this file and removing all meshBoundaryExecObj dependencies}\n";
     worklet.Run(
       contourTreeMeshOut.SortedValues, // Unused param. Provide something to keep API happy
       contourTreeMeshOut,

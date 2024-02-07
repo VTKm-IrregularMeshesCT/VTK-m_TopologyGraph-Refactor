@@ -520,6 +520,7 @@ int main(int argc, char* argv[])
   }
   else // Read ASCII data input
   {
+    std::cout << "Reading file: " << filename << "\n";
     std::ifstream inFile(filename);
     if (inFile.bad())
       return 0;
@@ -684,6 +685,7 @@ int main(int argc, char* argv[])
 
   // Execute the contour tree analysis. NOTE: If MPI is used the result  will be
   // a vtkm::cont::PartitionedDataSet instead of a vtkm::cont::DataSet
+  std::cout << "{Ready to execute Contour Tree Augmented filter}\n";
   auto result = filter.Execute(useDataSet);
 
   currTime = totalTime.GetElapsedTime();

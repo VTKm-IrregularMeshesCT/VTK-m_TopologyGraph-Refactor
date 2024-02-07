@@ -80,6 +80,8 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/mesh_boundary/MeshBoundary3D.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/mesh_boundary/MeshBoundaryContourTreeMesh.h>
 
+using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
+
 namespace vtkm
 {
 namespace worklet
@@ -174,12 +176,220 @@ public:
            bool useMarchingCubes = false,
            unsigned int computeRegularStructure = 1)
   {
+    std::cout << "{sc_tp/worklet/ContourTreeUniformAugmented.h : Running augmented CT ...\n";
     using namespace vtkm::worklet::contourtree_augmented;
     // 2D Contour Tree
     if (meshSize[2] == 1)
     {
+      std::cout << "Creating 2D Mesh with dim: " << meshSize[0] << "x" << meshSize[1] << "\n";
       // Build the mesh and fill in the values
-      DataSetMeshTriangulation2DFreudenthal mesh(vtkm::Id2{ meshSize[0], meshSize[1] });
+      // DataSetMeshTriangulation2DFreudenthal mesh(vtkm::Id2{ meshSize[0], meshSize[1] });
+      std::cout << "Contour Tree Mesh TEST from file ... \n";
+      //ContourTreeMesh mesh("ctinput.txt");
+      // runtime error when reading CT from existing output file ...
+      // ... (created by PPP-2.0 save function) ...
+      //ContourTreeMesh<int> mesh("5x5.all.txt");
+      // ... so trying the default constructor ...
+      // ... which in the VTK-m version does nothing (no-op) ...
+      // ... so ported values from PPP-2.0 to this one to try with a valid CT:
+      //ContourTreeMesh<int> mesh;
+      // 5x5 dataset values:
+      // std::vector<int> nodes_sorted_values = {100,78,49,17,1,94,71,47,33,6,52,44,50,45,48,8,12,46,91,43,0,5,51,76,83};
+      // std::vector<int> arcs =
+      // Take this simple graph for example:
+      //
+      /* 4
+          \
+           \> 3 -> 1 <- 0
+           /
+          /
+         2
+        (Use this comment style to avoid warnings about multi-line comments triggered by '\' at
+         the end of the line).
+      */
+      // make all nodes/sort/values the same for easier debugging:
+      //std::vector<vtkm::Id> std_nodes_sorted = {0, 1, 2, 3, 4};
+      //std::vector<vtkm::Id> std_nodes_sorted = {0, 1, 2, 3, 4, 5, 6, 7};
+      // below is for 5x5:
+//      std::vector<vtkm::Id> std_nodes_sorted = {24, 20, 14, 6, 1,
+//                                                23, 18, 12, 7, 3,
+//                                                17, 9,  15, 10, 13,
+//                                                4,  5,  11, 22, 8,
+//                                                0,  2,  16, 19, 21};
+
+      std::vector<vtkm::Id> std_nodes_sorted = {0, 1, 2, 3, 4,
+                                                5, 6, 7, 8, 9,
+                                                10, 11, 12, 13, 14,
+                                                15, 16, 17, 18, 19,
+                                                20, 21, 22, 23, 24};
+
+      // convert regular std::vector to an array that VTK likes ... picky
+      vtkm::cont::ArrayHandle<vtkm::Id> nodes_sorted =
+        vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
+
+      //IdArrayType nodes_sorted(0, 1, 2, 3, 4); doesnt work
+      // take 2
+      //std::vector<int> std_actual_values = {0, 1, 2, 3, 4};
+      //std::vector<int> std_actual_values = {0, 1, 2, 3, 4, 5, 6, 7};
+      // below for 5x5:
+//      std::vector<int> std_actual_values = {24, 20, 14, 6, 1,
+//                                            23, 18, 12, 7, 3,
+//                                            17, 9,  15, 10, 13,
+//                                            4,  5,  11, 22, 8,
+//                                            0,  2,  16, 19, 21};
+      std::vector<int> std_actual_values = {0, 1, 2, 3, 4,
+                                            5, 6, 7, 8, 9,
+                                            10, 11, 12, 13, 14,
+                                            15, 16, 17, 18, 19,
+                                            20, 21, 22, 23, 24};
+
+//      std::vector<int> std_actual_values = {100, 78, 49, 17, 1,
+//                                            94, 71, 47, 33, 6,
+//                                            52, 44, 50, 45, 48,
+//                                            8, 12, 46, 91, 43,
+//                                            0, 5, 51, 76, 83};
+
+      // convert regular std::vector to an array that VTK likes ... picky
+      vtkm::cont::ArrayHandle<int> actual_values =
+        vtkm::cont::make_ArrayHandle(std_actual_values, vtkm::CopyFlag::Off);
+
+      // The contour tree algorithm stores this in an arcs array:
+      //
+      // idx:  0 1 2 3 4
+      // arcs: 1 - 3 1 3 (- = NO_SUCH_ELEMENT, meaning no arc originating from this node)
+      //std::vector<vtkm::Id> std_arcs_list = {1, NO_SUCH_ELEMENT,  3, 1, 3};
+//      std::vector<vtkm::Id> std_arcs_list = {2, 2, 3, 4, 5, 7, 5, NO_SUCH_ELEMENT};
+      // just part of my standard conversion routine at this point:
+//      vtkm::cont::ArrayHandle<vtkm::Id> arcs_list =
+//        vtkm::cont::make_ArrayHandle(std_arcs_list, vtkm::CopyFlag::Off);
+
+      // after a lengthy process ... finally the last one:
+      std::vector<vtkm::Id> std_global_inds = {0};
+      vtkm::cont::ArrayHandle<vtkm::Id> global_inds =
+        vtkm::cont::make_ArrayHandle(std_global_inds, vtkm::CopyFlag::Off);
+
+      // uncomment if testing the ContourTreeMesh
+//      ContourTreeMesh<int> mesh(nodes_sorted,
+//                                arcs_list,
+//                                nodes_sorted,
+//                                actual_values,
+//                                global_inds);
+
+      // WARNING WARNING WARNING!
+      // The following is to test the Topology Graph which is still in an unfinished state!
+//      std::vector<vtkm::Id> std_nbor_connectivity = {2, 4,
+//                                                     2, 3,
+//                                                     0, 1, 3, 4,
+//                                                     1, 2, 4, 5, 7,
+//                                                     0, 2, 3, 5, 6,
+//                                                     3, 4, 6, 7,
+//                                                     4, 5,
+//                                                     3, 5};
+      // below for 5x5:
+//      std::vector<vtkm::Id> std_nbor_connectivity = {18, 20, 23,                // [0] 24
+//                                                     12, 14, 18, 24,            // [1] 20
+//                                                     6,  7,  12, 20,            // [2] 14
+//                                                     1,  3,  7,  14,            // [3] 6
+//                                                     3,  6,                     // [4] 1
+//                                                     9,  17, 18, 24,            // [5] 23
+//                                                     9,  12, 15, 20, 23, 24,    // [6] 18
+//                                                     7,  10, 14, 15, 18, 20,    // [7] 12
+//                                                     3,   6, 10, 12, 13, 14,    // [8] 7
+//                                                     1,  6,  7,  13,            // [9] 3
+//                                                     4,  5,  9,  23,            // [10] 17
+//                                                     5, 11, 15, 17, 18, 23,     // [11] 9
+//                                                     9, 10, 11, 12, 18, 22,     // [12] 15
+//                                                     7, 8, 12, 13, 15, 22,      // [13] 10
+//                                                     3, 7, 8, 10,               // [14] 13
+//                                                     0, 2, 5, 17,               // [15] 4
+//                                                     2, 4, 9, 11, 16, 17,       // [16] 5
+//                                                     5, 9, 15, 16, 19, 22,      // [17] 11
+//                                                     8, 10, 11, 15, 19, 21,     // [18] 22
+//                                                     10, 13, 21, 22,            // [19] 8
+//                                                     2, 4,                      // [20] 0
+//                                                     0, 4, 5, 16,               // [21] 2
+//                                                     2, 5, 11, 19,              // [22] 16
+//                                                     11, 16, 21, 22,            // [23] 19
+//                                                     8, 19, 22};                // [24] 21
+
+      std::vector<vtkm::Id> std_nbor_connectivity = {2,4,
+                                                     3,6,
+                                                     0,4,5,16,
+                                                     1,6,7,13,
+                                                     0,2,5,17,
+                                                     2,4,9,11,16,17,
+                                                     1,3,7,14,
+                                                     3,6,10,12,13,14,
+                                                     10,13,21,22,
+                                                     5,11,15,17,18,23,
+                                                     7,8,12,13,15,22,
+                                                     5,9,15,16,19,22,
+                                                     7,10,14,15,18,20,
+                                                     3,7,8,10,
+                                                     6,7,12,20,
+                                                     9,10,11,12,18,22,
+                                                     2,5,11,19,
+                                                     4,5,9,23,
+                                                     9,12,15,20,23,24,
+                                                     11,16,21,22,
+                                                     12,14,18,24,
+                                                     8,19,22,
+                                                     8,10,11,15,19,21,
+                                                     9,17,18,24,
+                                                     18,20,23,};                // [24] 21
+
+
+//      std::vector<vtkm::Id> std_nbor_connectivity = {1,5,6,
+//                                                     0,2,6,7,
+//                                                     1,3,7,8,
+//                                                     2,4,8,9,
+//                                                     3,9,
+//                                                     0,6,10,11,
+//                                                     0,1,5,7,11,12,
+//                                                     1,2,6,8,12,13,
+//                                                     2,3,7,9,13,14,
+//                                                     3,4,8,14,
+//                                                     5,11,15,16,
+//                                                     5,6,10,12,16,17,
+//                                                     6,7,11,13,17,18,
+//                                                     7,8,12,14,18,19,
+//                                                     8,9,13,19,
+//                                                     10,16,20,21,
+//                                                     10,11,15,17,21,22,
+//                                                     11,12,16,18,22,23,
+//                                                     12,13,17,19,23,24,
+//                                                     13,14,18,24,
+//                                                     15,21,
+//                                                     15,16,20,22,
+//                                                     16,17,21,23,
+//                                                     17,18,22,24,
+//                                                     18,19,23,};                // [24] 21
+
+
+
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity =
+        vtkm::cont::make_ArrayHandle(std_nbor_connectivity, vtkm::CopyFlag::Off);
+
+      //std::vector<vtkm::Id> std_nbor_offsets = {0, 2, 4, 8, 13, 18, 22, 24, 26};
+      // below for 5x5:
+    //std::vector<vtkm::Id> std_nbor_offsets = {0, 3, 7, 11, 15, 17, 21, 27, 33, 39, 43, 47, 53, 59, 65, 69, 73, 79, 85, 91, 95, 97, 101, 105, 109, 112};
+      std::vector<vtkm::Id> std_nbor_offsets = {0,2,4,8,12,16,22,26,32,36,42,48,54,60,64,68,74,78,82,88,92,96,99,105,109,112};
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets =
+        vtkm::cont::make_ArrayHandle(std_nbor_offsets, vtkm::CopyFlag::Off);
+
+      ContourTreeMesh<int> mesh(nodes_sorted,
+                              //arcs_list,
+                                nbor_connectivity,
+                                nbor_offsets,
+                                nodes_sorted,
+                                actual_values,
+                                global_inds);
+
+      //ContourTreeMesh<int> mesh("5x5.all.txt");
+      std::cout << "Finished reading, printing content:\n";
+      mesh.PrintContent(std::cout);
+      std::cout << "Finished printing content\n";
+
       // Run the contour tree on the mesh
       RunContourTree(fieldArray,
                      contourTree,
@@ -187,7 +397,9 @@ public:
                      nIterations,
                      mesh,
                      computeRegularStructure,
+                     //nullptr);
                      mesh.GetMeshBoundaryExecutionObject());
+      std::cout << "sc_tp/worklet/ContourTreeUniformAugmented.h : Change to NULL ptr here}\n";
       return;
     }
     // 3D Contour Tree using marching cubes
@@ -262,9 +474,10 @@ private:
     // Stage 1: Load the data into the mesh. This is done in the Run() method above and accessible
     //          here via the mesh parameter. The actual data load is performed outside of the
     //          worklet in the example contour tree app (or whoever uses the worklet)
-
+    std::cout << "S1. {worklet/ContourTreeUniformAugmented.h : RunContourTree}\n";
     // Stage 2 : Sort the data on the mesh to initialize sortIndex & indexReverse on the mesh
     // Start the timer for the mesh sort
+    std::cout << "S2\n";
     vtkm::cont::Timer timer;
     timer.Start();
     std::stringstream timingsStream; // Use a string stream to log in one message
@@ -276,6 +489,7 @@ private:
     timer.Start();
 
     // Stage 3: Assign every mesh vertex to a peak
+    std::cout << "S3\n";
     MeshExtrema extrema(mesh.NumVertices);
     extrema.SetStarts(mesh, true);
     extrema.BuildRegularChains(true);
@@ -284,6 +498,7 @@ private:
     timer.Start();
 
     // Stage 4: Identify join saddles & construct Active Join Graph
+    std::cout << "S4\n";
     MergeTree joinTree(mesh.NumVertices, true);
     ActiveGraph joinGraph(true);
     joinGraph.Initialise(mesh, extrema);
@@ -296,6 +511,7 @@ private:
     timer.Start();
 
     // Stage 5: Compute Join Tree Hyperarcs from Active Join Graph
+    std::cout << "S5\n";
     joinGraph.MakeMergeTree(joinTree, extrema);
     timingsStream << "    " << std::setw(38) << std::left << "Join Tree Compute"
                   << ": " << timer.GetElapsedTime() << " seconds" << std::endl;
@@ -306,6 +522,7 @@ private:
     timer.Start();
 
     // Stage 6: Assign every mesh vertex to a pit
+    std::cout << "S6\n";
     extrema.SetStarts(mesh, false);
     extrema.BuildRegularChains(false);
     timingsStream << "    " << std::setw(38) << std::left << "Split Tree Regular Chains"
@@ -313,6 +530,7 @@ private:
     timer.Start();
 
     // Stage 7:     Identify split saddles & construct Active Split Graph
+    std::cout << "S7\n";
     MergeTree splitTree(mesh.NumVertices, false);
     ActiveGraph splitGraph(false);
     splitGraph.Initialise(mesh, extrema);
@@ -324,6 +542,7 @@ private:
     timer.Start();
 
     // Stage 8: Compute Split Tree Hyperarcs from Active Split Graph
+    std::cout << "S8\n";
     splitGraph.MakeMergeTree(splitTree, extrema);
     timingsStream << "    " << std::setw(38) << std::left << "Split Tree Compute"
                   << ": " << timer.GetElapsedTime() << " seconds" << std::endl;
@@ -336,6 +555,7 @@ private:
     timer.Start();
 
     // Stage 9: Join & Split Tree are Augmented, then combined to construct Contour Tree
+    std::cout << "S9\n";
     contourTree.Init(mesh.NumVertices);
     ContourTreeMaker treeMaker(contourTree, joinTree, splitTree);
     // 9.1 First we compute the hyper- and super- structure
@@ -354,6 +574,7 @@ private:
     }
     else if (computeRegularStructure == 2) // augment by the mesh boundary
     {
+	  std::cout << "computeRegularStructure with dummy meshBoundary ...\n";
       treeMaker.ComputeBoundaryRegularStructure(extrema, mesh, meshBoundary);
       timingsStream << "    " << std::setw(38) << std::left
                     << "Contour Tree Boundary Regular Structure"

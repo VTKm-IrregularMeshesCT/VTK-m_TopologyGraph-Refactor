@@ -136,21 +136,39 @@ public:
     vtkm::cont::DeviceAdapterId,
     vtkm::cont::Token& token) const;
 
+  // ported the default contour tree mesh constructor ...
+  // ... to actually construct a valid CT, ...
+  // ... rather than just 'ContourTreeMesh() {}'
   ContourTreeMesh() {}
 
-  // Constructor
+  // Constructor 0 - The TOPOLOGY GRAPH:
+  ContourTreeMesh(const IdArrayType& nodes,
+                  //const IdArrayType& arcs, forget the arcs, ...
+                  // ... we do them manually for the topology graph:
+                  const IdArrayType& inNborConnectivity,
+                  const IdArrayType& inNborOffsets,
+                  // (arcs were used to compute nbor connectivity and offsets ...
+                  //  ... but because topology graphs no longer have ...
+                  //  ... the outdegree strictly capped at 1, ...
+                  //  ... we enter the information manually - for now anyway)
+                  const IdArrayType& inSortOrder,
+                  const vtkm::cont::ArrayHandle<FieldType>& values,
+                  const IdArrayType& inGlobalMeshIndex);
+
+  // Constructor A
   ContourTreeMesh(const IdArrayType& arcs,
                   const IdArrayType& inSortOrder,
                   const vtkm::cont::ArrayHandle<FieldType>& values,
                   const IdArrayType& inGlobalMeshIndex);
 
-  // Constructor
+  // Constructor B
   ContourTreeMesh(const IdArrayType& nodes,
                   const IdArrayType& arcs,
                   const IdArrayType& inSortOrder,
                   const vtkm::cont::ArrayHandle<FieldType>& values,
                   const IdArrayType& inGlobalMeshIndex);
 
+  // Constructor C
   //  Construct a ContourTreeMesh from nodes/arcs and another ContourTreeMesh (instead of a DataSetMesh)
   //     nodes/arcs: From the contour tree
   //     ContourTreeMesh: the contour tree mesh used to compute the contour tree described by nodes/arcs
@@ -158,14 +176,18 @@ public:
                   const IdArrayType& arcs,
                   const ContourTreeMesh<FieldType>& mesh);
 
+  // Constructor D
   // Initalize contour tree mesh from mesh and arcs. For fully augmented contour tree with all
   // mesh vertices as nodes. Same as using { 0, 1, ..., nodes.size()-1 } as nodes for the
   // ContourTreeMeshh(nodes, arcsm mesh) constructor above
   ContourTreeMesh(const IdArrayType& arcs, const ContourTreeMesh<FieldType>& mesh);
 
+  // Constructor E
   // Load contour tree mesh from file
   ContourTreeMesh(const char* filename)
   {
+    std::cout << "{ContourTreeMesh.h : Constructor E\n";
+    std::cout << " ... filename}\n";
     Load(filename);
     this->NumVertices = this->SortedValues.GetNumberOfValues();
   }
@@ -221,6 +243,7 @@ public:
   MeshBoundaryContourTreeMeshExec GetMeshBoundaryExecutionObject(vtkm::Id3 globalSize,
                                                                  vtkm::Id3 minIdx,
                                                                  vtkm::Id3 maxIdx) const;
+  MeshBoundaryContourTreeMeshExec GetMeshBoundaryExecutionObject() const;
 
   void GetBoundaryVertices(IdArrayType& boundaryVertexArray,                    // output
                            IdArrayType& boundarySortIndexArray,                 // output
@@ -329,6 +352,8 @@ ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& arcs,
   , NeighborConnectivity()
   , NeighborOffsets()
 {
+  std::cout << "{ContourTreeMesh.h : Constructor A\n";
+  std::cout << " ... arcs, inSortOrder, values, inGlobalMeshIndex}\n";
   this->NumVertices = inSortOrder.GetNumberOfValues();
   // Initalize the SortedIndices as a smart array handle
   this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
@@ -347,6 +372,61 @@ ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& arcs,
 
 template <typename FieldType>
 inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
+                                                   //const IdArrayType& arcs, forget the arcs, ...
+                                                   // ... we do them manually for the topology graph:
+                                                   const IdArrayType& inNborConnectivity,
+                                                   const IdArrayType& inNborOffsets,
+                                                   // (arcs were used to compute nbor connectivity and offsets ...
+                                                   //  ... but because topology graphs no longer have ...
+                                                   //  ... the outdegree strictly capped at 1, ...
+                                                   //  ... we enter the information manually - for now anyway)
+                                                   const IdArrayType& inSortOrder,
+                                                   const vtkm::cont::ArrayHandle<FieldType>& values,
+                                                   const IdArrayType& inGlobalMeshIndex)
+  : GlobalMeshIndex(inGlobalMeshIndex)
+  , NeighborConnectivity(inNborConnectivity)
+  , NeighborOffsets(inNborOffsets)
+{
+  std::cout << "{ContourTreeMesh.h : Constructor 0\n";
+  std::cout << " ... +nodes, arcs, inSortOrder, values, inGlobalMeshIndex}\n";
+
+  PrintIndices("inputNeighborConnectivity", inNborConnectivity, -1, std::cout);
+  PrintIndices("NeighborConnectivity", this->NeighborConnectivity, -1, std::cout);
+  PrintIndices("inputNeighborOffsets", inNborOffsets, -1, std::cout);
+  PrintIndices("NeighborOffsets", this->NeighborOffsets, -1, std::cout);
+
+  // Initialize the SortedValues array with values permuted by the SortOrder permuted by the nodes, i.e.,
+  // this->SortedValues[v] = values[inSortOrder[nodes[v]]];
+  vtkm::cont::ArrayHandlePermutation<IdArrayType, IdArrayType> permutedSortOrder(nodes,
+                                                                                 inSortOrder);
+  auto permutedValues = vtkm::cont::make_ArrayHandlePermutation(permutedSortOrder, values);
+  vtkm::cont::Algorithm::Copy(permutedValues, this->SortedValues);
+  // Initalize the SortedIndices as a smart array handle
+  this->NumVertices = this->SortedValues.GetNumberOfValues();
+  this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
+  this->SortOrder = vtkm::cont::ArrayHandleIndex(this->NumVertices);
+  //this->InitializeNeighborConnectivityFromArcs(arcs); we do not do this here ...
+  // nbor connectivity/offsets are now set in the member initializer list above
+
+  // Still ... since we no longer call InitializeNeighborConnectivityFromArcs ...
+  // ... we must not forget to compute maximum number of neighbors, ...
+  // ... which we can here - since we have the nbor connection/offset information:
+  this->ComputeMaxNeighbors();
+
+
+#ifdef DEBUG_PRINT
+  // Print the contents fo this for debugging
+  DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
+#endif
+}
+
+
+
+
+
+
+template <typename FieldType>
+inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
                                                    const IdArrayType& arcs,
                                                    const IdArrayType& inSortOrder,
                                                    const vtkm::cont::ArrayHandle<FieldType>& values,
@@ -355,6 +435,8 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   , NeighborConnectivity()
   , NeighborOffsets()
 {
+  std::cout << "{ContourTreeMesh.h : Constructor B\n";
+  std::cout << " ... +nodes, arcs, inSortOrder, values, inGlobalMeshIndex}\n";
   // Initialize the SortedValues array with values permuted by the SortOrder permuted by the nodes, i.e.,
   // this->SortedValues[v] = values[inSortOrder[nodes[v]]];
   vtkm::cont::ArrayHandlePermutation<IdArrayType, IdArrayType> permutedSortOrder(nodes,
@@ -380,6 +462,8 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& arcs,
   , NeighborConnectivity()
   , NeighborOffsets()
 {
+  std::cout << "{ContourTreeMesh.h : Constructor D\n";
+  std::cout << " ... arcs, +mesh}\n";
   // Initalize the SortedIndices as a smart array handle
   this->NumVertices = this->SortedValues.GetNumberOfValues();
   this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
@@ -399,6 +483,8 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   : NeighborConnectivity()
   , NeighborOffsets()
 {
+  std::cout << "{ContourTreeMesh.h : Constructor C\n";
+  std::cout << " ... +nodes, arcs, +mesh}\n";
   // Initatlize the global mesh index with the GlobalMeshIndex permutted by the nodes
   vtkm::cont::ArrayHandlePermutation<IdArrayType, IdArrayType> permutedGlobalMeshIndex(
     nodes, mesh.GlobalMeshIndex);
@@ -983,6 +1069,9 @@ inline void ContourTreeMesh<FieldType>::Save(const char* filename) const
 template <typename FieldType>
 inline void ContourTreeMesh<FieldType>::Load(const char* filename)
 {
+  std::cout << "{ContourTreeMesh.h : Load File\n";
+  std::cout << " ... filename = " << filename << "}\n";
+
   std::ifstream is(filename);
   if (!is.is_open())
   {
@@ -1045,6 +1134,16 @@ inline MeshBoundaryContourTreeMeshExec ContourTreeMesh<FieldType>::GetMeshBounda
 {
   return MeshBoundaryContourTreeMeshExec(this->GlobalMeshIndex, globalSize, minIdx, maxIdx);
 }
+
+template <typename FieldType>
+inline MeshBoundaryContourTreeMeshExec ContourTreeMesh<FieldType>::GetMeshBoundaryExecutionObject() const
+{
+  return MeshBoundaryContourTreeMeshExec(this->GlobalMeshIndex,
+                                         vtkm::Id3{ this->NumVertices, this->NumVertices, this->NumVertices },
+                                         vtkm::Id3{ 0, 0, 0 },
+                                         vtkm::Id3{ this->NumVertices, this->NumVertices, this->NumVertices });
+}
+
 
 template <typename FieldType>
 inline void ContourTreeMesh<FieldType>::GetBoundaryVertices(
