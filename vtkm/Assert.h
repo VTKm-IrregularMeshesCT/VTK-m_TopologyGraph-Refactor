@@ -41,6 +41,7 @@
 /// to remove assertions for performance reasons.
 #ifndef VTKM_NO_ASSERT
 #define VTKM_ASSERT(condition) assert(condition)
+#define VTKM_ASSERT_BOUNDS(left,operator,right) { if(!((left) operator (right))){ std::cerr << "ASSERT FAILED: " << #left << #operator << #right << " @ " << __FILE__ << " (" << __LINE__ << "). " << #left << "=" << (left) << "; " << #right << "=" << (right) << std::endl; } }
 #define VTKM_ASSERTS_CHECKED
 #else
 #define VTKM_ASSERT(condition) (void)(condition)
