@@ -68,7 +68,7 @@ namespace contourtree_augmented
 {
 namespace process_contourtree_inc
 {
-
+using ValueType = vtkm::Float32;
 // TODO The pointered list structure and use of std::vector don't seem to fit well with using Branch with VTKM
 template <typename T>
 class Branch

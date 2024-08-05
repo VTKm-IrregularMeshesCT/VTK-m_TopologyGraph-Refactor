@@ -545,6 +545,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     useMarchingCubes = false;
     /// DEBUG PRINT std::cout << "{sc_tp/worklet/ContourTreeUniformAugmented.h : Running augmented CT ...\n";
     using namespace vtkm::worklet::contourtree_augmented;
+
     // 2D Contour Tree
     if (meshSize[2] == 1)
     {
@@ -1267,9 +1268,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     }
     // 3D Contour Tree with Freudenthal
     else
-    {
-
-        std::cout << "Running PACT" << std::endl;
+    {      
 //        // Uncomment below for Freudenthal tests:
 //        // NOTE: THIS EXPLICITLY CALLS THE CODE IN INITIALIZEACTIVEEDGES.H
 //        // ...   BE CAREFUL TO REMOVE THE MESH SAVING CODE IF CRASHING
@@ -1330,6 +1329,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
        int num_datapoints = 16;
 //       const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
        const std::string filename = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
+
+	//const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triang.txt";
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";
 //        const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/24x24x24-gridded-13k-output-connections.txt";

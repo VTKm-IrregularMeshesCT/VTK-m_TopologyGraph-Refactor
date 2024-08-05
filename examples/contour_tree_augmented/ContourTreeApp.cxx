@@ -105,6 +105,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 #include <thread>
 
 using ValueType = vtkm::Float32;
+using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 using BranchType = vtkm::worklet::contourtree_augmented::process_contourtree_inc::Branch<ValueType>;
 
 namespace ctaug_ns = vtkm::worklet::contourtree_augmented;
@@ -853,7 +854,9 @@ int main(int argc, char* argv[])
     ctaug_ns::IdArrayType superarcDependentWeight;
     ctaug_ns::IdArrayType supernodeTransferWeight;
     ctaug_ns::IdArrayType hyperarcDependentWeight;
-    std::cout << "COMPUTING INTEGER WEIGHTS:" << std::endl;
+
+    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerial in 'ContourTreeApp.cxx rank == 0'" << std::endl;
+
     ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerial(filter.GetContourTree(),
                                                              filter.GetNumIterations(),
                                                              superarcIntrinsicWeight,  // (output)
@@ -863,23 +866,24 @@ int main(int argc, char* argv[])
 
 
 
-    // compute the volume for each hyperarc and superarc
-    ctaug_ns::ValueArrayType superarcIntrinsicWeightValue;
-    ctaug_ns::ValueArrayType superarcDependentWeightValue;
-    ctaug_ns::ValueArrayType supernodeTransferWeightValue;
-    ctaug_ns::ValueArrayType hyperarcDependentWeightValue;
-    std::cout << "COMPUTING FLOAT WEIGHTS:" << std::endl;
-    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialValue(filter.GetContourTree(),
-                                                             filter.GetNumIterations(),
-                                                             superarcIntrinsicWeightValue,  // (output)
-                                                             superarcDependentWeightValue,  // (output)
-                                                             supernodeTransferWeightValue,  // (output)
-                                                             hyperarcDependentWeightValue); // (output)
+    // ---------------------------- FLOAT WEIGHTS ---------------------------- //
+
+    FloatArrayType superarcIntrinsicWeightNEW;
+    FloatArrayType superarcDependentWeightNEW;
+    FloatArrayType supernodeTransferWeightNEW;
+    FloatArrayType hyperarcDependentWeightNEW;
+
+    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerialFloat in 'ContourTreeApp.cxx rank == 0'" << std::endl;
+
+    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloat(filter.GetContourTree(),
+                                                                  filter.GetNumIterations(),
+                                                                  superarcIntrinsicWeightNEW,  // (output)
+                                                                  superarcDependentWeightNEW,  // (output)
+                                                                  supernodeTransferWeightNEW,  // (output)
+                                                                  hyperarcDependentWeightNEW); // (output)
 
 
-
-
-
+    // ---------------------------- FLOAT WEIGHTS ---------------------------- //
 
 
     // Record the timings for the branch decomposition
@@ -914,7 +918,9 @@ int main(int argc, char* argv[])
 
     //----main branch decompostion end
     //----Isovalue seleciton start
-//    numLevels = 1;
+
+    std::cout << "NUM LEVELS: " << numLevels << std::endl;
+    numLevels = 1;
     if (numLevels > 0) // if compute isovalues
     {
       // Get the data values for computing the explicit branch decomposition
@@ -965,13 +971,15 @@ int main(int argc, char* argv[])
           dataField,
           dataFieldIsSorted);
 
-      /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: PRINTING\n";
+      /// DEBUG PRINT
+      std::cout << "!Computing the Branch Decomposition: PRINTING\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph-56M-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph--1024--branch-decomposition-fullCT.txt");
-      std::ofstream filegvbdfull("ContourTreeGraph--BPECT-16--branch-decomposition-fullCT.txt");
+//      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16--branch-decomposition-fullCT.txt");
+      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16-triang--branch-decomposition-fullCT.txt");
 
       branchDecompostionRoot->PrintBranchDecomposition(filegvbdfull);
 
@@ -981,8 +989,10 @@ int main(int argc, char* argv[])
 
       // Simplify the contour tree of the branch decompostion
 //      branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
+      std::cout << "... Gonna do the BRANCH SIMPLIFICATION:\n";
       branchDecompostionRoot->SimplifyToSize(12, usePersistenceSorter);
-      /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
+      /// DEBUG PRINT
+      std::cout << "... Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
 
       // Compute the relevant iso-values
@@ -1032,7 +1042,8 @@ int main(int argc, char* argv[])
 //      std::ofstream filebdgv("ContourTreeGraph-13k-branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph-56M-branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--1024--branch-decomposition-prunedCT.txt");
-      std::ofstream filebdgv("ContourTreeGraph--BPECT-16--branch-decomposition-prunedCT.txt");
+//      std::ofstream filebdgv("ContourTreeGraph--NastyW-16--branch-decomposition-prunedCT.txt");
+      std::ofstream filebdgv("ContourTreeGraph--NastyW-16-triang--branch-decomposition-prunedCT.txt");
 
       branchDecompostionRoot->PrintBranchDecomposition(filebdgv);
 
@@ -1074,7 +1085,9 @@ int main(int argc, char* argv[])
 //      std::ofstream file("ContourTreeGraph-13k-original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph-56M-original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--1024--original-fullCT-ColumnFormat.txt");
-    std::ofstream file("ContourTreeGraph--BPECT--original-fullCT-ColumnFormat.txt");
+//      std::ofstream file("ContourTreeGraph--NastyW-16--original-fullCT-ColumnFormat.txt");
+    std::ofstream file("ContourTreeGraph--NastyW-16-triang--original-fullCT-ColumnFormat.txt");
+
 
     if (file.is_open()) {
         ctaug_ns::PrintEdgePairArrayColumnLayout(saddlePeak, file);
@@ -1098,7 +1111,9 @@ int main(int argc, char* argv[])
 //    std::ofstream filegv("ContourTreeGraph-13k-original-fullCT.gv");
 //    std::ofstream filegv("ContourTreeGraph-56M-original-fullCT.gv");
 //    std::ofstream filegv("ContourTreeGraph--1024--original-fullCT.gv");
-    std::ofstream filegv("ContourTreeGraph--BPECT--original-fullCT.gv");
+//    std::ofstream filegv("ContourTreeGraph--NastyW-16--original-fullCT.gv");
+    std::ofstream filegv("ContourTreeGraph--NastyW-16-triang--original-fullCT.gv");
+
 
     filter.GetContourTree().PrintDotSuperStructure(filegv);
 
