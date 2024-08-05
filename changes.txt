@@ -1,0 +1,65 @@
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   ../../../.gitignore
+	modified:   ../ContourTreeApp.cxx
+	new file:   5b.txt
+	new file:   CMakeCache.txt
+	new file:   CMakeFiles/3.22.1/CMakeCCompiler.cmake
+	new file:   CMakeFiles/3.22.1/CMakeCXXCompiler.cmake
+	new file:   CMakeFiles/3.22.1/CMakeDetermineCompilerABI_C.bin
+	new file:   CMakeFiles/3.22.1/CMakeDetermineCompilerABI_CXX.bin
+	new file:   CMakeFiles/3.22.1/CMakeSystem.cmake
+	new file:   CMakeFiles/3.22.1/CompilerIdC/CMakeCCompilerId.c
+	new file:   CMakeFiles/3.22.1/CompilerIdC/a.out
+	new file:   CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.cpp
+	new file:   CMakeFiles/3.22.1/CompilerIdCXX/a.out
+	new file:   CMakeFiles/CMakeDirectoryInformation.cmake
+	new file:   CMakeFiles/CMakeOutput.log
+	new file:   CMakeFiles/ContourTree_Augmented.dir/ContourTreeApp.cxx.o
+	new file:   CMakeFiles/ContourTree_Augmented.dir/ContourTreeApp.cxx.o.d
+	new file:   CMakeFiles/ContourTree_Augmented.dir/DependInfo.cmake
+	new file:   CMakeFiles/ContourTree_Augmented.dir/build.make
+	new file:   CMakeFiles/ContourTree_Augmented.dir/cmake_clean.cmake
+	new file:   CMakeFiles/ContourTree_Augmented.dir/compiler_depend.internal
+	new file:   CMakeFiles/ContourTree_Augmented.dir/compiler_depend.make
+	new file:   CMakeFiles/ContourTree_Augmented.dir/compiler_depend.ts
+	new file:   CMakeFiles/ContourTree_Augmented.dir/depend.make
+	new file:   CMakeFiles/ContourTree_Augmented.dir/flags.make
+	new file:   CMakeFiles/ContourTree_Augmented.dir/link.txt
+	new file:   CMakeFiles/ContourTree_Augmented.dir/progress.make
+	new file:   CMakeFiles/Makefile.cmake
+	new file:   CMakeFiles/Makefile2
+	new file:   CMakeFiles/TargetDirectories.txt
+	new file:   CMakeFiles/cmake.check_cache
+	new file:   CMakeFiles/progress.marks
+	new file:   ContourTreeGraph--BPECT--original-fullCT-ColumnFormat.txt
+	new file:   ContourTreeGraph--BPECT--original-fullCT.gv
+	new file:   ContourTree_Augmented
+	new file:   Makefile
+	new file:   cmake_install.cmake
+	new file:   doubleASCII-conn.txt
+	new file:   doubleASCII-offs.txt
+	new file:   install_manifest.txt
+	new file:   ../cmake-instructions.txt
+	modified:   ../../../vtkm/cont/Invoker.h
+	modified:   ../../../vtkm/cont/Logging.h
+	modified:   ../../../vtkm/filter/scalar_topology/ContourTreeUniformAugmented.cxx
+	modified:   ../../../vtkm/filter/scalar_topology/ContourTreeUniformAugmented.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/ContourTreeUniformAugmented.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/ActiveGraph.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/ContourTree.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/MeshExtrema.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/ProcessContourTree.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/activegraph/InitializeActiveEdges.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/activegraph/SetArcsSlideVertices.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/CMakeLists.txt
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/MeshStructureContourTreeMesh.h
+	new file:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/MeshStructureTopologyGraph.h
+	new file:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/TopologyGraph.h
+	modified:   ../../../vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/Branch.h
+	modified:   ../../../vtkm/internal/ArrayPortalBasic.h
+	modified:   ../../../vtkm/internal/CMakeLists.txt
+	modified:   ../../../vtkm/io/VTKDataSetReaderBase.cxx
+	modified:   ../../../vtkm/io/VTKPolyDataReader.cxx
+

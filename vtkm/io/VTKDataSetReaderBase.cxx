@@ -94,45 +94,76 @@ void VTKDataSetReaderBase::ReadPoints()
 {
   std::string dataType;
   std::size_t numPoints;
-  this->DataFile->Stream >> numPoints >> dataType >> std::ws;
 
+  auto read_pos = this->DataFile->Stream.tellg();
+  std::cout << "VTKDataSetReaderBase::ReadPoints() -> current pos:" << read_pos << "\n";
+
+  this->DataFile->Stream >> numPoints >> dataType >> std::ws;
+  std::cout << "VTKDataSetReaderBase::ReadPoints() -> numPoints >> dataType [" << numPoints << ", " << dataType << "\n";
+
+  read_pos = this->DataFile->Stream.tellg();
+  std::cout << "VTKDataSetReaderBase::ReadPoints() -> current pos:" << read_pos << "\n";
+  std::cout << "num Points: " << numPoints << "\n";
   vtkm::cont::UnknownArrayHandle points =
     this->DoReadArrayVariant(vtkm::cont::Field::Association::Points, dataType, numPoints, 3);
-
+  std::cout << "num Points: " << numPoints << "\n";
   this->DataSet.AddCoordinateSystem(vtkm::cont::CoordinateSystem("coordinates", points));
+
+//  std::cout << "VTKDataSetReaderBase::ReadPoints() -> before current pos:" << read_pos << "\n";
+//  this->DataFile->Stream.seekg(-static_cast<std::streamoff>(4), std::ios_base::cur);
+//  auto after_read_pos = this->DataFile->Stream.tellg();
+//  this->DataFile->Stream >> dataType;
+//  std::cout << "VTKDataSetReaderBase::ReadPoints() -> current pos-4:" << after_read_pos  << "\n";
+
+  // set and skip file pointer position manually because for some reason it gets set to file end here:
+  this->DataFile->Stream.seekg(read_pos, std::ios_base::beg);
+
+  float position;
+  for(size_t i = 0; i < numPoints*3; i++)
+  {// skip the numbers that were read off to the data array ...
+      this->DataFile->Stream >> position;
+  }
+
+  read_pos = this->DataFile->Stream.tellg();
+  std::cout << "VTKDataSetReaderBase::ReadPoints() -> current pos AFTER SET:" << read_pos << "\n";
 }
 
 void VTKDataSetReaderBase::ReadCells(vtkm::cont::ArrayHandle<vtkm::Id>& connectivity,
                                      vtkm::cont::ArrayHandle<vtkm::IdComponent>& numIndices)
 {
-  if (this->DataFile->Version[0] < 5)
-  {
-    vtkm::Id numCells, numInts;
-    this->DataFile->Stream >> numCells >> numInts >> std::ws;
+  std::cout << "vtkm/io/VTKDataSetReaderBase.cxx : VTK Legacy File version:" << this->DataFile->Version[0] << "\n";
+//  if (this->DataFile->Version[0] < 5)
+//  {
+//    std::cout << "vtkm/io/VTKDataSetReaderBase.cxx : VTK Legacy File version < 5\n";
+//    vtkm::Id numCells, numInts;
+//    this->DataFile->Stream >> numCells >> numInts >> std::ws;
 
-    connectivity.Allocate(numInts - numCells);
-    numIndices.Allocate(numCells);
+//    connectivity.Allocate(numInts - numCells);
+//    numIndices.Allocate(numCells);
 
-    std::vector<vtkm::Int32> buffer(static_cast<std::size_t>(numInts));
-    this->ReadArray(buffer);
+//    std::vector<vtkm::Int32> buffer(static_cast<std::size_t>(numInts));
+//    this->ReadArray(buffer);
 
-    vtkm::Int32* buffp = buffer.data();
-    auto connectivityPortal = connectivity.WritePortal();
-    auto numIndicesPortal = numIndices.WritePortal();
-    for (vtkm::Id i = 0, connInd = 0; i < numCells; ++i)
-    {
-      vtkm::IdComponent numInds = static_cast<vtkm::IdComponent>(*buffp++);
-      numIndicesPortal.Set(i, numInds);
-      for (vtkm::IdComponent j = 0; j < numInds; ++j, ++connInd)
-      {
-        connectivityPortal.Set(connInd, static_cast<vtkm::Id>(*buffp++));
-      }
-    }
-  }
-  else
-  {
+//    vtkm::Int32* buffp = buffer.data();
+//    auto connectivityPortal = connectivity.WritePortal();
+//    auto numIndicesPortal = numIndices.WritePortal();
+//    for (vtkm::Id i = 0, connInd = 0; i < numCells; ++i)
+//    {
+//      vtkm::IdComponent numInds = static_cast<vtkm::IdComponent>(*buffp++);
+//      numIndicesPortal.Set(i, numInds);
+//      for (vtkm::IdComponent j = 0; j < numInds; ++j, ++connInd)
+//      {
+//        connectivityPortal.Set(connInd, static_cast<vtkm::Id>(*buffp++));
+//      }
+//    }
+//  }
+//  else
+//  {
+    std::cout << "vtkm/io/VTKDataSetReaderBase.cxx : VTK Legacy File version > 5 | CONNECTIVITY / OFFSETS expected.\n";
     vtkm::Id offsetsSize, connSize;
+//    internal::parseAssert(tag == "LINES");
     this->DataFile->Stream >> offsetsSize >> connSize >> std::ws;
+    std::cout << "vtkm/io/VTKDataSetReaderBase.cxx : off, conn : " << offsetsSize << ", " << connSize << "\n";
 
     std::string tag, dataType;
     this->DataFile->Stream >> tag >> dataType >> std::ws;
@@ -159,7 +190,7 @@ void VTKDataSetReaderBase::ReadCells(vtkm::cont::ArrayHandle<vtkm::Id>& connecti
     auto conn =
       this->DoReadArrayVariant(vtkm::cont::Field::Association::Any, dataType, connSize, 1);
     vtkm::cont::ArrayCopyShallowIfPossible(conn, connectivity);
-  }
+//  }
 }
 
 void VTKDataSetReaderBase::ReadShapes(vtkm::cont::ArrayHandle<vtkm::UInt8>& shapes)
@@ -539,7 +570,7 @@ protected:
   VTKDataSetReaderBase* Reader;
   std::size_t TotalSize;
 };
-
+//def ReadArrayVariant
 class VTKDataSetReaderBase::ReadArrayVariant : public SkipArrayVariant
 {
 public:
@@ -606,7 +637,7 @@ void VTKDataSetReaderBase::DoSkipArrayVariant(std::string dataType,
                                           SkipArrayVariant(this, numElements, numComponents));
   }
 }
-
+// def DoReadArrayVariant
 vtkm::cont::UnknownArrayHandle VTKDataSetReaderBase::DoReadArrayVariant(
   vtkm::cont::Field::Association association,
   std::string dataType,
@@ -634,7 +665,7 @@ vtkm::cont::UnknownArrayHandle VTKDataSetReaderBase::DoReadArrayVariant(
 
   return data;
 }
-
+//def ReadArray
 void VTKDataSetReaderBase::ReadArray(std::vector<vtkm::io::internal::DummyBitType>& buffer)
 {
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn,

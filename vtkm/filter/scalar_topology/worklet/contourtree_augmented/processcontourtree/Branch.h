@@ -314,23 +314,44 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 
 
 template <typename T>
+// print the graph in python dict format:
 void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_type indent) const
 { // PrintBranchDecomposition()
   os << std::string(indent, ' ') << "{" << std::endl;
-  os << std::string(indent, ' ') << "  Saddle = " << SaddleVal << " (" << Saddle << ")"
+  os << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
      << std::endl;
-  os << std::string(indent, ' ') << "  Extremum = " << ExtremumVal << " (" << Extremum << ")"
+  os << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
      << std::endl;
-  os << std::string(indent, ' ') << "  Volume = " << Volume << std::endl;
+  os << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
   if (!Children.empty())
   {
-    os << std::string(indent, ' ') << "  Children = [" << std::endl;
+    os << std::string(indent, ' ') << "  'Children' : [" << std::endl;
     for (Branch<T>* c : Children)
       c->PrintBranchDecomposition(os, indent + 4);
-    os << std::string(indent, ' ') << std::string(indent, ' ') << "  ]" << std::endl;
+    os << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
   }
-  os << std::string(indent, ' ') << "}" << std::endl;
+  os << std::string(indent, ' ') << "}," << std::endl;
 } // PrintBranchDecomposition()
+
+// OLD FORMAT
+//void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_type indent) const
+//{ // PrintBranchDecomposition()
+//  os << std::string(indent, ' ') << "{" << std::endl;
+//  os << std::string(indent, ' ') << "  Saddle = " << SaddleVal << " (" << Saddle << ")"
+//     << std::endl;
+//  os << std::string(indent, ' ') << "  Extremum = " << ExtremumVal << " (" << Extremum << ")"
+//     << std::endl;
+//  os << std::string(indent, ' ') << "  Volume = " << Volume << std::endl;
+//  if (!Children.empty())
+//  {
+//    os << std::string(indent, ' ') << "  Children = [" << std::endl;
+//    for (Branch<T>* c : Children)
+//      c->PrintBranchDecomposition(os, indent + 4);
+//    os << std::string(indent, ' ') << std::string(indent, ' ') << "  ]" << std::endl;
+//  }
+//  os << std::string(indent, ' ') << "}" << std::endl;
+//} // PrintBranchDecomposition()
+
 
 
 template <typename T>

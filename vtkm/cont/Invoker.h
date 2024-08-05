@@ -15,6 +15,8 @@
 
 #include <vtkm/cont/TryExecute.h>
 
+#define PACT_DEBUG 0
+
 namespace vtkm
 {
 namespace cont
@@ -47,6 +49,7 @@ struct Invoker
   explicit Invoker()
     : DeviceId(vtkm::cont::DeviceAdapterTagAny{})
   {
+        /// DEBUG PRINT std::cout << "ExplicitInvoker1\n";
   }
 
   /// Constructs an Invoker that will try to launch worklets only on the
@@ -55,6 +58,7 @@ struct Invoker
   explicit Invoker(vtkm::cont::DeviceAdapterId device)
     : DeviceId(device)
   {
+        /// DEBUG PRINT std::cout << "ExplicitInvoker2\n";
   }
 
   /// Launch the worklet that is provided as the first parameter.
@@ -69,7 +73,7 @@ struct Invoker
   {
     using WorkletType = vtkm::internal::remove_cvref<Worklet>;
     using DispatcherType = typename WorkletType::template Dispatcher<WorkletType>;
-
+    std::cout << "Invoker1\n";
     DispatcherType dispatcher(worklet, scatterOrMask);
     dispatcher.SetDevice(this->DeviceId);
     dispatcher.Invoke(std::forward<Args>(args)...);
@@ -94,7 +98,7 @@ struct Invoker
   {
     using WorkletType = vtkm::internal::remove_cvref<Worklet>;
     using DispatcherType = typename WorkletType::template Dispatcher<WorkletType>;
-
+    std::cout << "Invoker2\n";
     DispatcherType dispatcher(worklet, scatterOrMaskA, scatterOrMaskB);
     dispatcher.SetDevice(this->DeviceId);
     dispatcher.Invoke(std::forward<Args>(args)...);
@@ -110,12 +114,31 @@ struct Invoker
             typename std::enable_if<!detail::scatter_or_mask<T>::value, int>::type* = nullptr>
   inline void operator()(Worklet&& worklet, T&& t, Args&&... args) const
   {
+    #if PACT_DEBUG
+        printf("INVOKER() on: %s\n", __PRETTY_FUNCTION__);
+        std::cout << "Invoker3\n";
+    #endif
     using WorkletType = vtkm::internal::remove_cvref<Worklet>;
+    #if PACT_DEBUG
+    std::cout << "Invoker3.1\n";
+    #endif
     using DispatcherType = typename WorkletType::template Dispatcher<WorkletType>;
-
+    #if PACT_DEBUG
+    std::cout << "Invoker3.2\n";
+    #endif
     DispatcherType dispatcher(worklet);
+    #if PACT_DEBUG
+    std::cout << "Invoker3.3\n";
+    #endif
     dispatcher.SetDevice(this->DeviceId);
+    #if PACT_DEBUG
+    std::cout << "Invoker3.4\n";
+    #endif
     dispatcher.Invoke(std::forward<T>(t), std::forward<Args>(args)...);
+
+    #if PACT_DEBUG
+    std::cout << "Invoker3.5 - end\n";
+    #endif
   }
 
   /// Get the device adapter that this Invoker is bound too

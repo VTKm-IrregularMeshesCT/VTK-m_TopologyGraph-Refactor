@@ -56,6 +56,11 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/Types.h>
 #include <vtkm/worklet/WorkletMapField.h>
 
+#include <bitset>
+
+
+#define PACT_DEBUG 0
+
 namespace vtkm
 {
 namespace worklet
@@ -96,6 +101,9 @@ public:
                             const InFieldPortalType& treeSupernodesPortal,
                             const InOutFieldPortalType& treeSuperparentsPortal) const
   {
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 0 - nodeID: " << nodeID << "\n";
+    #endif
     // ignore if the flag is already set
     if (IsSupernode(treeArcsPortal.Get(nodeID)))
     {
@@ -104,24 +112,62 @@ public:
 
     // start at the "top" end, retrieved from initial extremal array
     vtkm::Id fromID = meshExtremaPortal.Get(nodeID);
+    std::bitset<64> fromID_bits(fromID);
+
+//    std::cout << "x=" << x << " y=" << y << " ";
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 1 - fromID: " << fromID << "/" << fromID_bits << "\n";
+    #endif
+
 
     // get the "bottom" end from arcs array (it's a peak, so it's set already)
     vtkm::Id toID = treeArcsPortal.Get(MaskedIndex(fromID));
+    std::bitset<64> toID_bits(toID);
 
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 2 - toID: " << toID << "/" << toID_bits << "\n";
+    #endif
+
+    unsigned it = 0;
     // loop to bottom or until to node is "below" this node
     while (!NoSuchElement(toID) &&
            (IsJoinGraph ? (MaskedIndex(toID) > MaskedIndex(nodeID))
                         : (MaskedIndex(toID) < MaskedIndex(nodeID))))
     { // sliding loop
       fromID = toID;
+      it++;
+      #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 3." << it << " - toID: " << fromID << "->" << toID << "\n";
+      #endif
+
       toID = treeArcsPortal.Get(MaskedIndex(fromID));
     } // sliding loop
+
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 4 - MaskedIndex(fromID): " << MaskedIndex(fromID) << "\n";
+    #endif
+
 
     // now we've found a hyperarc, we need to search to place ourselves on a superarc
     // it's a binary search!  first we get the hyperarc ID, which we've stored in superparents.
     vtkm::Id hyperID = treeSuperparentsPortal.Get(MaskedIndex(fromID));
+    std::bitset<64> hyperID_bits(hyperID);
+
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 5 - hyperID: " << hyperID << "/" << hyperID_bits << "\n";
+    #endif
+
     vtkm::Id leftSupernodeID = treeFirstSuperchildPortal.Get(hyperID);
+
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 6 - leftSupernodeID: " << leftSupernodeID << "\n";
+    #endif
+
     vtkm::Id leftNodeID = treeSupernodesPortal.Get(leftSupernodeID);
+
+    #if PACT_DEBUG
+        std::cout << "SetArcsSlideVertices - 7 - leftNodeID: " << leftNodeID << "\n";
+    #endif
 
     // the idea here is to compare the node ID against the node IDs for supernodes along the hyperarc
     // however, the "low" end - i.e. the end to which it is pruned, is not stored explicitly.

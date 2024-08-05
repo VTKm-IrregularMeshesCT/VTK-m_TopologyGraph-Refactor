@@ -1,0 +1,7 @@
+cmake -DVTKm_DIR=/home/sc17dd/local-installs/vtk-m-git-working-version/lib/cmake/vtkm-2.1 -DCMAKE_INSTALL_PREFIX=/home/sc17dd/local-installs/vtk-m-git-working-version ../
+
+make -j12
+make -j12 install
+
+running:
+./CContourTree_Augmented --vtkm-device=Serial --printCT 5x5.txt

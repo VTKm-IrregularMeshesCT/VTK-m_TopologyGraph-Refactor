@@ -213,7 +213,10 @@ public:
   }
 
   // Public fields
-  static const int MAX_OUTDEGREE = 20;
+  // WARNING! WARNING! WARNING!
+  // MAX_OUTDEGREE WAS SET TO 20
+  // ... NO LONGER THE CASE FOR TOPOLOGY GRAPHS!!!
+  static const int MAX_OUTDEGREE = 150;// 20;
 
   vtkm::Id NumVertices;
   vtkm::cont::ArrayHandleIndex SortOrder;
@@ -390,10 +393,10 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   std::cout << "{ContourTreeMesh.h : Constructor 0\n";
   std::cout << " ... +nodes, arcs, inSortOrder, values, inGlobalMeshIndex}\n";
 
-  PrintIndices("inputNeighborConnectivity", inNborConnectivity, -1, std::cout);
-  PrintIndices("NeighborConnectivity", this->NeighborConnectivity, -1, std::cout);
-  PrintIndices("inputNeighborOffsets", inNborOffsets, -1, std::cout);
-  PrintIndices("NeighborOffsets", this->NeighborOffsets, -1, std::cout);
+  /// DEBUG PRINT PrintIndices("inputNeighborConnectivity", inNborConnectivity, -1, std::cout);
+  /// DEBUG PRINT PrintIndices("NeighborConnectivity", this->NeighborConnectivity, -1, std::cout);
+  /// DEBUG PRINT PrintIndices("inputNeighborOffsets", inNborOffsets, -1, std::cout);
+  /// DEBUG PRINT PrintIndices("NeighborOffsets", this->NeighborOffsets, -1, std::cout);
 
   // Initialize the SortedValues array with values permuted by the SortOrder permuted by the nodes, i.e.,
   // this->SortedValues[v] = values[inSortOrder[nodes[v]]];

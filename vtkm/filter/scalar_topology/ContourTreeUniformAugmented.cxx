@@ -116,7 +116,7 @@ vtkm::Id ContourTreeAugmented::GetNumIterations() const
 //-----------------------------------------------------------------------------
 vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& input)
 {
-  std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute()\n";
+  /// DEBUG PRINT std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute()\n";
   vtkm::cont::Timer timer;
   timer.Start();
 
@@ -214,7 +214,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
              std::endl
                << "    " << std::setw(38) << std::left << "Contour Tree Filter DoExecute"
                << ": " << timer.GetElapsedTime() << " seconds");
-  std::cout << "sc_tp/ContourTreeUniformAugmented.cxx : ContourTreeAugmented::DoExecute() finished}\n";
+  /// DEBUG PRINT std::cout << "sc_tp/ContourTreeUniformAugmented.cxx : ContourTreeAugmented::DoExecute() finished}\n";
   return result;
 } // ContourTreeAugmented::DoExecute
 

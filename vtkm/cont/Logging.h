@@ -197,6 +197,12 @@
 #define VTKM_ANONYMOUS_VARIABLE VTKM_CONCAT(vtk_m_anonymous_, __LINE__)
 #endif
 
+#define VTKM_LOG_IF_S(level, cond, ...) \
+  vtkm::cont::LogCondStream(level, cond, __FILE__, __LINE__) << __VA_ARGS__
+
+#define VTKM_LOG_IF_F(level, cond, ...) \
+  vtkm::cont::LogCond(level, cond, __FILE__, __LINE__, __VA_ARGS__)
+
 #if defined(VTKM_ENABLE_LOGGING)
 
 #define VTKM_LOG_IF_S(level, cond, ...) \

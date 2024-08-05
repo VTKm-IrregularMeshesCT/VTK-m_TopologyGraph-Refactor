@@ -122,6 +122,7 @@ public:
   VTKM_EXEC
   inline vtkm::Id GetNeighbourIndex(vtkm::Id sortIndex, vtkm::Id neighborNo) const
   { // GetNeighbourIndex
+    std::cout << "(s" << sortIndex << "ns" << NeighborOffsetsPortal.Get(sortIndex) << "nghn" << neighborNo << " ) ";
     return NeighborConnectivityPortal.Get(NeighborOffsetsPortal.Get(sortIndex) + neighborNo);
   } // GetNeighbourIndex
 

@@ -39,7 +39,7 @@ elseif(TARGET vtkm_kokkos_hip)
   set(VTKM_KOKKOS_HIP ON)
 endif()
 
-set(VTKM_ENABLE_LOGGING ${VTKm_ENABLE_LOGGING})
+set(VTKM_ENABLE_LOGGING 1) #${VTKm_ENABLE_LOGGING}) LOGGING PRINTING MESSAGES ENABLE CMAKE HERE
 
 vtkm_get_kit_name(kit_name kit_dir)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Configure.h.in

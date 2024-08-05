@@ -79,15 +79,24 @@ void VTKPolyDataReader::Read()
   this->ReadPoints();
 
   vtkm::Id numPoints = this->DataSet.GetNumberOfPoints();
+  std::cout << "vtkm/io/VTKPolyDataReader.cxx : Number of Points:" << numPoints << "\n";
 
   // Read the cellset
   std::vector<vtkm::cont::ArrayHandle<vtkm::Id>> connectivityArrays;
   std::vector<vtkm::cont::ArrayHandle<vtkm::IdComponent>> numIndicesArrays;
   std::vector<vtkm::UInt8> shapesBuffer;
+
+  this->DataFile->Stream >> tag;
+  std::cout << "vtkm/io/VTKPolyDataReader.cxx : Where are we in the file?:" << tag << "\n";
+
   while (!this->DataFile->Stream.eof())
   {
+    std::cout << "vtkm/io/VTKPolyDataReader.cxx : Inside while.\n";
     vtkm::UInt8 shape = vtkm::CELL_SHAPE_EMPTY;
     this->DataFile->Stream >> tag;
+
+    std::cout << "vtkm/io/VTKPolyDataReader.cxx : Got tag:" << tag << "\n";
+
     if (tag == "VERTICES")
     {
       shape = vtkm::io::internal::CELL_SHAPE_POLY_VERTEX;
@@ -119,6 +128,18 @@ void VTKPolyDataReader::Read()
     shapesBuffer.insert(
       shapesBuffer.end(), static_cast<std::size_t>(cellNumIndices.GetNumberOfValues()), shape);
   }
+
+  this->DataFile->Stream.seekg(-static_cast<std::streamoff>(tag.length()), std::ios_base::cur);
+  vtkm::UInt8 shape = vtkm::io::internal::CELL_SHAPE_POLY_LINE;
+
+  vtkm::cont::ArrayHandle<vtkm::Id> cellConnectivity;
+  vtkm::cont::ArrayHandle<vtkm::IdComponent> cellNumIndices;
+  this->ReadCells(cellConnectivity, cellNumIndices);
+
+  connectivityArrays.push_back(cellConnectivity);
+  numIndicesArrays.push_back(cellNumIndices);
+  shapesBuffer.insert(
+    shapesBuffer.end(), static_cast<std::size_t>(cellNumIndices.GetNumberOfValues()), shape);
 
   vtkm::cont::ArrayHandle<vtkm::Id> connectivity = ConcatinateArrayHandles(connectivityArrays);
   vtkm::cont::ArrayHandle<vtkm::IdComponent> numIndices = ConcatinateArrayHandles(numIndicesArrays);

@@ -154,7 +154,7 @@ private:
   ///@}
 
   /// Use marching cubes connectivity for computing the contour tree
-  bool UseMarchingCubes;
+  bool UseMarchingCubes = true;
   // 0=no augmentation, 1=full augmentation, 2=boundary augmentation
   unsigned int ComputeRegularStructure;
 

@@ -173,8 +173,12 @@ public:
 
   // print routines
   inline void PrintDotSuperStructure() const;
+  inline void PrintDotSuperStructure(std::ostream& outStream = std::cout) const;
   inline std::string PrintHyperStructureStatistics(bool print = true) const;
   inline std::string PrintArraySizes() const;
+
+//  template<class Mesh>
+//  inline void PrintDotSuperStructure(const char *treeName, Mesh &mesh, IdArrayType *necessaryFlagVector = NULL);
 
 }; // class ContourTree
 
@@ -227,6 +231,161 @@ inline void ContourTree::PrintContent(std::ostream& outStream /*= std::cout*/) c
   PrintIndices("First HN Per Iter", this->FirstHypernodePerIteration, -1, outStream);
 }
 
+
+
+
+
+
+
+
+
+
+////template<class Mesh> void PrintDotSuperStructure(const char *treeName, Mesh &mesh, indexVector *necessaryFlagVector = NULL)
+//template<class Mesh>
+//inline void ContourTree::PrintDotSuperStructure(const char *treeName, Mesh &mesh, IdArrayType *necessaryFlagVector = NULL)
+//{ // PrintDotSuperStructure()
+//    // make a copy of the label
+//    //std::string filename("temp/");
+//    std::string filename("/home/sc17dd/modules/HCTC2024/VTK-m-topology/VTK-m_TopologyGraph/examples/contour_tree_augmented/build/hh_experiments/dot/");
+//    filename += treeName;
+
+//    printf("DOT PRINTING!\n");
+
+//    // replace spaces with underscores
+//    for (int strChar = 0; strChar < filename.length(); strChar++)
+//        if (filename[strChar] == ' ')
+//            filename[strChar] = '_';
+
+//    // add the .gv suffix
+//    filename += ".gv";
+
+//    // generate an output stream
+//    std::ofstream outstream(filename);
+
+//    // print the header information
+//    outstream << "digraph SuperTree\n\t{\n";
+//    outstream << "\tsize=\"6.5, 9\"\n\tratio=\"fill\"\n";
+////    outstream << boost::format("\tlabel=\"%s\"\n\tlabelloc=t\n\tfontsize=30\n") % treeName;
+//    outstream << "\tlabel=\"" << treeName << "\"\n\tlabelloc=t\n\tfontsize=30\n";
+
+
+//    const auto supernodesPortal = this->Supernodes.ReadPortal();
+
+//    // colour the nodes by the iteration they transfer (mod # of colors) - paired iterations have similar colors RGBCMY
+////    for (vtkm::Id supernode = 0; supernode < supernodes.size(); supernode++)
+//    for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+//        { // per supernode
+//        vtkm::Id iteration = MaskedIndex(WhenTransferred[supernode]);
+
+//        // convert ID to regular mesh ID
+//        vtkm::Id fromGlobal = mesh.GetGlobalIDFromSortIndex(supernodesPortal.Get(supernode));
+////        vtkm::Id fromGlobal = mesh.GetGlobalIDFromSortIndex(supernodes[supernode]);
+
+//        // retrieve the values
+//        dataType fromValue = mesh.DataValue(mesh.SortOrder(supernodesPortal.Get(supernode)));
+////        dataType fromValue = mesh.DataValue(mesh.SortOrder(supernodes[supernode]));
+
+
+//        // print the vertex
+////        outstream << boost::format("\ts%llu [label=\"s%4d\\ng%4d\\nv%4d\",style=filled,fillcolor=%s];\n") %
+////             fromGlobal % supernode % fromGlobal % (long) fromValue % nodeColors[
+////    // 				 	(necessaryFlagVector != NULL) 			?
+////    // 				 		(*necessaryFlagVector)[supernode] 	:		// if there is a non-null flag vector, use the first two colors for F/T
+////                    iteration%N_NODE_COLORS	]; 					// otherwise use the iteration
+
+////        outstream << boost::format("\ts%llu [label=\"s%4d\\ng%4d\\nv%4d\",style=filled,fillcolor=%s];\n") %
+////             fromGlobal % supernode % fromGlobal % (long) fromValue % nodeColors[iteration%N_NODE_COLORS]; // otherwise use the iteration
+
+//        outstream << "\ts" << fromGlobal << " [label=\"s" << std::setw(4) << std::setfill(' ') << supernode <<
+//            "\\ng" << std::setw(4) << std::setfill(' ') << fromGlobal % 10000 << // Assuming you want to display last 4 digits of fromGlobal, adjust as needed
+//            "\\nv" << std::setw(4) << std::setfill(' ') << (long)fromValue <<
+//            "\",style=filled,fillcolor=" << nodeColors[iteration % N_NODE_COLORS] << "];\n";
+
+//        } // per supernode
+
+//    // loop through supernodes
+//    const auto superarcsPortal = this->Superarcs.ReadPortal();
+
+////    for (vtkm::Id supernode = 0; supernode < supernodes.size(); supernode++)
+//    for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+//        { // per supernode
+//        // skip the global root
+////        if (noSuchElement(superarcs[supernode]))
+//          if (noSuchElement(superarcsPortal.Get(supernode)))
+//            continue;
+
+////        if (isAscending(superarcs[supernode]))
+////            outstream << boost::format("\ts%llu -> s%llu[dir=back,label=\"S%1lu -> S%1lu\"]\n")
+////                % mesh.GetGlobalIDFromSortIndex(supernodes[MaskedIndex(superarcs[supernode])])
+////                % mesh.GetGlobalIDFromSortIndex(supernodes[supernode])
+////                % supernode % MaskedIndex(superarcs[supernode]);
+////        else
+////            outstream << boost::format("\ts%llu -> s%llu[label=\"S%1lu -> S%1lu\"]\n")
+////                % mesh.GetGlobalIDFromSortIndex(supernodes[supernode])
+////                % mesh.GetGlobalIDFromSortIndex(supernodes[MaskedIndex(superarcs[supernode])])
+////                % supernode % MaskedIndex(superarcs[supernode]);
+
+//        if (isAscending(superarcsPortal.Get(supernode)) // superarcs[supernode]))
+//        {
+////            outstream << "\ts" << mesh.GetGlobalIDFromSortIndex(supernodes[MaskedIndex(superarcs[supernode])])
+////               << " -> s" << mesh.GetGlobalIDFromSortIndex(supernodes[supernode])
+////               << "[dir=back,label=\"S" << supernode << " -> S" << MaskedIndex(superarcs[supernode]) << "\"]\n";
+
+//            outstream << "\ts" << mesh.GetGlobalIDFromSortIndex(supernodesPortal.Get(MaskedIndex(superarcs[supernode])))
+//               << " -> s" << mesh.GetGlobalIDFromSortIndex(supernodesPortal(supernode))
+//               << "[dir=back,label=\"S" << supernode << " -> S" << MaskedIndex(superarcsPortal(supernode)) << "\"]\n";
+//        }
+//        else
+//        {
+////            outstream << "\ts" << mesh.GetGlobalIDFromSortIndex(supernodes[supernode])
+////                   << " -> s" << mesh.GetGlobalIDFromSortIndex(supernodes[MaskedIndex(superarcs[supernode])])
+////                   << "[label=\"S" << supernode << " -> S" << MaskedIndex(superarcs[supernode]) << "\"]\n";
+
+//            outstream << "\ts" << mesh.GetGlobalIDFromSortIndex(supernodesPortal.Get(supernode))
+//               << " -> s" << mesh.GetGlobalIDFromSortIndex(supernodesPortal.Get(MaskedIndex(superarcs[supernode])))
+//               << "[label=\"S" << supernode << " -> S" << MaskedIndex(superarcsPortal.Get(supernode)) << "\"]\n";
+//        }
+
+
+
+
+
+
+
+//        } // per supernode
+
+//    // now loop through hypernodes to show hyperarcs
+//    // 		for (vtkm::Id hypernode = 0; hypernode < hypernodes.size(); hypernode++)
+//    // 			{ // per hypernode
+//    // 			// skip the global root
+//    // 			if (noSuchElement(hyperarcs[hypernode]))
+//    // 				continue;
+//    //
+//    // 			outstream << boost::format("\ts%llu -> s%llu [constraint=false][penwidth=5.0][label=\"H%llu\\nW%llu\"]\n") %
+//    // 				mesh.GetGlobalIDFromSortIndex(supernodes[hypernodes[hypernode]]) % mesh.GetGlobalIDFromSortIndex(supernodes[MaskedIndex(hyperarcs[hypernode])]) %
+//    // 				hypernode % MaskedIndex(whenTransferred[hypernodes[hypernode]]);
+//    // 			} // per hypernode
+//    //
+//    // 	// now add the hyperparents
+//    // 	for (vtkm::Id supernode = 0; supernode < supernodes.size(); supernode++)
+//    // 		{ // per supernode
+//    // 		printf("\ts%llu -> s%llu [constraint=false][style=dotted]\n", supernodes[supernode], supernodes[hypernodes[hyperparents[supernode]]]);
+//    // 		} // per supernode
+//    //
+
+//    // print the footer information
+//    outstream << "\t}\n";
+//} // PrintDotSuperStructure()
+
+
+
+
+
+
+
+
+
+
 inline std::string ContourTree::DebugPrint(const char* message,
                                            const char* fileName,
                                            long lineNum) const
@@ -247,6 +406,122 @@ inline std::string ContourTree::DebugPrint(const char* message,
 
 } // DebugPrint()
 
+
+inline void ContourTree::PrintDotSuperStructure(std::ostream& outStream) const
+{ // PrintDotSuperStructure()
+  // print the header information
+  outStream << "digraph G\n\t{\n";
+  outStream << "\tsize=\"6.5, 9\"\n\tratio=\"fill\"\n";
+
+  // We use regular ReadPortal here since we need access to most values on the host anyways
+  auto whenTransferredPortal = this->WhenTransferred.ReadPortal();
+  auto supernodesPortal = this->Supernodes.ReadPortal();
+  auto superarcsPortal = this->Superarcs.ReadPortal();
+  auto hypernodesPortal = this->Hypernodes.ReadPortal();
+  auto hyperparentsPortal = this->Hyperparents.ReadPortal();
+  auto hyperarcsPortal = this->Hyperarcs.ReadPortal();
+
+  // colour the nodes by the iteration they transfer (mod # of colors) - paired iterations have similar colors RGBCMY
+  for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+  { // per supernode
+    vtkm::Id iteration = MaskedIndex(whenTransferredPortal.Get(supernode));
+//    printf("\tnode s%lli [style=filled,fillcolor=%s]\n",
+//           static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//           NODE_COLORS[iteration % N_NODE_COLORS]);
+
+    outStream << "\ts" << static_cast<vtkm::Int64>(supernodesPortal.Get(supernode))
+              << "[style=filled,fillcolor=" << NODE_COLORS[iteration % N_NODE_COLORS] << "]\n";
+
+//    std::cout << "\ts" << fromGlobal << " [label=\"s" << std::setw(4) << std::setfill(' ') << supernode <<
+//        "\\ng" << std::setw(4) << std::setfill(' ') << fromGlobal % 10000 << // Assuming you want to display last 4 digits of fromGlobal, adjust as needed
+//        "\\nv" << std::setw(4) << std::setfill(' ') << (long)fromValue <<
+//        "\",style=filled,fillcolor=white];"; // << nodeColors[iteration % N_NODE_COLORS] << "];\n";
+////        "\",style=filled,fillcolor=" << nodeColors[iteration % N_NODE_COLORS] << "];\n";
+
+  } // per supernode
+
+  // loop through supernodes
+  for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+  { // per supernode
+    // skip the global root
+    if (NoSuchElement(superarcsPortal.Get(supernode)))
+      continue;
+
+    if (IsAscending(superarcsPortal.Get(supernode)))
+    {
+//        printf(
+        outStream << "\ts" << static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))))
+                  << " -> " << "s" << static_cast<vtkm::Int64>(supernodesPortal.Get(supernode))
+                  << "[label=S" << static_cast<vtkm::Int64>(supernode) << ",dir=back]\n";
+
+//      printf(
+//        "\tedge s%lli -> s%lli[label=S%lli,dir=back]\n",
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//        static_cast<vtkm::Int64>(supernode));
+    }
+    else
+    {
+      outStream << "\ts" << static_cast<vtkm::Int64>(supernodesPortal.Get(supernode))
+                << " -> " << "s" << static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))))
+                << "[label=S" << static_cast<vtkm::Int64>(supernode) << "]\n";
+
+//      printf(
+//        "\tedge s%lli -> s%lli[label=S%lli]\n",
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+//        static_cast<vtkm::Int64>(supernode));
+    }
+  } // per supernode
+
+
+//  // Actually skip the hypernodes now ...
+//  // ... just do supernodes is fine
+//  // now loop through hypernodes to show hyperarcs
+//  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
+//  { // per hypernode
+//    // skip the global root
+//    if (NoSuchElement(hyperarcsPortal.Get(hypernode)))
+//      continue;
+
+//    printf(
+//      "\ts%lli -> s%lli [constraint=false][width=5.0][label=\"H%lli\\nW%lli\"]\n",
+//      static_cast<vtkm::Int64>(supernodesPortal.Get(hypernodesPortal.Get(hypernode))),
+//      static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(hyperarcsPortal.Get(hypernode)))),
+//      static_cast<vtkm::Int64>(hypernode),
+//      static_cast<vtkm::Int64>(
+//        MaskedIndex(whenTransferredPortal.Get(hypernodesPortal.Get(hypernode)))));
+//  } // per hypernode
+
+//  // now add the hyperparents
+//  for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+//  { // per supernode
+//    printf("\ts%lli -> s%lli [constraint=false][style=dotted]\n",
+//           static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//           static_cast<vtkm::Int64>(
+//             supernodesPortal.Get(hypernodesPortal.Get(hyperparentsPortal.Get(supernode)))));
+//  } // per supernode
+
+//  // now use the hyperstructure to define subgraphs
+//  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
+//  { // per hypernode
+//    vtkm::Id firstChild = hypernodesPortal.Get(hypernode);
+//    vtkm::Id childSentinel = (hypernode == this->Hypernodes.GetNumberOfValues() - 1)
+//      ? this->Supernodes.GetNumberOfValues()
+//      : hypernodesPortal.Get(hypernode + 1);
+//    printf("\tsubgraph H%lli{ ", static_cast<vtkm::Int64>(hypernode));
+//    for (vtkm::Id supernode = firstChild; supernode < childSentinel; supernode++)
+//    {
+//      printf("s%lli ", static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)));
+//    }
+//    printf("}\n");
+//  } // per hypernode
+
+  // print the footer information
+  outStream << "\t}\n";
+} // PrintDotSuperStructure()
+
+
 inline void ContourTree::PrintDotSuperStructure() const
 { // PrintDotSuperStructure()
   // print the header information
@@ -265,9 +540,20 @@ inline void ContourTree::PrintDotSuperStructure() const
   for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
   { // per supernode
     vtkm::Id iteration = MaskedIndex(whenTransferredPortal.Get(supernode));
-    printf("\tnode s%lli [style=filled,fillcolor=%s]\n",
+//    printf("\tnode s%lli [style=filled,fillcolor=%s]\n",
+//           static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//           NODE_COLORS[iteration % N_NODE_COLORS]);
+
+    printf("\ts%lli [style=filled,fillcolor=%s]\n",
            static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
            NODE_COLORS[iteration % N_NODE_COLORS]);
+
+//    std::cout << "\ts" << fromGlobal << " [label=\"s" << std::setw(4) << std::setfill(' ') << supernode <<
+//        "\\ng" << std::setw(4) << std::setfill(' ') << fromGlobal % 10000 << // Assuming you want to display last 4 digits of fromGlobal, adjust as needed
+//        "\\nv" << std::setw(4) << std::setfill(' ') << (long)fromValue <<
+//        "\",style=filled,fillcolor=white];"; // << nodeColors[iteration % N_NODE_COLORS] << "];\n";
+////        "\",style=filled,fillcolor=" << nodeColors[iteration % N_NODE_COLORS] << "];\n";
+
   } // per supernode
 
   // loop through supernodes
@@ -278,58 +564,77 @@ inline void ContourTree::PrintDotSuperStructure() const
       continue;
 
     if (IsAscending(superarcsPortal.Get(supernode)))
-      printf(
-        "\tedge s%lli -> s%lli[label=S%lli,dir=back]\n",
-        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
-        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
-        static_cast<vtkm::Int64>(supernode));
-    else
-      printf(
-        "\tedge s%lli -> s%lli[label=S%lli]\n",
-        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
-        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
-        static_cast<vtkm::Int64>(supernode));
-  } // per supernode
-
-  // now loop through hypernodes to show hyperarcs
-  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
-  { // per hypernode
-    // skip the global root
-    if (NoSuchElement(hyperarcsPortal.Get(hypernode)))
-      continue;
-
-    printf(
-      "\ts%lli -> s%lli [constraint=false][width=5.0][label=\"H%lli\\nW%lli\"]\n",
-      static_cast<vtkm::Int64>(supernodesPortal.Get(hypernodesPortal.Get(hypernode))),
-      static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(hyperarcsPortal.Get(hypernode)))),
-      static_cast<vtkm::Int64>(hypernode),
-      static_cast<vtkm::Int64>(
-        MaskedIndex(whenTransferredPortal.Get(hypernodesPortal.Get(hypernode)))));
-  } // per hypernode
-
-  // now add the hyperparents
-  for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
-  { // per supernode
-    printf("\ts%lli -> s%lli [constraint=false][style=dotted]\n",
-           static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
-           static_cast<vtkm::Int64>(
-             supernodesPortal.Get(hypernodesPortal.Get(hyperparentsPortal.Get(supernode)))));
-  } // per supernode
-
-  // now use the hyperstructure to define subgraphs
-  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
-  { // per hypernode
-    vtkm::Id firstChild = hypernodesPortal.Get(hypernode);
-    vtkm::Id childSentinel = (hypernode == this->Hypernodes.GetNumberOfValues() - 1)
-      ? this->Supernodes.GetNumberOfValues()
-      : hypernodesPortal.Get(hypernode + 1);
-    printf("\tsubgraph H%lli{ ", static_cast<vtkm::Int64>(hypernode));
-    for (vtkm::Id supernode = firstChild; supernode < childSentinel; supernode++)
     {
-      printf("s%lli ", static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)));
+        printf(
+          "\ts%lli -> s%lli[label=S%lli,dir=back]\n",
+          static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+          static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+          static_cast<vtkm::Int64>(supernode));
+
+//      printf(
+//        "\tedge s%lli -> s%lli[label=S%lli,dir=back]\n",
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//        static_cast<vtkm::Int64>(supernode));
     }
-    printf("}\n");
-  } // per hypernode
+    else
+    {
+      printf(
+          "\ts%lli -> s%lli[label=S%lli]\n",
+          static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+          static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+          static_cast<vtkm::Int64>(supernode));
+
+//      printf(
+//        "\tedge s%lli -> s%lli[label=S%lli]\n",
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//        static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))),
+//        static_cast<vtkm::Int64>(supernode));
+    }
+  } // per supernode
+
+
+//  // Actually skip the hypernodes now ...
+//  // ... just do supernodes is fine
+//  // now loop through hypernodes to show hyperarcs
+//  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
+//  { // per hypernode
+//    // skip the global root
+//    if (NoSuchElement(hyperarcsPortal.Get(hypernode)))
+//      continue;
+
+//    printf(
+//      "\ts%lli -> s%lli [constraint=false][width=5.0][label=\"H%lli\\nW%lli\"]\n",
+//      static_cast<vtkm::Int64>(supernodesPortal.Get(hypernodesPortal.Get(hypernode))),
+//      static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(hyperarcsPortal.Get(hypernode)))),
+//      static_cast<vtkm::Int64>(hypernode),
+//      static_cast<vtkm::Int64>(
+//        MaskedIndex(whenTransferredPortal.Get(hypernodesPortal.Get(hypernode)))));
+//  } // per hypernode
+
+//  // now add the hyperparents
+//  for (vtkm::Id supernode = 0; supernode < this->Supernodes.GetNumberOfValues(); supernode++)
+//  { // per supernode
+//    printf("\ts%lli -> s%lli [constraint=false][style=dotted]\n",
+//           static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)),
+//           static_cast<vtkm::Int64>(
+//             supernodesPortal.Get(hypernodesPortal.Get(hyperparentsPortal.Get(supernode)))));
+//  } // per supernode
+
+//  // now use the hyperstructure to define subgraphs
+//  for (vtkm::Id hypernode = 0; hypernode < this->Hypernodes.GetNumberOfValues(); hypernode++)
+//  { // per hypernode
+//    vtkm::Id firstChild = hypernodesPortal.Get(hypernode);
+//    vtkm::Id childSentinel = (hypernode == this->Hypernodes.GetNumberOfValues() - 1)
+//      ? this->Supernodes.GetNumberOfValues()
+//      : hypernodesPortal.Get(hypernode + 1);
+//    printf("\tsubgraph H%lli{ ", static_cast<vtkm::Int64>(hypernode));
+//    for (vtkm::Id supernode = firstChild; supernode < childSentinel; supernode++)
+//    {
+//      printf("s%lli ", static_cast<vtkm::Int64>(supernodesPortal.Get(supernode)));
+//    }
+//    printf("}\n");
+//  } // per hypernode
 
   // print the footer information
   printf("\t}\n");

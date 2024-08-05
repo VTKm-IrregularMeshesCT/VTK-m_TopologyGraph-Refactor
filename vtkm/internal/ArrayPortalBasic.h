@@ -61,7 +61,9 @@ public:
 
   VTKM_EXEC_CONT ValueType Get(vtkm::Id index) const
   {
+    VTKM_ASSERT_BOUNDS(index, >=, 0);
     VTKM_ASSERT(index >= 0);
+    VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
     VTKM_ASSERT(index < this->NumberOfValues);
 
     return detail::ArrayPortalBasicReadGet(this->Array + index);
@@ -101,16 +103,22 @@ public:
 
   VTKM_EXEC_CONT ValueType Get(vtkm::Id index) const
   {
+//    std::cout << index << " -vs- " << this->NumberOfValues << "\n";
+    VTKM_ASSERT_BOUNDS(index, >=, 0);
     VTKM_ASSERT(index >= 0);
-    VTKM_ASSERT(index < this->NumberOfValues);
+//    VTKM_ASSERT(index < this->NumberOfValues);
+//    VTKM_ASSERT(index < this->NumberOfValues);
+    VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
 
     return detail::ArrayPortalBasicWriteGet(this->Array + index);
   }
 
   VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
+    VTKM_ASSERT_BOUNDS(index, >=, 0);
     VTKM_ASSERT(index >= 0);
-    VTKM_ASSERT(index < this->NumberOfValues);
+    VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
+//    VTKM_ASSERT(index < this->NumberOfValues);
 
     detail::ArrayPortalBasicWriteSet(this->Array + index, value);
   }
