@@ -622,12 +622,9 @@ public:
         auto nodesPortal = contourTree.Nodes.ReadPortal();
         // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
-          //const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
-          //const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
 
-
-            const std::string filename1 = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-coordinates.txt";
-            const std::string filename2 = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-triangles.txt";
+            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
 
         //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
 
@@ -1027,11 +1024,8 @@ public:
       // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
 
-          //const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
-          //const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
-
-    const std::string filename1 = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-coordinates.txt";
-    const std::string filename2 = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-triangles.txt";
+          const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+          const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
 
       //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
 
