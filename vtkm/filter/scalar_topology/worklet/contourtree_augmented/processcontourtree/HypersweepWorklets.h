@@ -475,13 +475,19 @@ public:
   // Default Constructor
   VTKM_EXEC_CONT PropagateBestUpDown() {}
 
+  // This sets up the pointer doubling to find the branches by making the leaf at the top end of the branch the representative for the branch
+  // Therefore, leaves get set to their own ID, with the terminal flag
+  // Non-leaves that are the upper end of their branch also get set with their own ID with a terminal flag
+  // Non-leaves that are in the middle of their branch get set to their bestUp
   template <typename IdWholeArrayInPortalType, typename IdWholeArrayOutPortalType>
   VTKM_EXEC void operator()(const vtkm::Id supernodeId,
                             const IdWholeArrayInPortalType& bestUpwardPortal,
                             const IdWholeArrayInPortalType& bestDownwardPortal,
                             const IdWholeArrayOutPortalType& whichBranchPortal) const
   {
+    // retrieving bestUp at a given supernode ID
     vtkm::Id bestUp = bestUpwardPortal.Get(supernodeId);
+    // if there is no bestUP, this must be an upper leaf
     if (NoSuchElement(bestUp))
     {
       // flag it as an upper leaf

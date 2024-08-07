@@ -2318,15 +2318,16 @@ public:
     vtkm::Id nSuperarcs = nSupernodes - 1;
 
     // STAGE I:  Find the upward and downwards weight for each superarc, and set up arrays
-    // COMMS: just allocate up weight, no-comp
+    // COMMS: just allocate up weight, but do not set values
     IdArrayType upWeight;
     upWeight.Allocate(nSuperarcs);
     auto upWeightPortal = upWeight.WritePortal();
-    // COMMS: just allocate down weight, no-comp
+    // COMMS: just allocate down weight, but do not set values
     IdArrayType downWeight;
     downWeight.Allocate(nSuperarcs);
     auto downWeightPortal = downWeight.WritePortal();
     // set up
+    // initialise to a known value, indicating that no best up/down is known (yet)
     IdArrayType bestUpward;
     auto noSuchElementArray =
       vtkm::cont::ArrayHandleConstant<vtkm::Id>((vtkm::Id)NO_SUCH_ELEMENT, nSupernodes);
@@ -2341,33 +2342,50 @@ public:
     // II A. Pick the best upwards weight by sorting on lower vertex then processing by segments
     // II A 1.  Sort the superarcs by lower vertex
     // II A 2.  Per segment, best superarc writes to the best upwards array
+    //          We want all of the superarcs to be listed low-end -> high-end in that order
+    //          Because some are ascending and some descending, we will need to copy them carefully
+    //          (the (super)arcs are oriented inwards, this means careful processing)
     vtkm::cont::ArrayHandle<EdgePair> superarcList;
+    // [ask Petar why EdgePair(-1, -1) instead of NO_SUCH_ELEMENT]
     vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleConstant<EdgePair>(EdgePair(-1, -1), nSuperarcs),
                           superarcList);
     auto superarcListWritePortal = superarcList.WritePortal();
+    // TODO: take the sum over the - total volume of the mesh
     vtkm::Id totalVolume = contourTree.Nodes.GetNumberOfValues();
+
 #ifdef DEBUG_PRINT
     std::cout << "Total Volume: " << totalVolume << std::endl;
 #endif
+    // superarcs array stores the destination (supernode ID) of each superarc
+    // the origin (source) of the superarc is always the supernode ID as the superarc ID
     auto superarcsPortal = contourTree.Superarcs.ReadPortal();
 
     // NB: Last element in array is guaranteed to be root superarc to infinity,
+    // WARNING WARNING WARNING: This changes in the distributed version!
     // so we can easily skip it by not indexing to the full size
-    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+    // i.e we loop to N superarcs, not to N supernodes since N superarcs = supernodes-1
+    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++) //  for (vtkm::Id supernode = 0; supernode < nsupernodes-1; supernode++) vtkm::Id supernode = superarc (temporary variable)
     { // per superarc
-      if (IsAscending(superarcsPortal.Get(superarc)))
+      if (IsAscending(superarcsPortal.Get(superarc))) // flag on the ID of superarc
       { // ascending superarc
-        superarcListWritePortal.Set(superarc,
+          // put the lower-end first
+        superarcListWritePortal.Set(superarc, // each superarc starts at the supernode at the same ID and goes to the supernode whose ID is stored in the superarc's array
+                                    // pair the origin and the destination of that superarc. We store them in an edge pair and write it to the array
                                     EdgePair(superarc, MaskedIndex(superarcsPortal.Get(superarc))));
+        // because this is an ascending superarc, the dependent weight refers to the weight at the upper end
+        // so, we set the up weight based on the dependent weight
         upWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
         // at the inner end, dependent weight is the total in the subtree.  Then there are vertices along the edge itself (intrinsic weight), including the supernode at the outer end
         // So, to get the "dependent" weight in the other direction, we start with totalVolume - dependent, then subtract (intrinsic - 1)
+        // set the weight at the down end by using the invert operator:
         downWeightPortal.Set(superarc,
+                             // below is the invert operator for node count!
                              (totalVolume - superarcDependentWeightPortal.Get(superarc)) +
                                (superarcIntrinsicWeightPortal.Get(superarc) - 1));
       } // ascending superarc
       else
       { // descending superarc
+        // lower-end is also first, but in the reverse order compared to IsAscending
         superarcListWritePortal.Set(superarc,
                                     EdgePair(MaskedIndex(superarcsPortal.Get(superarc)), superarc));
         downWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
@@ -2394,11 +2412,14 @@ public:
     IdArrayType superarcSorter;
     superarcSorter.Allocate(nSuperarcs);
     auto superarcSorterPortal = superarcSorter.WritePortal();
+    // make the array of indices for indirect sorting
     for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
       superarcSorterPortal.Set(superarc, superarc);
 
     vtkm::cont::Algorithm::Sort(
       superarcSorter,
+                // false / true = either ascending/descending
+                // sort by up/down weight so that we have a segmented array
       process_contourtree_inc_ns::SuperArcVolumetricComparator(upWeight, superarcList, false));
 
     // Initialize after in-place sort algorithm. (Kokkos)
@@ -2464,7 +2485,7 @@ public:
                                           branchParent,
                                           bestUpward,
                                           bestDownward);
-  }
+  } // ComputeVolumeBranchDecomposition()
 
   // routine to compute the branch decomposition by volume
   void static ComputeBranchData(const ContourTree& contourTree,
@@ -2477,8 +2498,18 @@ public:
                                 IdArrayType& bestDownward)
   { // ComputeBranchData()
 
+    // Each superarc has an up and a down supernode.
+    // Each supernode has a best up and a best down.
+    // Suppose we have supernode N, and its best up is superarc U.
+    // Then, the down supernode of U must be N
+    // However, for a superarc A incident to N from above - that is not the best up from N - this is not true
+    // i.e any superarc A for which bestUp[down[A]] != A is at the end of the branch, as is any leaf (with no bestUP/bestDown)
+    // (we have now got a test to where the branches stop and we loop those arcs to point to themselves or to the supernode at that end)
+    //
+
     // Set up constants
     vtkm::Id nSupernodes = contourTree.Supernodes.GetNumberOfValues();
+    // initially, none of them belong to a branch:
     auto noSuchElementArray =
       vtkm::cont::ArrayHandleConstant<vtkm::Id>((vtkm::Id)NO_SUCH_ELEMENT, nSupernodes);
     vtkm::cont::ArrayCopy(noSuchElementArray, whichBranch);
