@@ -80,6 +80,7 @@ public:
   vtkm::Id Saddle;                  // Index of the saddle in the mesh (or minimum for root branch)
   T SaddleVal;                      // Corresponding value
   vtkm::Id Volume;                  // Volume
+  ValueType VolumeFloat;
   Branch<T>* Parent;                // Pointer to parent, or nullptr if no parent
   std::vector<Branch<T>*> Children; // List of pointers to children
 
@@ -122,6 +123,7 @@ private:
     , Saddle((vtkm::Id)vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT)
     , SaddleVal(0)
     , Volume(0)
+    , VolumeFloat(0.023232323f)
     , Parent(nullptr)
     , Children()
   {
@@ -142,8 +144,23 @@ struct PersistenceSorter
 template <typename T>
 struct VolumeSorter
 { // VolumeSorter()
-  inline bool operator()(Branch<T>* a, Branch<T>* b) { return a->Volume < b->Volume; }
+  inline bool operator()(Branch<T>* a, Branch<T>* b)
+  {
+      std::cout << "< Branch Comparitor >" << std::endl;
+      return a->Volume < b->Volume;
+  }
 }; // VolumeSorter()
+
+template <typename T>
+struct VolumeSorterFloat
+{ // VolumeSorter()
+  inline bool operator()(Branch<T>* a, Branch<T>* b)
+  {
+      std::cout << "< Branch Comparitor >" << std::endl;
+      return a->VolumeFloat < b->VolumeFloat;
+  }
+}; // VolumeSorter()
+
 
 
 template <typename T>
@@ -160,6 +177,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
   bool dataFieldIsSorted)
 { // C)omputeBranchDecomposition()
+
+  std::cout << "-Branch.h-> Calling: ComputeBranchDecomposition()" << std::endl;
+
   auto branchMinimumPortal = branchMinimum.ReadPortal();
   auto branchMaximumPortal = branchMaximum.ReadPortal();
   auto branchSaddlePortal = branchSaddle.ReadPortal();
@@ -243,6 +263,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
                MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
       ->Volume++; // Increment Volume
   }
+
+  // 2024-08-16 Get the existing volume information instead of just counting nodes
+
   if (root)
   {
     root->removeSymbolicPerturbation();
@@ -255,6 +278,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 template <typename T>
 void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 { // SimplifyToSize()
+
+  std::cout << "-Branch.h-> Calling: SimplifyToSize() with targetSize = " << targetSize << std::endl;
+
   if (targetSize <= 1)
     return;
 
@@ -265,8 +291,11 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
   std::vector<Branch<T>*> active;
   while (active.size() < static_cast<std::size_t>(targetSize) && !q.empty())
   {
+    std::cout << "-Branch.h-> active.size() = " << active.size() << std::endl;
+
     if (usePersistenceSorter)
     {
+      std::cout << "-Branch.h-> usePersistenceSorter = " << usePersistenceSorter<< std::endl;
       std::pop_heap(
         q.begin(),
         q.end(),
@@ -275,6 +304,7 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
     }
     else
     {
+      std::cout << "-Branch.h-> VolumeSorter: usePersistenceSorter = " << usePersistenceSorter<< std::endl;
       std::pop_heap(
         q.begin(),
         q.end(),
@@ -284,10 +314,13 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
     Branch<T>* b = q.back();
     q.pop_back();
 
+    std::cout << "----------> (Active) Processing Branch: " << b->ExtremumVal << std::endl;
+
     active.push_back(b);
 
     for (Branch<T>* c : b->Children)
     {
+      std::cout << "----------> Processing Branch: " << c->ExtremumVal << std::endl;
       q.push_back(c);
       if (usePersistenceSorter)
       {
@@ -323,6 +356,7 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
   os << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
      << std::endl;
   os << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
+  os << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
   if (!Children.empty())
   {
     os << std::string(indent, ' ') << "  'Children' : [" << std::endl;
@@ -360,7 +394,10 @@ Branch<T>::~Branch()
   for (Branch<T>* c : Children)
     delete c;
   if (Parent)
+  {
     Parent->Volume += Volume;
+    Parent->VolumeFloat += VolumeFloat;
+  }
 } // ~Branch()
 
 

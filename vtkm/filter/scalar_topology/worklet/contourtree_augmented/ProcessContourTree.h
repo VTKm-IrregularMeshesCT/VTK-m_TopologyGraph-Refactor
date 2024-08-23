@@ -144,7 +144,7 @@ std::vector<Coordinates> ReadCoordinatesFromFile(const std::string& filename) {
             continue; // Skip to the next line if parsing fails.
         }
 
-        std::cout << coords.x << coords.y << coords.z << std::endl;
+        std::cout << coords.x << " " << coords.y << " " << coords.z << std::endl;
 
         // Store the extracted data in the map.
         coordinatesMap.push_back(coords);
@@ -178,7 +178,7 @@ std::vector<Triangle> ReadTrianglesFromFile(const std::string& filename) {
             continue; // Skip to the next line if parsing fails.
         }
 
-        std::cout << triang.p1 << triang.p2 << triang.p3 << std::endl;
+        std::cout << triang.p1 << " " << triang.p2 << " " << triang.p3 << std::endl;
 
         // Store the extracted data in the map.
         triangleMap.push_back(triang);
@@ -623,8 +623,11 @@ public:
         // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
 
-            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
-            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+//            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+//            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+
+            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
+            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
 
         //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
 
@@ -647,11 +650,16 @@ public:
             for (int i = 0; i < trianglelist.size(); i++)
             {
                 std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
-                double area = ComputeTriangleArea(coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
-                                        coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
-                                        coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
+                double area = ComputeTriangleArea(
+                                coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
+                                coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
+                                coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
+
+                //                double area = 0.5;
 
                 double wt = area / 3.0;
+                // for each vertex comprising the triangle ...
+                // ... add 1/3rd of the triangle's area to the vertice's weight:
                 weightList[trianglelist[i].p1] += wt;
                 weightList[trianglelist[i].p2] += wt;
                 weightList[trianglelist[i].p3] += wt;
@@ -670,7 +678,7 @@ public:
             vtkm::Id sortID = nodesPortal.Get(sortedNode);
             vtkm::Id superparent = superparentsPortal.Get(sortID);
 
-            // initialise the transfer weight array counter:
+            // initialise the intrinsic weight array counter:
 //            superarcIntrinsicWeightPortal.Set(superparent, 0);
             superarcIntrinsicWeightPortal.Set(superparent, 0.f);
         }
@@ -996,6 +1004,39 @@ public:
 
 
 
+    struct ContourLengthCoef
+    {
+        double v1h1; // slope     v1
+        double v1h2; // intercept v2
+        double v2h1; // slope     v1
+        double v2h2; // intercept v2
+    };
+
+
+    struct ContourAreaCoef
+    {
+        double h1; // a
+        double h2; // b
+        double h3; // c
+    };
+
+
+
+    ContourLengthCoef static Compute1DCoeffs(Triangle singleT)
+    {// Pass in a single triangle (singleT) and compute itsssss
+     //       double area = ComputeTriangleArea(singleT);
+
+        double area = (sqrt(2.0)/2.0);
+
+        // m1 slope
+        double v1h1m = area / (singleT.p2 - singleT.p3);
+        double v2h1m = area / (singleT.p2 - singleT.p1);
+        // m1 slope
+        double v1h2c = -v1h1m * singleT.p3;
+        double v2h2c = -v2h1m * singleT.p3;
+
+        return {v1h1m, v2h1m, v1h2c, v2h2c};
+    }
 
 
 
@@ -1024,8 +1065,11 @@ public:
       // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
 
-          const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
-          const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+//          const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+//          const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+
+          const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
+          const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
 
       //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
 
@@ -1047,7 +1091,7 @@ public:
           std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
           for (int i = 0; i < trianglelist.size(); i++)
           {
-              std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
+              std::cout << std::endl << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
               double area = ComputeTriangleArea(coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
                                       coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
                                       coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
@@ -1057,7 +1101,14 @@ public:
               weightList[trianglelist[i].p2] += wt;
               weightList[trianglelist[i].p3] += wt;
 
-              std::cout << " = " << area << std::endl;
+              std::cout << " = " << area; // << std::endl;
+
+              ContourLengthCoef vxh1sh2s = Compute1DCoeffs(trianglelist[i]);
+
+              std::cout << "\n1) h1 h2 " << vxh1sh2s.v1h1 << " " << vxh1sh2s.v1h2 << std::endl;
+              std::cout << "2) h1 h2 " << vxh1sh2s.v2h1 << " " << vxh1sh2s.v2h2 << std::endl;
+
+
           }
 
           for (int i = 0; i < weightList.size(); i++)
@@ -2279,6 +2330,263 @@ public:
 
 //    }   // per iteration
 //  }     // ContourTreeMaker::ComputeWeights()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // routine to compute the branch decomposition by volume
+    void static ComputeVolumeBranchDecompositionSerialFloat(const ContourTree& contourTree,
+                                                       const FloatArrayType& superarcDependentWeight,
+                                                       const FloatArrayType& superarcIntrinsicWeight,
+                                                       IdArrayType& whichBranch,
+                                                       IdArrayType& branchMinimum,
+                                                       IdArrayType& branchMaximum,
+                                                       IdArrayType& branchSaddle,
+                                                       IdArrayType& branchParent)
+    { // ComputeVolumeBranchDecomposition()
+      std::cout << "ComputeVolumeBranchDecompositionSerialFloat()\n";
+
+      // COMMS: NOTE: both intrinsic and dependent weights come pre-computed!!!
+      auto superarcDependentWeightPortal = superarcDependentWeight.ReadPortal();
+      auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
+
+      // cache the number of non-root supernodes & superarcs
+      vtkm::Id nSupernodes = contourTree.Supernodes.GetNumberOfValues();
+      vtkm::Id nSuperarcs = nSupernodes - 1;
+
+      // STAGE I:  Find the upward and downwards weight for each superarc, and set up arrays
+      // COMMS: just allocate up weight, but do not set values
+      IdArrayType upWeight;
+      upWeight.Allocate(nSuperarcs);
+      auto upWeightPortal = upWeight.WritePortal();
+      // COMMS: just allocate down weight, but do not set values
+      IdArrayType downWeight;
+      downWeight.Allocate(nSuperarcs);
+      auto downWeightPortal = downWeight.WritePortal();
+      // set up
+      // initialise to a known value, indicating that no best up/down is known (yet)
+      IdArrayType bestUpward;
+      auto noSuchElementArray =
+        vtkm::cont::ArrayHandleConstant<vtkm::Id>((vtkm::Id)NO_SUCH_ELEMENT, nSupernodes);
+      vtkm::cont::ArrayCopy(noSuchElementArray, bestUpward);
+      IdArrayType bestDownward;
+      vtkm::cont::ArrayCopy(noSuchElementArray, bestDownward);
+      vtkm::cont::ArrayCopy(noSuchElementArray, whichBranch);
+      auto bestUpwardPortal = bestUpward.WritePortal();
+      auto bestDownwardPortal = bestDownward.WritePortal();
+
+      // STAGE II: Pick the best (largest volume) edge upwards and downwards
+      // II A. Pick the best upwards weight by sorting on lower vertex then processing by segments
+      // II A 1.  Sort the superarcs by lower vertex
+      // II A 2.  Per segment, best superarc writes to the best upwards array
+      //          We want all of the superarcs to be listed low-end -> high-end in that order
+      //          Because some are ascending and some descending, we will need to copy them carefully
+      //          (the (super)arcs are oriented inwards, this means careful processing)
+      vtkm::cont::ArrayHandle<EdgePair> superarcList;
+      // [ask Petar why EdgePair(-1, -1) instead of NO_SUCH_ELEMENT]
+      vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleConstant<EdgePair>(EdgePair(-1, -1), nSuperarcs),
+                            superarcList);
+      auto superarcListWritePortal = superarcList.WritePortal();
+      // TODO: take the sum over the - total volume of the mesh
+      vtkm::Id totalVolume = contourTree.Nodes.GetNumberOfValues();
+
+    #ifdef DEBUG_PRINT
+      std::cout << "Total Volume: " << totalVolume << std::endl;
+    #endif
+      // superarcs array stores the destination (supernode ID) of each superarc
+      // the origin (source) of the superarc is always the supernode ID as the superarc ID
+      auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+
+      // NB: Last element in array is guaranteed to be root superarc to infinity,
+      // WARNING WARNING WARNING: This changes in the distributed version!
+      // so we can easily skip it by not indexing to the full size
+      // i.e we loop to N superarcs, not to N supernodes since N superarcs = supernodes-1
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++) //  for (vtkm::Id supernode = 0; supernode < nsupernodes-1; supernode++) vtkm::Id supernode = superarc (temporary variable)
+      { // per superarc
+        if (IsAscending(superarcsPortal.Get(superarc))) // flag on the ID of superarc
+        { // ascending superarc
+            // put the lower-end first
+          superarcListWritePortal.Set(superarc, // each superarc starts at the supernode at the same ID and goes to the supernode whose ID is stored in the superarc's array
+                                      // pair the origin and the destination of that superarc. We store them in an edge pair and write it to the array
+                                      EdgePair(superarc, MaskedIndex(superarcsPortal.Get(superarc))));
+          // because this is an ascending superarc, the dependent weight refers to the weight at the upper end
+          // so, we set the up weight based on the dependent weight
+          upWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
+          // at the inner end, dependent weight is the total in the subtree.  Then there are vertices along the edge itself (intrinsic weight), including the supernode at the outer end
+          // So, to get the "dependent" weight in the other direction, we start with totalVolume - dependent, then subtract (intrinsic - 1)
+          // set the weight at the down end by using the invert operator:
+          downWeightPortal.Set(superarc,
+                               // below is the invert operator for node count!
+                               (totalVolume - superarcDependentWeightPortal.Get(superarc)) +
+                                 (superarcIntrinsicWeightPortal.Get(superarc) - 1));
+        } // ascending superarc
+        else
+        { // descending superarc
+          // lower-end is also first, but in the reverse order compared to IsAscending
+          superarcListWritePortal.Set(superarc,
+                                      EdgePair(MaskedIndex(superarcsPortal.Get(superarc)), superarc));
+          downWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
+          // at the inner end, dependent weight is the total in the subtree.  Then there are vertices along the edge itself (intrinsic weight), including the supernode at the outer end
+          // So, to get the "dependent" weight in the other direction, we start with totalVolume - dependent, then subtract (intrinsic - 1)
+          upWeightPortal.Set(superarc,
+                             (totalVolume - superarcDependentWeightPortal.Get(superarc)) +
+                               (superarcIntrinsicWeightPortal.Get(superarc) - 1));
+        } // descending superarc
+      }   // per superarc
+
+    #ifdef DEBUG_PRINT
+      std::cout << "II A. Weights Computed" << std::endl;
+      PrintHeader(upWeight.GetNumberOfValues());
+      //PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
+      //PrintIndices("Dependent Weight", superarcDependentWeight);
+      PrintIndices("Upwards Weight", upWeight);
+      PrintIndices("Downwards Weight", downWeight);
+      std::cout << std::endl;
+    #endif
+
+      // II B. Pick the best downwards weight by sorting on upper vertex then processing by segments
+      // II B 1.      Sort the superarcs by upper vertex
+      IdArrayType superarcSorter;
+      superarcSorter.Allocate(nSuperarcs);
+      auto superarcSorterPortal = superarcSorter.WritePortal();
+      // make the array of indices for indirect sorting
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+        superarcSorterPortal.Set(superarc, superarc);
+
+      vtkm::cont::Algorithm::Sort(
+        superarcSorter,
+                  // false / true = either ascending/descending
+                  // sort by up/down weight so that we have a segmented array
+        process_contourtree_inc_ns::SuperArcVolumetricComparator(upWeight, superarcList, false));
+
+      // Initialize after in-place sort algorithm. (Kokkos)
+      auto superarcSorterReadPortal = superarcSorter.ReadPortal();
+
+      // II B 2.  Per segment, best superarc writes to the best upward array
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+      { // per superarc
+        vtkm::Id superarcID = superarcSorterReadPortal.Get(superarc);
+        const EdgePair& edge = superarcListWritePortal.Get(superarcID);
+        // if it's the last one
+        if (superarc == nSuperarcs - 1)
+          bestDownwardPortal.Set(edge.second, edge.first);
+        else
+        { // not the last one
+          const EdgePair& nextEdge =
+            superarcListWritePortal.Get(superarcSorterReadPortal.Get(superarc + 1));
+          // if the next edge belongs to another, we're the highest
+          if (nextEdge.second != edge.second)
+            bestDownwardPortal.Set(edge.second, edge.first);
+        } // not the last one
+      }   // per superarc
+
+      // II B 3.  Repeat for lower vertex
+      vtkm::cont::Algorithm::Sort(
+        superarcSorter,
+        process_contourtree_inc_ns::SuperArcVolumetricComparator(downWeight, superarcList, true));
+
+      // Re-initialize after in-place sort algorithm. (Kokkos)
+      superarcSorterReadPortal = superarcSorter.ReadPortal();
+
+      // II B 2.  Per segment, best superarc writes to the best upward array
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+      { // per superarc
+        vtkm::Id superarcID = superarcSorterReadPortal.Get(superarc);
+        const EdgePair& edge = superarcListWritePortal.Get(superarcID);
+        // if it's the last one
+        if (superarc == nSuperarcs - 1)
+          bestUpwardPortal.Set(edge.first, edge.second);
+        else
+        { // not the last one
+          const EdgePair& nextEdge =
+            superarcListWritePortal.Get(superarcSorterReadPortal.Get(superarc + 1));
+          // if the next edge belongs to another, we're the highest
+          if (nextEdge.first != edge.first)
+            bestUpwardPortal.Set(edge.first, edge.second);
+        } // not the last one
+      }   // per superarc
+
+    #ifdef DEBUG_PRINT
+      std::cout << "II. Best Edges Selected" << std::endl;
+      PrintHeader(bestUpward.GetNumberOfValues());
+      PrintIndices("Best Upwards", bestUpward);
+      PrintIndices("Best Downwards", bestDownward);
+      std::cout << std::endl;
+    #endif
+
+      ProcessContourTree::ComputeBranchData(contourTree,
+                                            whichBranch,
+                                            branchMinimum,
+                                            branchMaximum,
+                                            branchSaddle,
+                                            branchParent,
+                                            bestUpward,
+                                            bestDownward);
+    } // ComputeVolumeBranchDecomposition()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

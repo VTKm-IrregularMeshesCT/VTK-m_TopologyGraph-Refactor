@@ -901,6 +901,9 @@ int main(int argc, char* argv[])
     ctaug_ns::IdArrayType branchMaximum;
     ctaug_ns::IdArrayType branchSaddle;
     ctaug_ns::IdArrayType branchParent;
+
+    std::cout << "Calling ComputeVolumeBranchDecompositionSerial()" << std::endl;
+
     ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerial(filter.GetContourTree(),
                                                                          superarcDependentWeight,
                                                                          superarcIntrinsicWeight,
@@ -909,6 +912,120 @@ int main(int argc, char* argv[])
                                                                          branchMaximum, // (output)
                                                                          branchSaddle,  // (output)
                                                                          branchParent); // (output)
+
+    std::cout << "Finished ComputeVolumeBranchDecompositionSerial()\n" << std::endl;
+
+
+
+
+    auto whichBranchPortal   = whichBranch.ReadPortal();
+    auto branchMinimumPortal = branchMinimum.ReadPortal();
+    auto branchMaximumPortal = branchMaximum.ReadPortal();
+    auto branchSaddlePortal  = branchSaddle.ReadPortal();
+    auto branchParentPortal  = branchParent.ReadPortal();
+
+
+    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
+    std::cout << "whichBranch:";
+    for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+    {
+        std::cout << whichBranchPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchMinimum:";
+    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchMinimumPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchMaximum:";
+    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchMaximumPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchSaddlePortal:";
+    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchSaddlePortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchParentPortal:";
+    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchParentPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+
+
+
+
+
+
+    std::cout << "Calling ComputeVolumeBranchDecompositionSerialFloat()" << std::endl;
+
+    ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(filter.GetContourTree(),
+                                                                              superarcDependentWeightNEW,
+                                                                              superarcIntrinsicWeightNEW,
+                                                                              whichBranch,   // (output)
+                                                                              branchMinimum, // (output)
+                                                                              branchMaximum, // (output)
+                                                                              branchSaddle,  // (output)
+                                                                              branchParent); // (output)
+
+
+
+    std::cout << "Finished ComputeVolumeBranchDecompositionSerialFloat()\n" << std::endl;
+
+//    auto whichBranchPortal   = whichBranch.ReadPortal();
+//    auto branchMinimumPortal = branchMinimum.ReadPortal();
+//    auto branchMaximumPortal = branchMaximum.ReadPortal();
+//    auto branchSaddlePortal  = branchSaddle.ReadPortal();
+//    auto branchParentPortal  = branchParent.ReadPortal();
+
+
+    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
+    std::cout << "whichBranch:";
+    for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+    {
+        std::cout << whichBranchPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchMinimum:";
+    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchMinimumPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchMaximum:";
+    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchMaximumPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchSaddlePortal:";
+    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchSaddlePortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "branchParentPortal:";
+    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
+    {
+        std::cout << branchParentPortal.Get(branchID) << " ";
+    }
+    std::cout << std::endl;
+
+
     // Record and log the branch decompostion timings
     timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Branch Decomposition"
                   << ": " << branchDecompTimer.GetElapsedTime() << " seconds" << std::endl;
@@ -936,7 +1053,8 @@ int main(int argc, char* argv[])
 
       std::vector<float> std_nodes_sorted;
 //      for(float i = 0.f; i < 29791.f; i += 1.f)
-      for(float i = 0.f; i < 16.f; i += 1.f)
+//      for(float i = 0.f; i < 16.f; i += 1.f)
+      for(float i = 0.f; i < 9.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
@@ -990,7 +1108,8 @@ int main(int argc, char* argv[])
       // Simplify the contour tree of the branch decompostion
 //      branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       std::cout << "... Gonna do the BRANCH SIMPLIFICATION:\n";
-      branchDecompostionRoot->SimplifyToSize(12, usePersistenceSorter);
+      usePersistenceSorter = false;
+      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
       /// DEBUG PRINT
       std::cout << "... Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
