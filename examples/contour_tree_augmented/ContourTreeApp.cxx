@@ -875,12 +875,22 @@ int main(int argc, char* argv[])
 
     std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerialFloat in 'ContourTreeApp.cxx rank == 0'" << std::endl;
 
-    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloat(filter.GetContourTree(),
-                                                                  filter.GetNumIterations(),
-                                                                  superarcIntrinsicWeightNEW,  // (output)
-                                                                  superarcDependentWeightNEW,  // (output)
-                                                                  supernodeTransferWeightNEW,  // (output)
-                                                                  hyperarcDependentWeightNEW); // (output)
+//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloat(filter.GetContourTree(),
+//                                                                  filter.GetNumIterations(),
+//                                                                  superarcIntrinsicWeightNEW,  // (output)
+//                                                                  superarcDependentWeightNEW,  // (output)
+//                                                                  supernodeTransferWeightNEW,  // (output)
+//                                                                  hyperarcDependentWeightNEW); // (output)
+
+
+    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloatCoefficients(filter.GetContourTree(),
+                                                                              filter.GetNumIterations(),
+                                                                              superarcIntrinsicWeightNEW,  // (output)
+                                                                              superarcDependentWeightNEW,  // (output)
+                                                                              supernodeTransferWeightNEW,  // (output)
+                                                                              hyperarcDependentWeightNEW); // (output)
+
+
 
 
     // ---------------------------- FLOAT WEIGHTS ---------------------------- //
