@@ -1065,6 +1065,7 @@ public:
                                                 FloatArrayType & supernodeTransferWeight,
                                                 FloatArrayType & hyperarcDependentWeight)
     { // ContourTreeMaker::ComputeWeights()
+      // START ComputeVolumeWeightsSerialFloatCoefficients
         // start by storing the first sorted vertex ID for each superarc
         IdArrayType firstVertexForSuperparent;
         firstVertexForSuperparent.Allocate(contourTree.Superarcs.GetNumberOfValues());
@@ -1221,6 +1222,47 @@ public:
         print2Darray(vxtch1);
         print2Darray(vxtch2);
 
+
+        // now with deltas computed, also compute the prefix sums of the different components:
+
+        std::vector<double> vx_delta_h1_sum;
+        std::vector<double> vx_delta_h2_sum;
+
+        std::vector<double> delta_h1_pfixsum; // = 0.0;
+        std::vector<double> delta_h2_pfixsum; // = 0.0;
+
+        delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+        delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+
+        for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+        {
+            vx_delta_h1_sum.push_back(0.0);
+            vx_delta_h2_sum.push_back(0.0);
+
+            for (int j = 0; j < trianglelist.size(); j++)
+            {
+                vx_delta_h1_sum[i] += vxtch1[i][j];
+                vx_delta_h2_sum[i] += vxtch2[i][j];
+            }
+
+            std::cout << "del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " ~ "; //<< std::endl;
+
+            if (i == 0)
+            {
+                delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
+//                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
+                delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
+//                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
+            }
+            else
+            {
+                delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
+                delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
+            }
+
+            std::cout << "pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << std::endl;
+        }
+
 //        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
 //        {
 //            vtkm::Id sortID = nodesPortal.Get(sortedNode);
@@ -1242,7 +1284,7 @@ public:
 //                                                  std::vector<double> (trianglelist.size(), 0.0));
 
 //            std::cout << "\nInitialised vxtch1:" << std::endl;
-//            print2Darray(vxtch1);
+//            (vxtch1);
 
 //            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
 //                                                  std::vector<double> (trianglelist.size(), 0.0));
@@ -1615,7 +1657,9 @@ public:
         }
         std::cout << std::endl;
 
-    }
+        std::cout << "END ComputeVolumeWeightsSerialFloatCoefficients" << std::endl;
+
+    }  // END ComputeVolumeWeightsSerialFloatCoefficients
 
 
 
