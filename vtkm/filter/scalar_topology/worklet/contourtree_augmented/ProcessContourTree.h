@@ -1143,6 +1143,8 @@ public:
             superarcIntrinsicWeightPortal.Set(superparent, 0.f);
         }
 
+        bool dim1 = false;
+        bool dim2 = true;
 
         // ----------------------------------- PRE-PROCESS ----------------------------------- //
         // Here we basically populate the table as such:
@@ -1150,119 +1152,286 @@ public:
         //          triangle1 triangle2   row sum(del. h1/h2)   col (prefix) sum del. h1/h2
         // deltas:  h1 h2     h1 h2
         // v1       x  y      z  w
-
-        // (below is actually the length of the hypotenuse projected onto the base from the 90-degree angle)
-        // TODO: replace this with actual area of each triangle!
-        double fake_area = sqrt(2.0) / 2.0;
-
-
-
-        std::cout << "PREPROCESSING STEP:" << std::endl;
-
-        // Initializing the 2-D vector
-        std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
-                                              std::vector<double> (trianglelist.size(), 0.0));
-
-        std::cout << "\nInitialised vxtch1:" << std::endl;
-        print2Darray(vxtch1);
-
-        std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
-                                              std::vector<double> (trianglelist.size(), 0.0));
-        print2Darray(vxtch2);
-
-        for (int i = 0; i < trianglelist.size(); i++)
-        {
-            // ASSUMPTION #1:
-            // FOR EACH TRIANGLE, ITS VERTICES ARE GIVEN IN INCREASING ORDER OF VALUE:
-            // HIGH, MID, LOW
-            // lowvalue, midvalue, highvalue
-            double Lv, Mv, Hv;
-            Hv = (double)trianglelist[i].p1;
-            Mv = (double)trianglelist[i].p2;
-            Lv = (double)trianglelist[i].p3;
-
-            // ASSUMPTION #2:
-            // THE POINTS ARE THE SAME AS THEIR VALUES GIVEN IN THE FILE
-
-            // m=h1=slope for a line equation:
-            // h1 for equation starting at the LOW vertex:
-            double Mml = fake_area / (Mv-Lv);
-            // h1 for equation starting at the HIGH vertex:
-            double Mmh = fake_area / (Mv-Hv);
-
-            // c=h2=intercept for a line equation:
-            // h2 for equation starting at the LOW vertex:
-            double cL = -Mml * Lv;
-            double cH = -Mmh * Hv;
-
-            // deltas:
-            // Low-vertex deltas (same as original since adding from 0)
-            double ld1 = Mml;
-            double ld2 = cL;
-
-            vxtch1[trianglelist[i].p3][i] = ld1;
-            vxtch2[trianglelist[i].p3][i] = ld2;
-
-            // Middle-vertex deltas:
-            double md1 = Mmh - ld1;
-            double md2 = cH - ld2;
-
-            vxtch1[trianglelist[i].p2][i] = md1;
-            vxtch2[trianglelist[i].p2][i] = md2;
-
-            // High-vertex deltas:
-            double hd1 = -Mmh;
-            double hd2 = -cH;
-
-            vxtch1[trianglelist[i].p1][i] = hd1;
-            vxtch2[trianglelist[i].p1][i] = hd2;
-
-//            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
-        }
-
-        print2Darray(vxtch1);
-        print2Darray(vxtch2);
-
-
-        // now with deltas computed, also compute the prefix sums of the different components:
-
         std::vector<double> vx_delta_h1_sum;
-        std::vector<double> vx_delta_h2_sum;
+        std::vector<double> vx_delta_h2_sum; // 1D coefficients
+        std::vector<double> vx_delta_h3_sum; // 2D coefficients
 
-        std::vector<double> delta_h1_pfixsum; // = 0.0;
-        std::vector<double> delta_h2_pfixsum; // = 0.0;
+        std::vector<double> delta_h1_pfixsum;
+        std::vector<double> delta_h2_pfixsum; // 1D coefficients
+        std::vector<double> delta_h3_pfixsum; // 2D coefficients
 
-        delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
-        delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
-
-        for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+        if(dim1)
         {
-            vx_delta_h1_sum.push_back(0.0);
-            vx_delta_h2_sum.push_back(0.0);
+            // (below is actually the length of the hypotenuse projected onto the base from the 90-degree angle)
+            // TODO: replace this with actual area of each triangle!
+            double fake_area = sqrt(2.0) / 2.0;
 
-            for (int j = 0; j < trianglelist.size(); j++)
+
+
+            std::cout << "PREPROCESSING STEP:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+
+            std::cout << "\nInitialised vxtch1:" << std::endl;
+            print2Darray(vxtch1);
+
+            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            print2Darray(vxtch2);
+
+            for (int i = 0; i < trianglelist.size(); i++)
             {
-                vx_delta_h1_sum[i] += vxtch1[i][j];
-                vx_delta_h2_sum[i] += vxtch2[i][j];
+                // ASSUMPTION #1:
+                // FOR EACH TRIANGLE, ITS VERTICES ARE GIVEN IN INCREASING ORDER OF VALUE:
+                // HIGH, MID, LOW
+                // lowvalue, midvalue, highvalue
+                double Lv, Mv, Hv;
+                Hv = (double)trianglelist[i].p1;
+                Mv = (double)trianglelist[i].p2;
+                Lv = (double)trianglelist[i].p3;
+
+                // ASSUMPTION #2:
+                // THE POINTS ARE THE SAME AS THEIR VALUES GIVEN IN THE FILE
+
+                // m=h1=slope for a line equation:
+                // h1 for equation starting at the LOW vertex:
+                double Mml = fake_area / (Mv-Lv);
+                // h1 for equation starting at the HIGH vertex:
+                double Mmh = fake_area / (Mv-Hv);
+
+                // c=h2=intercept for a line equation:
+                // h2 for equation starting at the LOW vertex:
+                double cL = -Mml * Lv;
+                double cH = -Mmh * Hv;
+
+                // deltas:
+                // Low-vertex deltas (same as original since adding from 0)
+                double ld1 = Mml;
+                double ld2 = cL;
+
+                vxtch1[trianglelist[i].p3][i] = ld1;
+                vxtch2[trianglelist[i].p3][i] = ld2;
+
+                // Middle-vertex deltas:
+                double md1 = Mmh - ld1;
+                double md2 = cH - ld2;
+
+                vxtch1[trianglelist[i].p2][i] = md1;
+                vxtch2[trianglelist[i].p2][i] = md2;
+
+                // High-vertex deltas:
+                double hd1 = -Mmh;
+                double hd2 = -cH;
+
+                vxtch1[trianglelist[i].p1][i] = hd1;
+                vxtch2[trianglelist[i].p1][i] = hd2;
+
+    //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
             }
+            std::cout << "vxtch1" << std::endl;
+            print2Darray(vxtch1);
+            std::cout << "vxtch1" << std::endl;
+            print2Darray(vxtch2);
 
-            std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " ~ "; //<< std::endl;
 
-            if (i == 0)
+            // now with deltas computed, also compute the prefix sums of the different components:
+
+            delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+
+            std::cout << "deltas:" << std::endl;
+
+            for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
             {
-                delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
-//                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
-                delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
-//                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
-            }
-            else
-            {
-                delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
-                delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
-            }
+                vx_delta_h1_sum.push_back(0.0);
+                vx_delta_h2_sum.push_back(0.0);
 
-            std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << std::endl;
+                for (int j = 0; j < trianglelist.size(); j++)
+                {
+                    vx_delta_h1_sum[i] += vxtch1[i][j];
+                    vx_delta_h2_sum[i] += vxtch2[i][j];
+                }
+
+                std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " ~ "; //<< std::endl;
+
+                if (i == 0)
+                {
+                    delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
+    //                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
+                    delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
+    //                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
+                }
+                else
+                {
+                    delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
+                    delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
+                }
+
+                std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << std::endl;
+            }
         }
+        else if(dim2)
+        {
+            // (below is the area of a full 1x1 90-degree triangle)
+            // TODO: replace this with actual area of each triangle!
+            double fake_area = 0.5; //sqrt(2.0) / 2.0;
+
+            double a_mid[] = {0.2148571, 0.0625, 0.16667, 0.25, 0.4375, 0.14285, 0.16667, 0.375};
+
+            for(int i = 0; i < 8; i++)
+            {
+                std::cout << a_mid[i] << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "PREPROCESSING STEP:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+
+            std::cout << "\nInitialised vxtch1:" << std::endl;
+            print2Darray(vxtch1);
+
+            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            std::cout << "\nInitialised vxtch2:" << std::endl;
+            print2Darray(vxtch2);
+
+            std::vector<std::vector<double>> vxtch3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            print2Darray(vxtch3);
+            std::cout << "\nInitialised vxtch3:" << std::endl;
+
+            for (int i = 0; i < trianglelist.size(); i++)
+            {
+                // ASSUMPTION #1:
+                // FOR EACH TRIANGLE, ITS VERTICES ARE GIVEN IN INCREASING ORDER OF VALUE:
+                // HIGH, MID, LOW
+                // lowvalue, midvalue, highvalue
+                double Lv, Mv, Hv;
+                Hv = (double)trianglelist[i].p1;
+                Mv = (double)trianglelist[i].p2;
+                Lv = (double)trianglelist[i].p3;
+
+                // ASSUMPTION #2:
+                // THE POINTS ARE THE SAME AS THEIR VALUES GIVEN IN THE FILE
+
+                double Dn = Mv - Lv;
+                double Dm = Hv - Mv;
+
+                double Ba1 = 1.0/Dn;
+                double Ba2 = Lv/Dn;
+
+                double Bb1 = Hv / Dm;
+                double Bb2 = 1.0/ Dm;
+
+
+                // deltas:
+                // Low-vertex deltas (same as original since adding from 0)
+                double H12D = Ba1*Ba1 * a_mid[i];
+                double H22D = 2 * Ba1 * Ba2 * a_mid[i];
+                double H32D = Ba2*Ba2 * a_mid[i];
+
+//                vxtch1[trianglelist[i].p3][i] = H12D;
+//                vxtch2[trianglelist[i].p3][i] = H22D;
+//                vxtch3[trianglelist[i].p3][i] = H32D;
+
+                double H1b2D = -1.0 * (Bb2*Bb2) * (fake_area - a_mid[i]);
+                double H2b2D = -2.0 * Bb2 * Bb1 * (fake_area - a_mid[i]);
+                double H3b2D = fake_area - (Bb1 * Bb1) * (fake_area - a_mid[i]);
+
+//                // Middle-vertex deltas:
+//                vxtch1[trianglelist[i].p2][i] = H1b2D - H12D;
+//                vxtch2[trianglelist[i].p2][i] = H2b2D - H22D;
+//                vxtch3[trianglelist[i].p2][i] = H3b2D - H32D;
+
+//                // High-vertex deltas:
+//                vxtch1[trianglelist[i].p1][i] = -H1b2D;
+//                vxtch2[trianglelist[i].p1][i] = -H2b2D;
+//                vxtch3[trianglelist[i].p1][i] = -H3b2D;
+
+                // invert operation:
+//                // low:
+//                vxtch1[trianglelist[i].p3][i] = -((H1b2D - H12D) -H1b2D); // = H12D
+//                vxtch2[trianglelist[i].p3][i] = -((H2b2D - H22D) -H2b2D); // = H22D
+//                vxtch3[trianglelist[i].p3][i] = -((H3b2D - H32D) -H3b2D); // = H32D
+
+                // middle:
+                vxtch1[trianglelist[i].p2][i] = -(-H1b2D + H12D);
+                vxtch2[trianglelist[i].p2][i] = -(-H2b2D + H22D);
+                vxtch3[trianglelist[i].p2][i] = -(-H3b2D + H32D);
+
+                // high:
+                vxtch1[trianglelist[i].p1][i] = -(H12D + (H1b2D - H12D));
+                vxtch2[trianglelist[i].p1][i] = -(H22D + (H2b2D - H22D));
+                vxtch3[trianglelist[i].p1][i] = fake_area-(H32D + (H3b2D - H32D));
+
+                // low:
+                vxtch1[trianglelist[i].p3][i] = -(vxtch1[trianglelist[i].p2][i] + vxtch1[trianglelist[i].p1][i]);  // -((H1b2D - H12D) -H1b2D); // = H12D
+                vxtch2[trianglelist[i].p3][i] = -(vxtch2[trianglelist[i].p2][i] + vxtch2[trianglelist[i].p1][i]);  // -((H2b2D - H22D) -H2b2D); // = H22D
+                vxtch3[trianglelist[i].p3][i] = fake_area-(vxtch3[trianglelist[i].p2][i] + vxtch3[trianglelist[i].p1][i]);  // fake_area-((H3b2D - H32D) -H3b2D); // = H32D
+
+    //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
+            }
+            std::cout << "vxtch1" << std::endl;
+            print2Darray(vxtch1);
+            std::cout << "vxtch2" << std::endl;
+            print2Darray(vxtch2);
+            std::cout << "vxtch3" << std::endl;
+            print2Darray(vxtch3);
+
+
+            // now with deltas computed, also compute the prefix sums of the different components:
+
+//            std::vector<double> vx_delta_h1_sum;
+//            std::vector<double> vx_delta_h2_sum;
+
+//            std::vector<double> delta_h1_pfixsum; // = 0.0;
+//            std::vector<double> delta_h2_pfixsum; // = 0.0;
+
+            delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h3_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+
+            std::cout << "2D deltas:" << std::endl;
+
+            for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+            {
+                vx_delta_h1_sum.push_back(0.0);
+                vx_delta_h2_sum.push_back(0.0);
+                vx_delta_h3_sum.push_back(0.0);
+
+                for (int j = 0; j < trianglelist.size(); j++)
+                {
+                    vx_delta_h1_sum[i] += vxtch1[i][j];
+                    vx_delta_h2_sum[i] += vxtch2[i][j];
+                    vx_delta_h3_sum[i] += vxtch3[i][j];
+                }
+
+                std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " del(h3)=" << vx_delta_h3_sum[i] << " ~ "; //<< std::endl;
+
+                if (i == 0)
+                {
+                    delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
+    //                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
+                    delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
+    //                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
+                    delta_h3_pfixsum[0] = vx_delta_h3_sum[0];
+                }
+                else
+                {
+                    delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
+                    delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
+                    delta_h3_pfixsum[i] += delta_h3_pfixsum[i-1] + vx_delta_h3_sum[i];
+                }
+
+                std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << " pfix(h3)=" << delta_h3_pfixsum[i] << std::endl;
+            }
+        }
+
 
 
         // ----------------------------------- PRE-PROCESS ----------------------------------- //
@@ -1279,15 +1448,18 @@ public:
 
         std::vector<double> delta_h1_partial_pfixsum; // = 0.0;
         std::vector<double> delta_h2_partial_pfixsum; // = 0.0;
+        std::vector<double> delta_h3_partial_pfixsum; // = 0.0;
 
         delta_h1_partial_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
         delta_h2_partial_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+        delta_h3_partial_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
 
         for(int i = 0; i < coefficientweightList.size(); i++)
         {
             coefficientweightList[i] = 0.0;
             delta_h1_partial_pfixsum[i] = 0.0;
             delta_h2_partial_pfixsum[i] = 0.0;
+            delta_h3_partial_pfixsum[i] = 0.0;
         }
 
         auto arcsPortal = contourTree.Arcs.ReadPortal();
@@ -1313,109 +1485,188 @@ public:
 
         std::cout << "-----------------------------" << std::endl;
 
-        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
-        { // per node in sorted order
-          vtkm::Id sortID = nodesPortal.Get(sortedNode);
-          vtkm::Id superparent = superparentsPortal.Get(sortID);
+        if(dim1)
+        {// test 1D coefficients
+            for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+            { // per node in sorted order
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
 
-          vtkm::Id arc = arcsPortal.Get(sortedNode);
-
-          // additional checks to get the dest node:
-//          vtkm::Id hyperparent = hyperparentsPortal.Get(sortID);
-//          vtkm::Id hypernode = hypernodesPortal.Get(sortID);
-//          vtkm::Id hyperarct = hyperarcsPortal.Get(sortID);
-
-//          auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.WritePortal();
-//          auto firstVertexForSuperparentPortal = firstVertexForSuperparent.WritePortal();
-//          auto superparentsPortal = contourTree.Superparents.ReadPortal();
-//          auto hyperparentsPortal = contourTree.Hyperparents.ReadPortal();
-//          auto hypernodesPortal = contourTree.Hypernodes.ReadPortal();
-//          auto hyperarcsPortal = contourTree.Hyperarcs.ReadPortal();
-
-//          std::cout << sortID << " - " << superparent << std::endl;
-
-          if (prevIndex != superparent)
-          {
-              prevIndex = superparent;
-              // tail-end of a branch
-              superNodeID = sortID;
-          }
-
-          std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
-
-
-
-
-//          printf(
-//            "\ts%lli -> s%lli\n",
-//            static_cast<vtkm::Int64>(supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(0)))),
-//            static_cast<vtkm::Int64>(supernodesPortal.Get(0)));
-
-          if (sortedNode == 0)
-            firstVertexForSuperparentPortal.Set(superparent, sortedNode);
-          else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
-            firstVertexForSuperparentPortal.Set(superparent, sortedNode);
-
-
-          // CHANGES:
-          // UPDATE AT REGULAR NODE: +1
-          //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
-
-          // UPDATE AT REGULAR NODE: +area/3
-    //          superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
-    //          superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
-
-          // weights before 2024-08-27:
-          // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
-
-          // weights after 2024-08-27:
-          delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
-          delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
-
-          coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * sortID + delta_h2_partial_pfixsum[superparent];
-
-          std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
-                    << sortID << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
-
-
-          if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
-          {
-              vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
-              vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
-
-              if(nextSuperparent != superparent)
+              if (prevIndex != superparent)
               {
-//                  std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+                  prevIndex = superparent;
+                  // tail-end of a branch
+                  superNodeID = sortID;
+              }
 
-                  delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
-                  delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+              std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
 
-                  std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
 
-                  coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+              if (sortedNode == 0)
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+              else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
 
-                  std::cout << "\t\t" << tailends[superNodeID] << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
-                            << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+              // CHANGES:
+              // UPDATE AT REGULAR NODE: +1
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
+
+              // UPDATE AT REGULAR NODE: +area/3
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
+
+              // weights before 2024-08-27:
+              // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
+
+              // weights after 2024-08-27:
+              delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
+              delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
+
+              coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * sortID + delta_h2_partial_pfixsum[superparent];
+
+              std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                        << sortID << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
+
+
+              if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
+              {
+                  vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
+                  vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+                  if(nextSuperparent != superparent)
+                  {
+                      // std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+
+                      delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
+                      delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+
+                      std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+                      coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                      std::cout << "\t\t" << tailends[superNodeID] << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                                << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+                  }
+
+              }
+              else
+              {
+                // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+                std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+                coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                          << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
 
               }
 
-          }
-          else
-          {
-//            std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
-            std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
-            coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+              superarcIntrinsicWeightPortal.Set(superparent,
+                                                superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
 
-            std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
-                      << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+            } // per node in sorted order
+        }
+
+        else if (dim2)
+        {// test 2D coefficients
+
+            double a_mid[] = {0.2148571, 0.0625, 0.16667, 0.25, 0.4375, 0.14285, 0.16667, 0.375};
+
+            for(int i = 0; i < 8; i++)
+            {
+                std::cout << a_mid[i] << " ";
+            }
+            std::cout << std::endl;
+
+            for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+            { // per node in sorted order
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+              if (prevIndex != superparent)
+              {
+                  prevIndex = superparent;
+                  // tail-end of a branch
+                  superNodeID = sortID;
+              }
+
+              std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
 
 
-          }
+              if (sortedNode == 0)
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+              else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
 
-          superarcIntrinsicWeightPortal.Set(superparent,
-                                            superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
 
-        } // per node in sorted order
+              // CHANGES:
+              // UPDATE AT REGULAR NODE: +1
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
+
+              // UPDATE AT REGULAR NODE: +area/3
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
+
+              // weights before 2024-08-27:
+              // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
+
+              // weights after 2024-08-27:
+              delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
+              delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
+              delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[sortID];
+
+              coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * (sortID*sortID) - delta_h2_partial_pfixsum[superparent] * sortID + delta_h3_partial_pfixsum[superparent];
+
+              std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                        << sortID << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << sortID << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
+
+
+              if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
+              {
+                  vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
+                  vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+                  if(nextSuperparent != superparent)
+                  {
+                      // std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+
+                      delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
+                      delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+                      delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[tailends[superNodeID]];
+
+                      std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+                      coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]) - delta_h2_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h3_partial_pfixsum[superparent];
+                              //delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                      std::cout << "\t\t" << tailends[superNodeID]  << " -h " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                                << tailends[superNodeID]  << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID]  << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
+
+                  }
+
+              }
+              else
+              {
+                // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+                std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+                coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                std::cout << "\t\t" << sortID << " -g " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                          << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+
+              }
+
+              superarcIntrinsicWeightPortal.Set(superparent,
+                                                superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
+
+            } // per node in sorted order
+        }
+
+
+
 
         // -------------------------------------- SWEEP  ------------------------------------- //
 
