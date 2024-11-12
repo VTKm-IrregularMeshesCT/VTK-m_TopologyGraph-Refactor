@@ -164,6 +164,11 @@ public:
         return start + (difference * interpolant);
     }
 
+    double mag()
+    {
+        return vtkm::Magnitude(difference);
+    }
+
 };
 
 // Adjusted function to read the file.
@@ -1787,7 +1792,7 @@ public:
 
             // =========================== \/ Step 3: Compute Entire (full) Tet Volumes \/ ============================ //
 
-            std::vector<double> tet_volumes;
+            std::vector<double> full_tet_volumes;
 
             std::cout << "TET VOLUMES:" << std::endl;
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -1800,8 +1805,8 @@ public:
                 PositionVector b_vol(verticesA[i], verticesD[i]);
                 PositionVector c_vol(verticesA[i], verticesB[i]);
 
-                tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
-                std::cout << i << " = " << tet_volumes[i] << std::endl;
+                full_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
+                std::cout << i << " = " << full_tet_volumes[i] << std::endl;
             }
 
 
@@ -1810,7 +1815,224 @@ public:
 
 
 
+            // ---------------------------------------------- FIRST SLAB ----------------------------------------------- //
 
+
+
+            // ============== \/ Step 4: Compute the first slab volume (defined from isovalues h1-h2) \/ =============== //
+
+            std::vector<double> slab1_h1h2_tet_volumes;
+
+            std::cout << "SLAB1 VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+                double alpha_h2= std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth3s[i]-teth1s[i])));
+
+                double beta_h2 = std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth4s[i]-teth1s[i])));
+
+                // NOTE: gamma can be optimised away, since we reach point B at h2 (because B holds h2) ...
+                // ... gamma will always be 1.0
+                double gamma_h2= std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth2s[i]-teth1s[i])));
+
+
+                PositionVector a_h1h2_vol(verticesA[i], verticesC[i]);
+                PositionVector b_h1h2_vol(verticesA[i], verticesD[i]);
+                PositionVector c_h1h2_vol(verticesA[i], verticesB[i]);
+
+                a_h1h2_vol.lerp(alpha_h2);
+                b_h1h2_vol.lerp(beta_h2);
+                c_h1h2_vol.lerp(gamma_h2);
+
+                slab1_h1h2_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference, b_h1h2_vol.difference),
+                                                                           c_h1h2_vol.difference) ) );
+                std::cout << i << " = " << slab1_h1h2_tet_volumes[i] << "(" << alpha_h2 << ", " << beta_h2 << ", " << gamma_h2 << ")" << std::endl;
+            }
+
+
+
+            // ==========  \/ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) \/ ============ //
+
+            //
+            std::vector<double> a_h1h2;
+            std::vector<double> b_h1h2;
+            std::vector<double> c_h1h2;
+            std::vector<double> d_h1h2;
+            std::vector<double> d_h1h2_down;
+
+
+            std::cout << "SLAB1 h1h2 coefficients:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                a_h1h2.push_back(slab1_h1h2_tet_volumes[i]                                  / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                b_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * teth1s[i])              / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                c_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+
+                std::cout << i << " = " << "a = " << a_h1h2[i]<< ", b = " << b_h1h2[i]<< ", c = " << c_h1h2[i] << ", d = " << d_h1h2[i] << std::endl;
+            }
+
+            // ========== /\ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) /\ ============ //
+
+
+
+            // ---------------------------------------------- LAST SLAB ----------------------------------------------- //
+
+
+
+
+            // ============== \/ Step 6: Compute the last slab volume (defined from isovalues h3-h4) \/ =============== //
+
+
+            std::vector<double> slab3_h3h4_tet_volumes; // only the slab volume
+            std::vector<double> slab3_h3h4_tet_volumes_sweeping_up; // (total volume) - (slab)
+
+            std::cout << "SLAB3 VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+                double alpha_h3= std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth2s[i]-teth4s[i])));
+
+                double beta_h3 = std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth1s[i]-teth4s[i])));
+
+                double gamma_h3= std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth3s[i]-teth4s[i])));
+
+
+                PositionVector a_h3h4_vol(verticesD[i], verticesB[i]);
+                PositionVector b_h3h4_vol(verticesD[i], verticesA[i]);
+                PositionVector c_h3h4_vol(verticesD[i], verticesC[i]);
+
+                a_h3h4_vol.lerp(alpha_h3);
+                b_h3h4_vol.lerp(beta_h3);
+                c_h3h4_vol.lerp(gamma_h3);
+
+                slab3_h3h4_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h3h4_vol.difference, b_h3h4_vol.difference),
+                                                                           c_h3h4_vol.difference) ) );
+
+                slab3_h3h4_tet_volumes_sweeping_up.push_back(full_tet_volumes[i] - slab3_h3h4_tet_volumes[i]);
+
+                std::cout << i << " = " << slab3_h3h4_tet_volumes[i] << "(" << alpha_h3 << ", " << beta_h3 << ", " << gamma_h3 << ")" << std::endl;
+            }
+
+            // ============== /\ Step 6: Compute the last slab volume (defined from isovalues h3-h4) /\ =============== //
+
+            // ==========  \/ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) \/ ============ //
+
+            //
+            std::vector<double> a_h3h4;
+            std::vector<double> b_h3h4;
+            std::vector<double> c_h3h4;
+//            std::vector<double> d_h3h4;
+            std::vector<double> d_h3h4_down;
+
+            // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
+            // ... and 'slab3_h3h4_tet_volumes' as v_volumeh3moveup
+
+
+            std::cout << "SLAB3 h3h4 coefficients:" << std::endl;
+            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
+            double d_h3h3_to0;              //       updated 'd' coefficient that moves the slab function to start at y=0
+            std::vector<double> d_h3h4_up;  // final updated 'd' coefficient that moves the slab function to start at y=volume_h3
+            double vol_h3 = 0.0;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << slab3_h3h4_tet_volumes_sweeping_up[i] << " " << full_tet_volumes[i] << std::endl;
+                a_h3h4.push_back((slab3_h3h4_tet_volumes_sweeping_up[i] - full_tet_volumes[i])                                                              / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+                b_h3h4.push_back((-3.0*teth4s[i] * slab3_h3h4_tet_volumes_sweeping_up[i] + 3.0*teth4s[i] * full_tet_volumes[i])                             / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+                c_h3h4.push_back(( 3.0*std::pow(teth4s[i],2) * slab3_h3h4_tet_volumes_sweeping_up[i] - 3.0*std::pow(teth4s[i],2) * full_tet_volumes[i])     / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+
+                // compute the base d coefficient, update it later to lift the function up:
+                d_h3h4 = (-std::pow(teth4s[i],3) * slab3_h3h4_tet_volumes_sweeping_up[i] + std::pow(teth4s[i],3) * full_tet_volumes[i])                     / double( std::pow((teth3s[i] - teth4s[i]), 3));
+
+
+                vol_h3 = a_h3h4[i]*std::pow(teth3s[i], 3) + b_h3h4[i]*std::pow(teth3s[i], 2) + c_h3h4[i]*teth3s[i] + d_h3h4;
+
+                d_h3h3_to0 = d_h3h4 - vol_h3;
+
+                // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
+                d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
+
+
+                std::cout << i << " = " << "a = " << a_h3h4[i]<< ", b = " << b_h3h4[i]<< ", c = " << c_h3h4[i] << ", d = " << d_h3h4_up[i] << std::endl;
+            }
+
+            // ========== /\ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) /\ ============ //
+
+
+
+            // ---------------------------------------------- MID SLAB ----------------------------------------------- //
+
+
+            // =========================  \/ Step 8: Compute sin(theta1) and sin(theta2) \/ ========================== //
+            // sin theta 1 computation:
+
+            std::vector<double> areas_CGH;
+            std::vector<double> sin_theta_1s;
+
+            std::vector<PositionVector> vectorsGH;
+            std::vector<PositionVector> vectorsCH;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsGH.emplace_back(verticesG[i], verticesH[i]);
+                vectorsCH.emplace_back(verticesC[i], verticesH[i]);
+            }
+
+            std::cout << "Areas CGH:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                areas_CGH.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsGH[i].difference, vectorsCH[i].difference )) );
+                sin_theta_1s.push_back(2.0 * areas_CGH[i]/ (vectorsGH[i].mag() * vectorsCH[i].mag()) );
+
+                std::cout << "Area of " << i << " = " << areas_CGH[i] << std::endl;
+                std::cout << "sin(theta1) of " << i << " = " << sin_theta_1s[i] << std::endl;
+            }
+
+
+
+            // sin theta 2 computation:
+
+            std::vector<double> areas_BEF;
+            std::vector<double> sin_theta_2s;
+
+            std::vector<PositionVector> vectorsFB;
+            std::vector<PositionVector> vectorsFE;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsFB.emplace_back(verticesF[i], verticesB[i]);
+                vectorsFE.emplace_back(verticesF[i], verticesE[i]);
+            }
+
+            std::cout << "Areas BEF:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                areas_BEF.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsFB[i].difference, vectorsFE[i].difference )) );
+                sin_theta_2s.push_back(2.0 * areas_BEF[i]/ (vectorsFB[i].mag() * vectorsFE[i].mag()) );
+
+                std::cout << "Area of " << i << " = " << areas_BEF[i] << std::endl;
+                std::cout << "sin(theta1) of " << i << " = " << sin_theta_2s[i] << std::endl;
+            }
+
+
+            // =========================  /\ Step 8: Compute sin(theta1) and sin(theta2) /\ ========================== //
+
+
+
+
+/* THE FOLLOWING REQUIRES SWEEP ISOVALUE H */
             // ==================== \/ Step 3: Deriving middle slab quad vertices P, Q, R, S \/ ==================== //
 
 //            // First we define control vectors for the middle quad within the middle slab ...
@@ -1833,7 +2055,7 @@ public:
 //            }
 
             // ==================== /\ Step 3: Deriving middle slab quad vertices P, Q, R, S /\ ==================== //
-
+/* THE PAST REQUIRES SWEEP ISOVALUE H */
 
 
 
