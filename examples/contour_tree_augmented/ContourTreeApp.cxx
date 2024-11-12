@@ -347,8 +347,8 @@ int main(int argc, char* argv[])
   }
 
   // PhD - 2024-05-28 compute branch decomposition
-  computeBranchDecomposition = true;
-  computeRegularStructure = 1;
+  computeBranchDecomposition = true; //false; // true;
+  computeRegularStructure = 1; //0; //1;
 
   // Iso value selection parameters
   // Approach to be used to select contours based on the tree

@@ -66,6 +66,8 @@
 // local includes
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/PrintVectors.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/Types.h>
+#include <vtkm/Math.h>
+#include <vtkm/VectorAnalysis.h>
 
 //VTKM includes
 #include <vtkm/Pair.h>
@@ -114,6 +116,54 @@ struct Triangle
     int p1;
     int p2;
     int p3;
+};
+
+
+struct Tetrahedron
+{
+    int p1;
+    int p2;
+    int p3;
+    int p4;
+};
+
+// since in our code vectors are associated with points in space ...
+// ... we wrap vtkm vectors, which are directional, to a position vector ...
+// ... by keeping track of start and end points
+class PositionVector
+{
+public:
+    vtkm::Vec3f_32 start;
+    vtkm::Vec3f_32 end;
+    // we define difference as end-start
+    vtkm::Vec3f_32 difference;
+    // direction is just the normalised (unit) difference between start and end
+    vtkm::Vec3f_32 direction;
+
+
+    PositionVector(vtkm::Vec3f_32 aStart, vtkm::Vec3f_32 aEnd)
+    {
+        start = aStart;
+        end = aEnd;
+        difference = aEnd - aStart;
+        direction = vtkm::Normal(difference);
+    }
+
+    void lerp(double interpolant)
+    {
+        // start does not change, only update the end and difference
+        difference = difference * interpolant;
+        end = start + difference;
+
+        direction = vtkm::Normal(difference);
+
+    }
+
+    vtkm::Vec3f_32 lerp2point(double interpolant)
+    {
+        return start + (difference * interpolant);
+    }
+
 };
 
 // Adjusted function to read the file.
@@ -186,6 +236,45 @@ std::vector<Triangle> ReadTrianglesFromFile(const std::string& filename) {
 
     return triangleMap;
 }
+
+
+
+std::vector<Tetrahedron> ReadTetsFromFile(const std::string& filename) {
+//    std::map<vtkm::Id, Coordinates> coordinatesMap;
+    std::vector<Tetrahedron> tetMap;
+    std::ifstream file(filename);
+    std::string line;
+
+    if (!file)
+    {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return tetMap; // Return an empty map if file opening fails.
+    }
+
+    std::cout << "READING ... \n";
+
+    while (getline(file, line))
+    {
+        std::istringstream iss(line);
+        vtkm::Id id;
+        Tetrahedron tet;
+
+        // Extracting ID and coordinates from the current line, assuming the ID is a vtkm::Id.
+        if (!(iss >> id >> tet.p1 >> tet.p2 >> tet.p3 >> tet.p4))
+        {
+            std::cerr << "Error parsing line: " << line << std::endl;
+            continue; // Skip to the next line if parsing fails.
+        }
+
+        std::cout << tet.p1 << " " << tet.p2 << " " << tet.p3 << " " << tet.p4 << std::endl;
+
+        // Store the extracted data in the map.
+        tetMap.push_back(tet);
+    }
+
+    return tetMap;
+}
+
 
 
 
@@ -1056,6 +1145,39 @@ public:
     }
 
 
+    void static print2DarrayInt(std::vector<std::vector<int>> vxtc)
+    {
+        std::cout << "\n   ";
+        for(int j=0; j<vxtc[0].size(); j++)
+        {
+            std::cout << j << " ";
+        }
+        std::cout << std::endl;
+        for(int i=0; i < vxtc.size(); i++)
+        {
+            std::cout << i << ") ";
+            for(int j=0; j<vxtc[i].size(); j++)
+            {
+                std::cout<<vxtc[i][j]<<" ";
+            }
+            std::cout<<std::endl;
+        }
+    }
+
+
+
+
+    vtkm::Vec3f_32 static fromTo(vtkm::Vec3f_32 a, vtkm::Vec3f_32 b)
+    {
+        vtkm::Vec3f_32 start = a;
+        vtkm::Vec3f_32 result;
+
+        result = start + (a - b);
+
+        return result;
+    }
+
+
 
     // 2024-08-23 COMPUTE THE FLOAT VERSION OF THE WEIGHTS WITH COEFFICIENTS
     void static ComputeVolumeWeightsSerialFloatCoefficients(const ContourTree& contourTree,
@@ -1082,55 +1204,63 @@ public:
 
         std::cout << "CALL FROM THE COEFFICIENT-BASED FLOAT FUNCTION" << std::endl;
 
-    //            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
-    //            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+        // const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+        // const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
 
-            const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
-            const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
+        const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
+        const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
 
-        //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
+         const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-coordinates.txt";
+         const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-tets.txt";
+
+        // const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
 
         //    std::map<vtkm::Id, Coordinates>
-            std::vector<Coordinates> coordlist    = ReadCoordinatesFromFile(filename1);
-            std::vector<Triangle> trianglelist = ReadTrianglesFromFile(filename2);
+        std::vector<Coordinates> coordlist    = ReadCoordinatesFromFile(filename1);
+        std::vector<Triangle> trianglelist    = ReadTrianglesFromFile(filename2);
 
-            std::vector<double> weightList;
+        std::vector<Coordinates> coordlist3D  = ReadCoordinatesFromFile(filename3D1);
+        std::vector<Tetrahedron> tetlist      = ReadTetsFromFile(filename3D2);
 
-            std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
+        std::vector<double> weightList;
 
-            // Print the read data for demonstration purposes.
+        std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
+
+        // Print the read data for demonstration purposes.
         //    for (const auto& pair : coordlist)
-            for (int i = 0; i < coordlist.size(); i++)
-            {
-                std::cout << i << ": " << coordlist[i].x << ", " << coordlist[i].y << ", " << coordlist[i].z << std::endl;
-                weightList.push_back(0.0);
-            }
-            std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
-            for (int i = 0; i < trianglelist.size(); i++)
-            {
-                std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
-                double area = ComputeTriangleArea(
-                                coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
-                                coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
-                                coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
+        for (int i = 0; i < coordlist.size(); i++)
+        {
+            std::cout << i << ": " << coordlist[i].x << ", " << coordlist[i].y << ", " << coordlist[i].z << std::endl;
+            weightList.push_back(0.0);
+        }
 
-                //                double area = 0.5;
+        std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
+        std::cout << "num. of triangles: " << trianglelist.size() << std::endl;
+        for (int i = 0; i < trianglelist.size(); i++)
+        {
+            std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
+            double area = ComputeTriangleArea(
+                            coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
+                            coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
+                            coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
 
-                double wt = area / 3.0;
-                // for each vertex comprising the triangle ...
-                // ... add 1/3rd of the triangle's area to the vertice's weight:
-                weightList[trianglelist[i].p1] += wt;
-                weightList[trianglelist[i].p2] += wt;
-                weightList[trianglelist[i].p3] += wt;
+            //                double area = 0.5;
 
-                std::cout << " = " << area << std::endl;
-            }
+            double wt = area / 3.0;
+            // for each vertex comprising the triangle ...
+            // ... add 1/3rd of the triangle's area to the vertice's weight:
+            weightList[trianglelist[i].p1] += wt;
+            weightList[trianglelist[i].p2] += wt;
+            weightList[trianglelist[i].p3] += wt;
 
-            std::cout << "PRINT THE WEIGHTS SO FAR: \n";
-            for (int i = 0; i < weightList.size(); i++)
-            {
-                std::cout << i << ": " << weightList[i] << std::endl;
-            }
+            std::cout << " = " << area << std::endl;
+        }
+
+        std::cout << "PRINT THE WEIGHTS SO FAR: \n";
+        for (int i = 0; i < weightList.size(); i++)
+        {
+            std::cout << i << ": " << weightList[i] << std::endl;
+        }
 
 
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
@@ -1143,8 +1273,85 @@ public:
             superarcIntrinsicWeightPortal.Set(superparent, 0.f);
         }
 
+
+        std::cout << "PRINT THE ARRAYS OF TETS: \n";
+        std::cout << "num. of tets: " << tetlist.size() << std::endl;
+
+
+        std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
+                                                    std::vector<int> (4, 0));
+
+//        std::vector<std::vector<Coordinates>> verticesA(tetlist.size(),
+//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
+//        std::vector<std::vector<Coordinates>> verticesB(tetlist.size(),
+//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
+//        std::vector<std::vector<Coordinates>> verticesC(tetlist.size(),
+//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
+//        std::vector<std::vector<Coordinates>> verticesD(tetlist.size(),
+//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
+
+        // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
+        // ... with their corresponding isovalues
+        std::vector<vtkm::Vec3f_32> verticesA;
+        std::vector<int> teth1s;
+        std::vector<vtkm::Vec3f_32> verticesB;
+        std::vector<int> teth2s;
+        std::vector<vtkm::Vec3f_32> verticesC;
+        std::vector<int> teth3s;
+        std::vector<vtkm::Vec3f_32> verticesD;
+        std::vector<int> teth4s;
+
+        // Deriving middle slab triangle vertices E, F, G, H
+        // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
+        std::vector<vtkm::Vec3f_32> verticesE;
+        std::vector<vtkm::Vec3f_32> verticesF;
+
+        // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
+        std::vector<vtkm::Vec3f_32> verticesG;
+        std::vector<vtkm::Vec3f_32> verticesH;
+
+        // Plane Points between isovalues h2 and h3  [Vertices P, Q, R, S]      - MIDDLE QUAD SLAB
+        std::vector<vtkm::Vec3f_32> verticesP;
+        std::vector<vtkm::Vec3f_32> verticesQ;
+        std::vector<vtkm::Vec3f_32> verticesR;
+        std::vector<vtkm::Vec3f_32> verticesS;
+
+//        // Initializing the 2-D vector
+//        std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+//                                              std::vector<double> (trianglelist.size(), 0.0));
+
+
+        for (int i = 0; i < tetlist.size(); i++)
+        {
+            std::cout << i << ": " << tetlist[i].p1 << ", " << tetlist[i].p2 << ", " << tetlist[i].p3 << ", " << tetlist[i].p4; //<< std::endl;
+            double volume = 0.1666666666667; // HARDCODED TODO CHANGE
+            std::cout << " = " << volume << std::endl;
+
+            tetlistSorted[i][0] = tetlist[i].p1;
+            tetlistSorted[i][1] = tetlist[i].p2;
+            tetlistSorted[i][2] = tetlist[i].p3;
+            tetlistSorted[i][3] = tetlist[i].p4;
+        }
+
+//        std::sort()
+        std::cout << "PRINT TETS UNSORTED:" << std::endl;
+        print2DarrayInt(tetlistSorted);
+
+        for (int i = 0; i < tetlist.size(); i++)
+        {
+            std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
+        }
+
+        std::cout << "PRINT TETS SORTED:" << std::endl;
+        print2DarrayInt(tetlistSorted);
+
+        std::cout << "============================================================================================" << std::endl;
+
+        //        std::sort(tetlist.begin(), tetlist.end(), std::greater<int>());
+
         bool dim1 = false;
-        bool dim2 = true;
+        bool dim2 = false;
+        bool dim3 = true;
 
         // ----------------------------------- PRE-PROCESS ----------------------------------- //
         // Here we basically populate the table as such:
@@ -1155,17 +1362,18 @@ public:
         std::vector<double> vx_delta_h1_sum;
         std::vector<double> vx_delta_h2_sum; // 1D coefficients
         std::vector<double> vx_delta_h3_sum; // 2D coefficients
+        std::vector<double> vx_delta_h4_sum; // 3D coefficients
 
         std::vector<double> delta_h1_pfixsum;
         std::vector<double> delta_h2_pfixsum; // 1D coefficients
         std::vector<double> delta_h3_pfixsum; // 2D coefficients
+        std::vector<double> delta_h4_pfixsum; // 3D coefficients
 
         if(dim1)
         {
             // (below is actually the length of the hypotenuse projected onto the base from the 90-degree angle)
             // TODO: replace this with actual area of each triangle!
             double fake_area = sqrt(2.0) / 2.0;
-
 
 
             std::cout << "PREPROCESSING STEP:" << std::endl;
@@ -1179,6 +1387,7 @@ public:
 
             std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (trianglelist.size(), 0.0));
+            std::cout << "\nInitialised vxtch2:" << std::endl;
             print2Darray(vxtch2);
 
             for (int i = 0; i < trianglelist.size(); i++)
@@ -1232,7 +1441,7 @@ public:
             }
             std::cout << "vxtch1" << std::endl;
             print2Darray(vxtch1);
-            std::cout << "vxtch1" << std::endl;
+            std::cout << "vxtch2" << std::endl;
             print2Darray(vxtch2);
 
 
@@ -1274,12 +1483,15 @@ public:
         }
         else if(dim2)
         {
+            std::cout << "Computing 2D coefficients:" << std::endl;
+
             // (below is the area of a full 1x1 90-degree triangle)
             // TODO: replace this with actual area of each triangle!
             double fake_area = 0.5; //sqrt(2.0) / 2.0;
 
             double a_mid[] = {0.2148571, 0.0625, 0.16667, 0.25, 0.4375, 0.14285, 0.16667, 0.375};
 
+            std::cout << "Printing a_mid areas:" << std::endl;
             for(int i = 0; i < 8; i++)
             {
                 std::cout << a_mid[i] << " ";
@@ -1376,6 +1588,13 @@ public:
 
     //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
             }
+
+
+//            else if (dim4)
+//            {
+
+//            }
+
             std::cout << "vxtch1" << std::endl;
             print2Darray(vxtch1);
             std::cout << "vxtch2" << std::endl;
@@ -1431,6 +1650,217 @@ public:
                 std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << " pfix(h3)=" << delta_h3_pfixsum[i] << std::endl;
             }
         }
+        else if(dim3)
+        {
+            std::cout << "Computing 3D Coefficients ..." << std::endl;
+
+            // process one tet at a time ...
+            // ... starting with they local coordinates and individual volumes
+            for(int i = 0; i < tetlist.size(); i++)
+            {
+                std::cout << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
+                std::cout << "(" << tetlistSorted[i][0] << " " << tetlistSorted[i][1] << " " << tetlistSorted[i][2] << " " << tetlistSorted[i][3] << ")" << std::endl;
+
+                std::cout << "\t " << tetlistSorted[i][0] << " = <" << coordlist3D[tetlistSorted[i][0]].x << " " << coordlist3D[tetlistSorted[i][0]].y << " " << coordlist3D[tetlistSorted[i][0]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][1] << " = <" << coordlist3D[tetlistSorted[i][1]].x << " " << coordlist3D[tetlistSorted[i][1]].y << " " << coordlist3D[tetlistSorted[i][1]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][2] << " = <" << coordlist3D[tetlistSorted[i][2]].x << " " << coordlist3D[tetlistSorted[i][2]].y << " " << coordlist3D[tetlistSorted[i][2]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][3] << " = <" << coordlist3D[tetlistSorted[i][3]].x << " " << coordlist3D[tetlistSorted[i][3]].y << " " << coordlist3D[tetlistSorted[i][3]].z << ">" << std::endl;
+            }
+
+
+            // ==================== \/ Step 1: Name the vertices that define each tetrahedron A, B, C, D \/ ==================== //
+            // ... together with h1, h2, h3, h4
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                verticesA.emplace_back( coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z );
+                verticesB.emplace_back( coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z );
+                verticesC.emplace_back( coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z );
+                verticesD.emplace_back( coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z );
+
+                // keep track of tetrahedron boundary values h1, h2, h3, and h4
+                teth1s.emplace_back(tetlistSorted[i][0]);
+                teth2s.emplace_back(tetlistSorted[i][1]);
+                teth3s.emplace_back(tetlistSorted[i][2]);
+                teth4s.emplace_back(tetlistSorted[i][3]);
+            }
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "===" << std::endl;
+                std::cout << "\t" << teth1s[i] << " = " << verticesA[i] << std::endl;
+                std::cout << "\t" << teth2s[i] << " = " << verticesB[i] << std::endl;
+                std::cout << "\t" << teth3s[i] << " = " << verticesC[i] << std::endl;
+                std::cout << "\t" << teth4s[i] << " = " << verticesD[i] << std::endl;
+                std::cout << "===" << std::endl;
+            }
+
+            // =================== \/ Step 1.5: from points A, B, C, D define vectors between them \/ ================== //
+
+//            std::vector<vtkm::Vec3f_32> vectorsAB;
+//            std::vector<vtkm::Vec3f_32> vectorsAC;
+
+            std::vector<PositionVector> vectorsAB;
+            std::vector<PositionVector> vectorsAC;
+            std::vector<PositionVector> vectorsAD;
+            std::vector<PositionVector> vectorsBD;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsAB.emplace_back(verticesA[i], verticesB[i]);
+                vectorsAC.emplace_back(verticesA[i], verticesC[i]);
+                vectorsAD.emplace_back(verticesA[i], verticesD[i]);
+                vectorsBD.emplace_back(verticesB[i], verticesD[i]);
+
+            }
+
+            std::cout << "Vectors AB for each tet:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << i << " " << vectorsAD[i].start << " " << vectorsAD[i].end << " - " << vectorsAD[i].difference << std::endl;
+                std::cout << i << " " << vectorsAC[i].start << " " << vectorsAC[i].end << " + " << vectorsAC[i].difference << std::endl;
+//                vectorsAB[i].lerp(0.5);
+//                std::cout << i << " " << vectorsAB[i].start << " " << vectorsAB[i].end << " + " << vectorsAB[i].difference << std::endl;
+            }
+
+
+            // =================== /\ Step 1.5: from points A, B, C, D define vectors between them /\ ================== //
+
+            // ==================== \/ Step 2: Deriving middle slab triangle vertices E, F, G, H \/ ==================== //
+
+            // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
+
+            // We will now be computing:
+            //            verticesE;
+            //            verticesF;
+            // ... from vectors AD and AC respectively.
+
+
+            for(int i = 0; i < tetlistSorted.size(); i++)
+            {
+                // lerp at h=2 on AD between 1 and 4 (a=1, d=4)
+                double lerpADh2_h1_h4 = double(teth2s[i] - teth1s[i]) / double(teth4s[i] - teth1s[i]);
+                verticesE.push_back(vectorsAD[i].lerp2point(lerpADh2_h1_h4));
+
+                double lerpACh2_h1_h3 = double(teth2s[i] - teth1s[i]) / double(teth3s[i] - teth1s[i]);
+                verticesF.push_back(vectorsAC[i].lerp2point(lerpACh2_h1_h3));
+
+                std::cout << "lerpADh2_h1_h4: " << lerpADh2_h1_h4 << " E = " << verticesE[i] << std::endl;
+                std::cout << "lerpACh2_h1_h3: " << lerpACh2_h1_h3 << " F = " << verticesF[i] << std::endl;
+            }
+
+
+            // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET SLAB
+            // We will now be computing:
+            //            verticesG;
+            //            verticesH;
+            // ... from vectors AD and BD respectively.
+
+            for(int i = 0; i < tetlistSorted.size(); i++)
+            {
+                // lerp at h=3 on AD between h2 and h3 (a=h1, d=h4)
+                double lerpADh3_h1_h4 = double(teth3s[i] - teth1s[i]) / double(teth4s[i] - teth1s[i]);
+                verticesG.push_back(vectorsAD[i].lerp2point(lerpADh3_h1_h4));
+
+                // lerp at h3 on BD between h2 and h4 (b=h2, d=h4)
+
+                double lerpBDh2_h2_h4 = double(teth3s[i] - teth2s[i]) / double(teth4s[i] - teth2s[i]);
+                verticesH.push_back(vectorsBD[i].lerp2point(lerpBDh2_h2_h4));
+
+                std::cout << "lerpADh3_h1_h4: " << lerpADh3_h1_h4 << " G = " << verticesG[i] << std::endl;
+                std::cout << "lerpBDh2_h2_h4: " << lerpBDh2_h2_h4 << " H = " << verticesH[i] << std::endl;
+            }
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "===" << std::endl;
+                std::cout << "\t" << teth1s[i] << " = " << verticesA[i] << std::endl;
+                std::cout << "\t" << teth2s[i] << " = " << verticesB[i] << std::endl;
+                std::cout << "\t" << teth3s[i] << " = " << verticesC[i] << std::endl;
+                std::cout << "\t" << teth4s[i] << " = " << verticesD[i] << std::endl;
+                std::cout << "===" << std::endl;
+            }
+            // ==================== /\ Step 2: Deriving middle slab triangle vertices E, F, G, H /\ ==================== //
+
+
+
+
+            // =========================== \/ Step 3: Compute Entire (full) Tet Volumes \/ ============================ //
+
+            std::vector<double> tet_volumes;
+
+            std::cout << "TET VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+
+                PositionVector a_vol(verticesA[i], verticesC[i]);
+                PositionVector b_vol(verticesA[i], verticesD[i]);
+                PositionVector c_vol(verticesA[i], verticesB[i]);
+
+                tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
+                std::cout << i << " = " << tet_volumes[i] << std::endl;
+            }
+
+
+
+            // =========================== /\ Step 3: Compute Entire (full) Tet Volumes  /\ ============================ //
+
+
+
+
+            // ==================== \/ Step 3: Deriving middle slab quad vertices P, Q, R, S \/ ==================== //
+
+//            // First we define control vectors for the middle quad within the middle slab ...
+//            // ... from our new middle slab points E F G H from Step 2:
+//            std::vector<PositionVector> vectorsBH;
+//            std::vector<PositionVector> vectorsEG;
+//            std::vector<PositionVector> vectorsFC;
+//            std::vector<PositionVector> vectorsBC;
+
+//            for (int i = 0; i < tetlistSorted.size(); i++)
+//            {
+//                vectorsBH.emplace_back(verticesB[i], verticesH[i]);
+//                vectorsEG.emplace_back(verticesE[i], verticesG[i]);
+//                vectorsFC.emplace_back(verticesF[i], verticesC[i]);
+//                vectorsBC.emplace_back(verticesB[i], verticesC[i]);
+
+//                // interpolation value will be same for all points E F G H:
+//                double lerpEFGH = double(h - teth2s[i]) / double(teth3s[i] - teth2s[i]);
+
+//            }
+
+            // ==================== /\ Step 3: Deriving middle slab quad vertices P, Q, R, S /\ ==================== //
+
+
+
+
+            std::cout << "PREPROCESSING STEP:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlist.size(), 0.0));
+
+            std::cout << "\nInitialised 3Dvxtch1:" << std::endl;
+            print2Darray(vxtch1);
+
+            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlist.size(), 0.0));
+            std::cout << "\nInitialised 3Dvxtch2:" << std::endl;
+            print2Darray(vxtch2);
+
+            std::vector<std::vector<double>> vxtch3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlist.size(), 0.0));
+            std::cout << "\nInitialised 3Dvxtch3:" << std::endl;
+            print2Darray(vxtch3);
+
+            std::vector<std::vector<double>> vxtch4(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlist.size(), 0.0));
+            std::cout << "\nInitialised 3Dvxtch4:" << std::endl;
+            print2Darray(vxtch4);
+        }
 
 
 
@@ -1480,7 +1910,6 @@ public:
             std::cout << supernode << " - " << superNode << "->" << supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))) << std::endl;
 
             tailends.insert(std::make_pair(superNode, supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))));
-
         }
 
         std::cout << "-----------------------------" << std::endl;
