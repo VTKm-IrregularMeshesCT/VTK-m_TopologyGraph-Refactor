@@ -1364,10 +1364,19 @@ public:
         //          triangle1 triangle2   row sum(del. h1/h2)   col (prefix) sum del. h1/h2
         // deltas:  h1 h2     h1 h2
         // v1       x  y      z  w
+        std::vector<double> vx_delta_h1;
         std::vector<double> vx_delta_h1_sum;
+
+        std::vector<double> vx_delta_h2;     // 1D coefficient deltas
         std::vector<double> vx_delta_h2_sum; // 1D coefficients
+
+        std::vector<double> vx_delta_h3;     // 2D coefficient deltas
         std::vector<double> vx_delta_h3_sum; // 2D coefficients
+
+        std::vector<double> vx_delta_h4;     // 3D coefficient deltas
         std::vector<double> vx_delta_h4_sum; // 3D coefficients
+
+
 
         std::vector<double> delta_h1_pfixsum;
         std::vector<double> delta_h2_pfixsum; // 1D coefficients
@@ -1863,7 +1872,6 @@ public:
             std::vector<double> b_h1h2;
             std::vector<double> c_h1h2;
             std::vector<double> d_h1h2;
-            std::vector<double> d_h1h2_down;
 
 
             std::cout << "SLAB1 h1h2 coefficients:" << std::endl;
@@ -1871,9 +1879,10 @@ public:
             {
 
                 a_h1h2.push_back(slab1_h1h2_tet_volumes[i]                                  / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
-                b_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * teth1s[i])              / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                b_h1h2.push_back(-(3.0 * slab1_h1h2_tet_volumes[i] * teth1s[i])              / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
                 c_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
                 d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+
 
                 std::cout << i << " = " << "a = " << a_h1h2[i]<< ", b = " << b_h1h2[i]<< ", c = " << c_h1h2[i] << ", d = " << d_h1h2[i] << std::endl;
             }
@@ -1933,7 +1942,7 @@ public:
             std::vector<double> a_h3h4;
             std::vector<double> b_h3h4;
             std::vector<double> c_h3h4;
-//            std::vector<double> d_h3h4;
+            std::vector<double> d_h3h4;
             std::vector<double> d_h3h4_down;
 
             // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
@@ -1941,7 +1950,7 @@ public:
 
 
             std::cout << "SLAB3 h3h4 coefficients:" << std::endl;
-            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
+//            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
             double d_h3h3_to0;              //       updated 'd' coefficient that moves the slab function to start at y=0
             std::vector<double> d_h3h4_up;  // final updated 'd' coefficient that moves the slab function to start at y=volume_h3
             double vol_h3 = 0.0;
@@ -1954,12 +1963,12 @@ public:
                 c_h3h4.push_back(( 3.0*std::pow(teth4s[i],2) * slab3_h3h4_tet_volumes_sweeping_up[i] - 3.0*std::pow(teth4s[i],2) * full_tet_volumes[i])     / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
 
                 // compute the base d coefficient, update it later to lift the function up:
-                d_h3h4 = (-std::pow(teth4s[i],3) * slab3_h3h4_tet_volumes_sweeping_up[i] + std::pow(teth4s[i],3) * full_tet_volumes[i])                     / double( std::pow((teth3s[i] - teth4s[i]), 3));
+                d_h3h4.push_back((-std::pow(teth4s[i],3) * slab3_h3h4_tet_volumes_sweeping_up[i] + std::pow(teth4s[i],3) * full_tet_volumes[i])                     / double( std::pow((teth3s[i] - teth4s[i]), 3)));
 
 
-                vol_h3 = a_h3h4[i]*std::pow(teth3s[i], 3) + b_h3h4[i]*std::pow(teth3s[i], 2) + c_h3h4[i]*teth3s[i] + d_h3h4;
+                vol_h3 = a_h3h4[i]*std::pow(teth3s[i], 3) + b_h3h4[i]*std::pow(teth3s[i], 2) + c_h3h4[i]*teth3s[i] + d_h3h4[i];
 
-                d_h3h3_to0 = d_h3h4 - vol_h3;
+                d_h3h3_to0 = d_h3h4[i] - vol_h3;
 
                 // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
                 d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
@@ -2028,6 +2037,530 @@ public:
 
 
             // =========================  /\ Step 8: Compute sin(theta1) and sin(theta2) /\ ========================== //
+
+
+            // ===========================  \/ Step 9: Compute Middle Slab Coefficients \/ =========================== //
+
+            // ----------------------------------------------- BATCH 1 ----------------------------------------------- //
+            // a_s1, b_s1, c_s1
+            std::vector<PositionVector> vectorsHG;
+            std::vector<PositionVector> vectorsBE;
+            std::vector<PositionVector> vectorsHC;
+            std::vector<PositionVector> vectorsCG;
+            // FE - already defined
+            // FB - already defined
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsHG.emplace_back(verticesH[i], verticesG[i]);
+                vectorsBE.emplace_back(verticesB[i], verticesE[i]);
+                vectorsHC.emplace_back(verticesH[i], verticesC[i]);
+                vectorsCG.emplace_back(verticesC[i], verticesG[i]);
+
+            }
+
+
+            std::vector<double> tetk2s;
+            std::vector<double> a_s1;
+            std::vector<double> b_s1;
+            std::vector<double> c_s1;
+
+            // local variables for simplifying notation:
+            double n1;
+            double n2;
+            double n3;
+            double n4;
+
+            std::cout << "Mid slab pre-coefficients" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // noting down repeating terms as I am writing the code for the first time:
+                //                (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() )
+
+                tetk2s.push_back( 1.0 / double(teth3s[i] - teth2s[i]) );
+
+                n1 = (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() ));
+                n2 = (vectorsHC[i].mag() * tetk2s[i]);
+
+                n3 = ( teth2s[i] * tetk2s[i] * vectorsHG[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
+                n4 = ( tetk2s[i] * teth3s[i] * vectorsBE[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
+
+
+                a_s1.push_back( n1 * n2 );
+                b_s1.push_back( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
+                c_s1.push_back( n3 * teth2s[i] - n4 * teth2s[i] );
+
+                std::cout << "[a_s1] " << i << " == " << a_s1[i] << std::endl;
+                std::cout << "[b_s1] " << i << " == " << b_s1[i] << std::endl;
+                std::cout << "[c_s1] " << i << " == " << c_s1[i] << std::endl;
+
+            }
+
+            // ----------------------------------------------- BATCH 2 ----------------------------------------------- //
+            // a_s2, b_s2, c_s2
+
+            // HG - already defined
+            // BE - already defined
+            // HC - already defined
+            // CG - already defined
+            // FE - already defined
+            // FB - already defined
+
+            std::vector<double> a_s2;
+            std::vector<double> b_s2;
+            std::vector<double> c_s2;
+
+            // local variables for simplifying notation:
+            double m1;
+            double m2;
+            double m3;
+            double m4;
+
+            std::cout << "Mid slab pre-coefficients" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                m1 = (tetk2s[i] * (vectorsCG[i].mag() - vectorsFE[i].mag() ));
+                m2 = (-vectorsFB[i].mag() * tetk2s[i]);
+
+                m3 = (-teth2s[i] * tetk2s[i] * vectorsCG[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
+                m4 = ( tetk2s[i] * teth3s[i] * vectorsFE[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
+
+
+                a_s2.push_back( m1 * m2 );
+                b_s2.push_back( m1 * -m2 * teth3s[i] - m3 -m4);
+                c_s2.push_back( m3 * teth3s[i] + m4 * teth3s[i] );
+
+                std::cout << "[a_s2] " << i << " == " << a_s2[i] << std::endl;
+                std::cout << "[b_s2] " << i << " == " << b_s2[i] << std::endl;
+                std::cout << "[c_s2] " << i << " == " << c_s2[i] << std::endl;
+
+            }
+
+            // ------------------------------------------ COMBINE BATCH 1+2 ------------------------------------------- //
+            std::vector<double> a_mid;
+            std::vector<double> b_mid;
+            std::vector<double> c_mid;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                a_mid.push_back(sin_theta_1s[i] / 2.0 * a_s1[i] + sin_theta_2s[i] / 2.0 * a_s2[i]);
+                b_mid.push_back(sin_theta_1s[i] / 2.0 * b_s1[i] + sin_theta_2s[i] / 2.0 * b_s2[i]);
+                c_mid.push_back(sin_theta_1s[i] / 2.0 * c_s1[i] + sin_theta_2s[i] / 2.0 * c_s2[i]);
+
+                std::cout << "comb " << i << " " << a_mid[i] << " " << b_mid[i] << " " << c_mid[i] << std::endl;
+            }
+
+
+            // ---------------------------- Compute the Integration correction coefficient ---------------------------- //
+            std::vector<vtkm::Vec3f_32> plane_normals;
+            std::vector<double> plane_distances;
+            vtkm::Vec3f_32 FExFB_cross_product;
+
+            std::vector<double> correction_factor_nominators;
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                FExFB_cross_product = vtkm::Cross(vectorsFE[i].difference, vectorsFB[i].difference);
+
+                plane_normals.push_back( FExFB_cross_product / (vtkm::Magnitude(FExFB_cross_product)) );
+                plane_distances.push_back( vtkm::Magnitude(vtkm::Dot(plane_normals[i], verticesB[i]) - vtkm::Dot(plane_normals[i], verticesH[i]) ) / (vtkm::Magnitude(plane_normals[i]) ) );
+//                plane_distances.push_back( (vtkm::Dot(plane_normals[i], verticesB[i]) - vtkm::Dot(plane_normals[i], verticesH[i]) ) / (vtkm::Magnitude(plane_normals[i]) ) );
+
+
+                correction_factor_nominators.push_back(plane_distances[i] * tetk2s[i]);
+
+                std::cout << "corr: " << i << " " << correction_factor_nominators[i] << std::endl;
+
+            }
+
+
+            // ---------------------------- Compute the Integration correction coefficient ---------------------------- //
+
+            double d_h2h3_to0;
+//            double d_h2h3_up;
+//            std::vector<double> d_mid;
+
+            std::vector<double> a_h2h3;
+            std::vector<double> b_h2h3;
+            std::vector<double> c_h2h3;
+            std::vector<double> d_h2h3;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                a_h2h3.push_back(correction_factor_nominators[i]/3.0 * a_mid[i]);
+                b_h2h3.push_back(correction_factor_nominators[i]/2.0 * b_mid[i]);
+                c_h2h3.push_back(correction_factor_nominators[i]     * c_mid[i]);
+
+                d_h2h3_to0 = a_h2h3[i]  * std::pow(teth2s[i], 3) +\
+                             b_h2h3[i]  * std::pow(teth2s[i], 2) +\
+                             c_h2h3[i]  *          teth2s[i];
+
+//                d_mid.push_back();
+
+
+                d_h2h3.push_back(-d_h2h3_to0 + slab1_h1h2_tet_volumes[i]);
+
+
+            }
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "mid coeffs " << i << " : " << a_h2h3[i] << " " << b_h2h3[i] << " " << c_h2h3[i] << " " << d_h2h3[i] << std::endl;
+            }
+
+
+            // ===========================  /\ Step 9: Compute Middle Slab Coefficients /\ ===========================  //
+
+
+
+
+
+            // ============================  \/ Step 10: Compute UP coefficients table  \/ ============================  //
+
+            std::cout << "Initialised coefficient tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_coeffs_h1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_coeffs_h1:" << std::endl;
+            print2Darray(tet_coeffs_h1);
+
+            std::vector<std::vector<double>> tet_coeffs_h2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h2:" << std::endl;
+            print2Darray(tet_coeffs_h2);
+
+            std::vector<std::vector<double>> tet_coeffs_h3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h3:" << std::endl;
+            print2Darray(tet_coeffs_h3);
+
+            std::vector<std::vector<double>> tet_coeffs_h4(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h4:" << std::endl;
+            print2Darray(tet_coeffs_h4);
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+                for(int h = teth1s[i]; h < teth2s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h1h2[i];
+                    tet_coeffs_h2[h][i] = b_h1h2[i];
+                    tet_coeffs_h3[h][i] = c_h1h2[i];
+                    tet_coeffs_h4[h][i] = d_h1h2[i];
+                }
+                for(int h = teth2s[i]; h < teth3s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h2h3[i];
+                    tet_coeffs_h2[h][i] = b_h2h3[i];
+                    tet_coeffs_h3[h][i] = c_h2h3[i];
+                    tet_coeffs_h4[h][i] = d_h2h3[i];
+                }
+                for(int h = teth3s[i]; h < teth4s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h3h4[i];
+                    tet_coeffs_h2[h][i] = b_h3h4[i];
+                    tet_coeffs_h3[h][i] = c_h3h4[i];
+                    tet_coeffs_h4[h][i] = d_h3h4_up[i];
+                }
+                for(int h = teth4s[i]; h < 8; h++)
+                {
+                    tet_coeffs_h1[h][i] = 0.0;
+                    tet_coeffs_h2[h][i] = 0.0;
+                    tet_coeffs_h3[h][i] = 0.0;
+                    tet_coeffs_h4[h][i] = full_tet_volumes[i];
+                }
+            }
+
+            std::cout << "\nh1 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h1);
+            std::cout << "\nh2 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h2);
+            std::cout << "\nh3 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h3);
+            std::cout << "\nh4 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h4);
+
+
+
+            // ============================  /\ Step 10: Compute UP coefficients table  /\ ============================  //
+
+
+
+
+
+            // =========================  \/ Step 11: Compute UP coefficient deltas table  \/ =========================  //
+
+            std::cout << "Initialised coefficient deltas tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_deltas_h1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_deltas_h1:" << std::endl;
+            print2Darray(tet_deltas_h1);
+
+            std::vector<std::vector<double>> tet_deltas_h2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h2:" << std::endl;
+            print2Darray(tet_deltas_h2);
+
+            std::vector<std::vector<double>> tet_deltas_h3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h3:" << std::endl;
+            print2Darray(tet_deltas_h3);
+
+            std::vector<std::vector<double>> tet_deltas_h4(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h4:" << std::endl;
+            print2Darray(tet_deltas_h4 );
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+//                for(int h = teth1s[i]; h < teth2s[i]; h++)
+//                {
+                    tet_deltas_h1[teth1s[i]+1][i] = a_h1h2[i] - 0.0;
+                    tet_deltas_h2[teth1s[i]+1][i] = b_h1h2[i] - 0.0;
+                    tet_deltas_h3[teth1s[i]+1][i] = c_h1h2[i] - 0.0;
+                    tet_deltas_h4[teth1s[i]+1][i] = d_h1h2[i] - 0.0;
+//                }
+//                for(int h = teth2s[i]; h < teth3s[i]; h++)
+//                {
+                    tet_deltas_h1[teth2s[i]+1][i] = a_h2h3[i] - a_h1h2[i];
+                    tet_deltas_h2[teth2s[i]+1][i] = b_h2h3[i] - b_h1h2[i];
+                    tet_deltas_h3[teth2s[i]+1][i] = c_h2h3[i] - c_h1h2[i];
+                    tet_deltas_h4[teth2s[i]+1][i] = d_h2h3[i] - d_h1h2[i];
+//                }
+//                for(int h = teth3s[i]; h < teth4s[i]; h++)
+//                {
+                    tet_deltas_h1[teth3s[i]+1][i] = a_h3h4[i] - a_h2h3[i];
+                    tet_deltas_h2[teth3s[i]+1][i] = b_h3h4[i] - b_h2h3[i];
+                    tet_deltas_h3[teth3s[i]+1][i] = c_h3h4[i] - c_h2h3[i];
+                    tet_deltas_h4[teth3s[i]+1][i] = d_h3h4_up[i] - d_h2h3[i];
+//                }
+//                for(int h = teth4s[i]; h < 8; h++)
+//                {
+                    tet_deltas_h1[teth4s[i]+1][i] = - a_h3h4[i];
+                    tet_deltas_h2[teth4s[i]+1][i] = - b_h3h4[i];
+                    tet_deltas_h3[teth4s[i]+1][i] = - c_h3h4[i];
+                    tet_deltas_h4[teth4s[i]+1][i] = full_tet_volumes[i] - d_h3h4_up[i];
+//                }
+            }
+
+            std::cout << "\nh1 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h1);
+            std::cout << "\nh2 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h2);
+            std::cout << "\nh3 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h3);
+            std::cout << "\nh4 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h4);
+
+
+
+            // =========================  /\ Step 11: Compute UP coefficient deltas table  /\ =========================  //
+
+
+
+
+
+
+            // ============================ \/ Step 12: Compute DOWN coefficient tables  \/ ==========================  //
+
+            std::vector<double> d_h1h2_down;
+            std::vector<double> d_h2h3_down;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                d_h2h3_down.push_back( (  -a_h2h3[i] * std::pow(teth3s[i], 3) - b_h2h3[i] * std::pow(teth3s[i], 2) - c_h2h3[i] * teth3s[i] ) \
+                                       - (-a_h3h4[i] * std::pow(teth3s[i], 3) - b_h3h4[i] * std::pow(teth3s[i], 2) - c_h3h4[i] * teth3s[i] - d_h3h4[i] ) );
+
+                d_h1h2_down.push_back( (  -a_h1h2[i] * std::pow(teth2s[i], 3) - b_h1h2[i] * std::pow(teth2s[i], 2) - c_h1h2[i] * teth2s[i] ) \
+                                       - (-a_h2h3[i] * std::pow(teth2s[i], 3) - b_h2h3[i] * std::pow(teth2s[i], 2) - c_h2h3[i] * teth2s[i] - d_h2h3_down[i] ) );
+
+            }
+
+
+
+
+
+
+
+            std::cout << "Initialised DOWN coefficient tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_down_coeffs_h1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_down_coeffs_h1:" << std::endl;
+            print2Darray(tet_down_coeffs_h1);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h2:" << std::endl;
+            print2Darray(tet_down_coeffs_h2);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h3:" << std::endl;
+            print2Darray(tet_down_coeffs_h3);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h4(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h4:" << std::endl;
+            print2Darray(tet_down_coeffs_h4);
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in before the h1 coeffs:
+                for(int h = 0; h < teth1s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = 0.0;
+                    tet_down_coeffs_h2[h][i] = 0.0;
+                    tet_down_coeffs_h3[h][i] = 0.0;
+                    tet_down_coeffs_h4[h][i] = full_tet_volumes[i];
+                }
+
+                // fill in just the h1 coeffs:
+                for(int h = teth1s[i]; h < teth2s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h1h2[i];
+                    tet_down_coeffs_h2[h][i] = -b_h1h2[i];
+                    tet_down_coeffs_h3[h][i] = -c_h1h2[i];
+                    tet_down_coeffs_h4[h][i] = -d_h1h2_down[i];
+                }
+                for(int h = teth2s[i]; h < teth3s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h2h3[i];
+                    tet_down_coeffs_h2[h][i] = -b_h2h3[i];
+                    tet_down_coeffs_h3[h][i] = -c_h2h3[i];
+                    tet_down_coeffs_h4[h][i] = -d_h2h3_down[i];
+                }
+                for(int h = teth3s[i]; h < teth4s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h3h4[i];
+                    tet_down_coeffs_h2[h][i] = -b_h3h4[i];
+                    tet_down_coeffs_h3[h][i] = -c_h3h4[i];
+                    tet_down_coeffs_h4[h][i] = -d_h3h4[i];
+                }
+                for(int h = teth4s[i]; h < 8; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = 0.0;
+                    tet_down_coeffs_h2[h][i] = 0.0;
+                    tet_down_coeffs_h3[h][i] = 0.0;
+                    tet_down_coeffs_h4[h][i] = 0.0;
+                }
+            }
+
+            std::cout << "\nh1 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h1);
+            std::cout << "\nh2 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h2);
+            std::cout << "\nh3 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h3);
+            std::cout << "\nh4 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h4);
+
+
+
+            // ============================ /\ Step 12: Compute DOWN coefficient tables  /\ ==========================  //
+
+
+
+
+
+
+
+
+            // ======================== \/ Step 13: Compute DOWN coefficient delta tables  \/ =======================  //
+
+            std::cout << "Initialised DOWN coefficient deltas tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_down_deltas_h1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_down_deltas_h1:" << std::endl;
+            print2Darray(tet_down_deltas_h1);
+
+            std::vector<std::vector<double>> tet_down_deltas_h2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h2:" << std::endl;
+            print2Darray(tet_down_deltas_h2);
+
+            std::vector<std::vector<double>> tet_down_deltas_h3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h3:" << std::endl;
+            print2Darray(tet_down_deltas_h3);
+
+            std::vector<std::vector<double>> tet_down_deltas_h4(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h4:" << std::endl;
+            print2Darray(tet_down_deltas_h4 );
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+//                for(int h = teth1s[i]; h < teth2s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth1s[i]][i] = 0.0 + a_h1h2[i];
+                    tet_down_deltas_h2[teth1s[i]][i] = 0.0 + b_h1h2[i];
+                    tet_down_deltas_h3[teth1s[i]][i] = 0.0 + c_h1h2[i];
+                    tet_down_deltas_h4[teth1s[i]][i] = full_tet_volumes[i] + d_h1h2_down[i];
+//                }
+//                for(int h = teth2s[i]; h < teth3s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth2s[i]][i] = -a_h1h2[i] + a_h2h3[i];
+                    tet_down_deltas_h2[teth2s[i]][i] = -b_h1h2[i] + b_h2h3[i];
+                    tet_down_deltas_h3[teth2s[i]][i] = -c_h1h2[i] + c_h2h3[i];
+                    tet_down_deltas_h4[teth2s[i]][i] = -d_h1h2_down[i] + d_h2h3_down[i];
+//                }
+//                for(int h = teth3s[i]; h < teth4s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth3s[i]][i] = -a_h2h3[i] + a_h3h4[i];
+                    tet_down_deltas_h2[teth3s[i]][i] = -b_h2h3[i] + b_h3h4[i];
+                    tet_down_deltas_h3[teth3s[i]][i] = -c_h2h3[i] + c_h3h4[i];
+                    tet_down_deltas_h4[teth3s[i]][i] = -d_h2h3_down[i] + d_h3h4[i];
+//                }
+//                for(int h = teth4s[i]; h < 8; h++)
+//                {
+                    tet_down_deltas_h1[teth4s[i]][i] = -a_h3h4[i];
+                    tet_down_deltas_h2[teth4s[i]][i] = -b_h3h4[i];
+                    tet_down_deltas_h3[teth4s[i]][i] = -c_h3h4[i];
+                    tet_down_deltas_h4[teth4s[i]][i] = -d_h3h4[i];
+//                }
+            }
+
+            std::cout << "\nh1 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h1);
+            std::cout << "\nh2 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h2);
+            std::cout << "\nh3 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h3);
+            std::cout << "\nh4 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h4);
+
+
+            // ======================== /\ Step 13: Compute DOWN coefficient delta tables  /\ =======================  //
 
 
 
