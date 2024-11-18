@@ -1327,15 +1327,19 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //          int num_datapoints = 90318;
 
 //       int num_datapoints = 16;
-       int num_datapoints = 9;
-//       int num_datapoints = 8;
+
+//       int num_datapoints = 9; // 3x3 2D Branch tet Volume dataset
+       int num_datapoints = 8; // 2x2x2 3D Branch tet Volume dataset
 
 //       const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
 //       const std::string filename = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
 
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triang.txt";
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-3x3.txt";
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-2x2x2.txt";
+
+    // 3x3 2D Branch tet Volume dataset
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-3x3.txt";
+    // 2x2x2 3D Branch tet Volume dataset
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-2x2x2.txt";
 
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";
