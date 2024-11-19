@@ -1209,14 +1209,19 @@ public:
 
         std::cout << "CALL FROM THE COEFFICIENT-BASED FLOAT FUNCTION" << std::endl;
 
+        // Files for basic 1D experiments of Contour Tree Branch node-count weight computations
         // const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
         // const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
 
+        // Files for 2D experiments of Contour Tree Branch length/area-based weight computations
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
         const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
         const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
 
-         const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-coordinates.txt";
-         const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-tets.txt";
+        // Files for 3D experiments of Contour Tree Branch volume-based weight computations
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
+        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-coordinates.txt";
+        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-tets.txt";
 
 
         // get the total number of values to be swept ...
@@ -1226,24 +1231,31 @@ public:
         //  ... because of the simulation of simplicity, which ensures ever data point has a unique value)
         int num_sweep_values = contourTree.Arcs.GetNumberOfValues() + 1;
 
-        // const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/5b-coordinates.txt";
-
-        //    std::map<vtkm::Id, Coordinates>
+        // Coordinate lists and connectivities of 2D triangle-based and 3D tetrahedral datasets.
+        // The coordinates are needed for computing the areas/volumes.
+        // Note that the coordinate information is not previously needed for the base contour tree computation ...
+        // ... and is only introduced as a requirement at this stage.
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
         std::vector<Coordinates> coordlist    = ReadCoordinatesFromFile(filename1);
+        // triangle list has pairs of 3 vertices that make up the triangle
         std::vector<Triangle> trianglelist    = ReadTrianglesFromFile(filename2);
 
         std::vector<Coordinates> coordlist3D  = ReadCoordinatesFromFile(filename3D1);
+        // tetrahedron list has pairs of 4 vertices that make up the tetrahedron
         std::vector<Tetrahedron> tetlist      = ReadTetsFromFile(filename3D2);
 
+        // Weight list is used for the basic implementation that was used for my learning.
+        // It is only used in the naive area weight implementation, ...
+        // ... where the weight of each vertex of the triangle is area/3 (area div by 3)
         std::vector<double> weightList;
 
         std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
 
-        // Print the read data for demonstration purposes.
-        //    for (const auto& pair : coordlist)
+        // Print the coordinates data to check if it was read correctly.
         for (int i = 0; i < coordlist.size(); i++)
         {
             std::cout << i << ": " << coordlist[i].x << ", " << coordlist[i].y << ", " << coordlist[i].z << std::endl;
+            // initialise the weight list array while at it
             weightList.push_back(0.0);
         }
 
@@ -1251,14 +1263,11 @@ public:
         std::cout << "num. of triangles: " << trianglelist.size() << std::endl;
         for (int i = 0; i < trianglelist.size(); i++)
         {
-            std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3; //<< std::endl;
+            std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3;
             double area = ComputeTriangleArea(
                             coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
                             coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
                             coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
-
-            //                double area = 0.5;
-
             double wt = area / 3.0;
             // for each vertex comprising the triangle ...
             // ... add 1/3rd of the triangle's area to the vertice's weight:
@@ -1286,32 +1295,31 @@ public:
             superarcIntrinsicWeightPortal.Set(superparent, 0.f);
         }
 
+        // Now move on to set up 3D tetrahedral variables
 
         std::cout << "PRINT THE ARRAYS OF TETS: \n";
         std::cout << "num. of tets: " << tetlist.size() << std::endl;
 
-
+        // keep track of all tets in a sorted list
+        // (the 'sort' refers to sorting by the vertex ID.
+        // The vertex ID corresponds to a data value, ...
+        //  ... for example a tet X, Y, Z, W might have vertices with IDs X=6, Y=5, Z=3, W=7)
+        //  ... we sort them as 3, 5, 6, 7 ...
+        //  ... and refer to vertices as A, B, C, D
+        //  ... where we then assign A = 3, B = 5, C = 6, D = 7)
+        //  (we do not keep track of the original ordering X, Y, Z, W) ...
         std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
                                                     std::vector<int> (4, 0));
 
-//        std::vector<std::vector<Coordinates>> verticesA(tetlist.size(),
-//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
-//        std::vector<std::vector<Coordinates>> verticesB(tetlist.size(),
-//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
-//        std::vector<std::vector<Coordinates>> verticesC(tetlist.size(),
-//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
-//        std::vector<std::vector<Coordinates>> verticesD(tetlist.size(),
-//                                                    std::vector<Coordinates> (4, Coordinates{0.0, 0.0, 0.0}));
-
         // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
         // ... with their corresponding isovalues
-        std::vector<vtkm::Vec3f_32> verticesA;
+        std::vector<vtkm::Vec3f_32> verticesA; // vertex A contains the lowest isovalue h1
         std::vector<int> teth1s;
-        std::vector<vtkm::Vec3f_32> verticesB;
+        std::vector<vtkm::Vec3f_32> verticesB; // vertex B - h2
         std::vector<int> teth2s;
-        std::vector<vtkm::Vec3f_32> verticesC;
+        std::vector<vtkm::Vec3f_32> verticesC; // vertex C - h3
         std::vector<int> teth3s;
-        std::vector<vtkm::Vec3f_32> verticesD;
+        std::vector<vtkm::Vec3f_32> verticesD; // vertex D - h4
         std::vector<int> teth4s;
 
         // Deriving middle slab triangle vertices E, F, G, H
