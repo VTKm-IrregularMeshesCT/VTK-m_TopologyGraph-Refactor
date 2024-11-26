@@ -109,6 +109,7 @@ using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 using BranchType = vtkm::worklet::contourtree_augmented::process_contourtree_inc::Branch<ValueType>;
 
 namespace ctaug_ns = vtkm::worklet::contourtree_augmented;
+using Coefficients = vtkm::worklet::contourtree_augmented::Coefficients;
 
 // Simple helper class for parsing the command line options
 class ParseCL
@@ -889,6 +890,29 @@ int main(int argc, char* argv[])
                                                                               superarcDependentWeightNEW,  // (output)
                                                                               supernodeTransferWeightNEW,  // (output)
                                                                               hyperarcDependentWeightNEW); // (output)
+
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "==================================================================" << std::endl;
+
+
+    vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightCoeffs;
+    vtkm::cont::ArrayHandle<Coefficients> superarcDependentWeightCoeffs;
+    vtkm::cont::ArrayHandle<Coefficients> supernodeTransferWeightCoeffs;
+    vtkm::cont::ArrayHandle<Coefficients> hyperarcDependentWeightCoeffs;
+
+    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(filter.GetContourTree(),
+                                                                              filter.GetNumIterations(),
+                                                                              superarcIntrinsicWeightCoeffs,  // (output)
+                                                                              superarcDependentWeightCoeffs,  // (output)
+                                                                              supernodeTransferWeightCoeffs,  // (output)
+                                                                              hyperarcDependentWeightCoeffs); // (output)
 
 
 

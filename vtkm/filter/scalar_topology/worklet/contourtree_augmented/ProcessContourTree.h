@@ -127,6 +127,15 @@ struct Tetrahedron
     int p4;
 };
 
+
+struct Coefficients
+{
+    double h1;
+    double h2;
+    double h3;
+    double h4;
+};
+
 // since in our code vectors are associated with points in space ...
 // ... we wrap vtkm vectors, which are directional, to a position vector ...
 // ... by keeping track of start and end points
@@ -932,7 +941,15 @@ public:
           //      intrinsic weight                      1   2   1   5   2   6   1   1
           //      sum(xfer + intrinsic)                 1   3   3   6   4   9   2   1
           //  prefix sum (xfer + int)                   1   4   7  13  17  26  28  29
-          //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  16
+          //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  1 (29-28=1)
+
+          // intrinsic - weight of the superarc itself
+          // dependent - weight of itself + dependent subtree (this is unambiguous because the superarc is oriented)
+          // transfer weight - sum of the dependent weights of the subtrees connected to the supernode that have already been processed
+          // once all of the dependent weights have been transfered to the superarc, the supernode can then be processed in another iteration
+          // of the hypersweep, at which point the transfer weight is added to the intrinsic weight and becomes the dependent weight of the superarc.
+
+
 
 
           std::cout << "SUPERARCS: ";
@@ -1181,6 +1198,22 @@ public:
 
         return result;
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3383,6 +3416,2383 @@ public:
 
 
 
+
+
+
+
+
+
+    // 2024-11-25 COMPUTE THE STRUCT COEFFICIENTS VERSION OF THE WEIGHTS WITH COEFFICIENTS
+    void static ComputeVolumeWeightsSerialStructCoefficients(const ContourTree& contourTree,
+                                                const vtkm::Id nIterations,
+                                                vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff,
+                                                vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff,
+                                                vtkm::cont::ArrayHandle<Coefficients>& supernodeTransferWeightCoeff,
+                                                vtkm::cont::ArrayHandle<Coefficients>& hyperarcDependentWeightCoeff)
+    // 2) COEFFICIENTS:
+    { // ContourTreeMaker::ComputeWeights()
+      // START ComputeVolumeWeightsSerialStructCoefficients
+
+        // Add old arrays that hold the actual volume for compatability:
+        FloatArrayType superarcIntrinsicWeight;
+        FloatArrayType superarcDependentWeight;
+        FloatArrayType supernodeTransferWeight;
+        FloatArrayType hyperarcDependentWeight;
+
+        // start by storing the first sorted vertex ID for each superarc
+        IdArrayType firstVertexForSuperparent;
+        firstVertexForSuperparent.Allocate(contourTree.Superarcs.GetNumberOfValues());
+        superarcIntrinsicWeight.Allocate(contourTree.Superarcs.GetNumberOfValues());
+        auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.WritePortal();
+
+        // 2) COEFFICIENTS:
+        superarcIntrinsicWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
+        auto superarcIntrinsicWeightCoeffPortal = superarcIntrinsicWeightCoeff.WritePortal();
+
+        auto firstVertexForSuperparentPortal = firstVertexForSuperparent.WritePortal();
+        auto superparentsPortal = contourTree.Superparents.ReadPortal();
+        auto hyperparentsPortal = contourTree.Hyperparents.ReadPortal();
+        auto hypernodesPortal = contourTree.Hypernodes.ReadPortal();
+        auto hyperarcsPortal = contourTree.Hyperarcs.ReadPortal();
+        // auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+        auto nodesPortal = contourTree.Nodes.ReadPortal();
+        // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
+
+        std::cout << "CALL FROM THE COEFFICIENT-BASED STRUCT FUNCTION" << std::endl;
+
+        // Files for basic 1D experiments of Contour Tree Branch node-count weight computations
+        // const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-coordinates.txt";
+        // const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/BPECT-WW-16-triangles.txt";
+
+        // Files for 2D experiments of Contour Tree Branch length/area-based weight computations
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
+        const std::string filename1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-coordinates.txt";
+        const std::string filename2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-triang.txt";
+
+        // Files for 3D experiments of Contour Tree Branch volume-based weight computations
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
+        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-coordinates.txt";
+        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-tets.txt";
+
+
+        // get the total number of values to be swept ...
+        // ... this will be one more than the total number of datapoints ...
+        // ... because we include the region beyond the last isovalue N, as a range [N, +inf)
+        // (also, the number of values corresponds to the total number of different data values in a dataset ...
+        //  ... because of the simulation of simplicity, which ensures ever data point has a unique value)
+        int num_sweep_values = contourTree.Arcs.GetNumberOfValues() + 1;
+
+        // Coordinate lists and connectivities of 2D triangle-based and 3D tetrahedral datasets.
+        // The coordinates are needed for computing the areas/volumes.
+        // Note that the coordinate information is not previously needed for the base contour tree computation ...
+        // ... and is only introduced as a requirement at this stage.
+        // (For debugging, I am currently keeping both 2D and 3D files, as to quickly flick between them to compare correctness)
+        std::vector<Coordinates> coordlist    = ReadCoordinatesFromFile(filename1);
+        // triangle list has pairs of 3 vertices that make up the triangle
+        std::vector<Triangle> trianglelist    = ReadTrianglesFromFile(filename2);
+
+        std::vector<Coordinates> coordlist3D  = ReadCoordinatesFromFile(filename3D1);
+        // tetrahedron list has pairs of 4 vertices that make up the tetrahedron
+        std::vector<Tetrahedron> tetlist      = ReadTetsFromFile(filename3D2);
+
+        // Weight list is used for the basic implementation that was used for my learning.
+        // It is only used in the naive area weight implementation, ...
+        // ... where the weight of each vertex of the triangle is area/3 (area div by 3)
+        std::vector<double> weightList;
+
+        std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
+
+        // Print the coordinates data to check if it was read correctly.
+        for (int i = 0; i < coordlist.size(); i++)
+        {
+            std::cout << i << ": " << coordlist[i].x << ", " << coordlist[i].y << ", " << coordlist[i].z << std::endl;
+            // initialise the weight list array while at it
+            weightList.push_back(0.0);
+        }
+
+        std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
+        std::cout << "num. of triangles: " << trianglelist.size() << std::endl;
+        for (int i = 0; i < trianglelist.size(); i++)
+        {
+            std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3;
+            double area = ComputeTriangleArea(
+                            coordlist[trianglelist[i].p1].x, coordlist[trianglelist[i].p1].y, coordlist[trianglelist[i].p1].z,
+                            coordlist[trianglelist[i].p2].x, coordlist[trianglelist[i].p2].y, coordlist[trianglelist[i].p2].z,
+                            coordlist[trianglelist[i].p3].x, coordlist[trianglelist[i].p3].y, coordlist[trianglelist[i].p3].z);
+            double wt = area / 3.0;
+            // for each vertex comprising the triangle ...
+            // ... add 1/3rd of the triangle's area to the vertice's weight:
+            weightList[trianglelist[i].p1] += wt;
+            weightList[trianglelist[i].p2] += wt;
+            weightList[trianglelist[i].p3] += wt;
+
+            std::cout << " = " << area << std::endl;
+        }
+
+        std::cout << "PRINT THE WEIGHTS SO FAR: \n";
+        for (int i = 0; i < weightList.size(); i++)
+        {
+            std::cout << i << ": " << weightList[i] << std::endl;
+        }
+
+
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+        {
+            vtkm::Id sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+            // initialise the intrinsic weight array counter:
+            // superarcIntrinsicWeightPortal.Set(superparent, 0);
+            superarcIntrinsicWeightPortal.Set(superparent, 0.f);
+        }
+
+        // Now move on to set up 3D tetrahedral variables
+
+        std::cout << "PRINT THE ARRAYS OF TETS: \n";
+        std::cout << "num. of tets: " << tetlist.size() << std::endl;
+
+        // keep track of all tets in a sorted list
+        // (the 'sort' refers to sorting by the vertex ID.
+        // The vertex ID corresponds to a data value, ...
+        //  ... for example a tet X, Y, Z, W might have vertices with IDs X=6, Y=5, Z=3, W=7)
+        //  ... we sort them as 3, 5, 6, 7 ...
+        //  ... and refer to vertices as A, B, C, D
+        //  ... where we then assign A = 3, B = 5, C = 6, D = 7)
+        //  (we do not keep track of the original ordering X, Y, Z, W) ...
+        std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
+                                                    std::vector<int> (4, 0));
+
+        // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
+        // ... with their corresponding isovalues
+        std::vector<vtkm::Vec3f_32> verticesA; // vertex A contains the lowest isovalue h1
+        std::vector<int> teth1s;
+        std::vector<vtkm::Vec3f_32> verticesB; // vertex B - h2
+        std::vector<int> teth2s;
+        std::vector<vtkm::Vec3f_32> verticesC; // vertex C - h3
+        std::vector<int> teth3s;
+        std::vector<vtkm::Vec3f_32> verticesD; // vertex D - h4
+        std::vector<int> teth4s;
+
+        // Deriving middle slab triangle vertices E, F, G, H
+        // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
+        std::vector<vtkm::Vec3f_32> verticesE;
+        std::vector<vtkm::Vec3f_32> verticesF;
+
+        // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
+        std::vector<vtkm::Vec3f_32> verticesG;
+        std::vector<vtkm::Vec3f_32> verticesH;
+
+        // Plane Points between isovalues h2 and h3  [Vertices P, Q, R, S]      - MIDDLE QUAD SLAB
+        std::vector<vtkm::Vec3f_32> verticesP;
+        std::vector<vtkm::Vec3f_32> verticesQ;
+        std::vector<vtkm::Vec3f_32> verticesR;
+        std::vector<vtkm::Vec3f_32> verticesS;
+
+//        // Initializing the 2-D vector
+//        std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+//                                              std::vector<double> (trianglelist.size(), 0.0));
+
+
+        for (int i = 0; i < tetlist.size(); i++)
+        {
+            std::cout << i << ": " << tetlist[i].p1 << ", " << tetlist[i].p2 << ", " << tetlist[i].p3 << ", " << tetlist[i].p4; //<< std::endl;
+            double volume = 0.1666666666667; // HARDCODED TODO CHANGE
+            std::cout << " = " << volume << std::endl;
+
+            tetlistSorted[i][0] = tetlist[i].p1;
+            tetlistSorted[i][1] = tetlist[i].p2;
+            tetlistSorted[i][2] = tetlist[i].p3;
+            tetlistSorted[i][3] = tetlist[i].p4;
+        }
+
+//        std::sort()
+        std::cout << "PRINT TETS UNSORTED:" << std::endl;
+        print2DarrayInt(tetlistSorted);
+
+        for (int i = 0; i < tetlist.size(); i++)
+        {
+            std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
+        }
+
+        std::cout << "PRINT TETS SORTED:" << std::endl;
+        print2DarrayInt(tetlistSorted);
+
+        std::cout << "============================================================================================" << std::endl;
+
+        //        std::sort(tetlist.begin(), tetlist.end(), std::greater<int>());
+
+        bool dim1 = false;
+        bool dim2 = false;
+        bool dim3 = true;
+
+        // ----------------------------------- PRE-PROCESS ----------------------------------- //
+        // Here we basically populate the table as such:
+        // vertexID / triangleID
+        //          triangle1 triangle2   row sum(del. h1/h2)   col (prefix) sum del. h1/h2
+        // deltas:  h1 h2     h1 h2
+        // v1       x  y      z  w
+        std::vector<double> vx_delta_h1;
+        std::vector<double> vx_delta_h1_sum;
+        std::vector<double> vx_down_delta_h1_sum;
+
+        std::vector<double> vx_delta_h2;     // 1D coefficient deltas
+        std::vector<double> vx_delta_h2_sum; // 1D coefficients
+        std::vector<double> vx_down_delta_h2_sum; // 1D coefficients
+
+        std::vector<double> vx_delta_h3;     // 2D coefficient deltas
+        std::vector<double> vx_delta_h3_sum; // 2D coefficients
+        std::vector<double> vx_down_delta_h3_sum; // 2D coefficients
+
+        std::vector<double> vx_delta_h4;     // 3D coefficient deltas
+        std::vector<double> vx_delta_h4_sum; // 3D coefficients
+        std::vector<double> vx_down_delta_h4_sum; // 3D coefficients
+
+
+
+        std::vector<double> delta_h1_pfixsum;
+        std::vector<double> delta_h2_pfixsum; // 1D coefficients
+        std::vector<double> delta_h3_pfixsum; // 2D coefficients
+        std::vector<double> delta_h4_pfixsum; // 3D coefficients
+
+        if(dim1)
+        {
+            // (below is actually the length of the hypotenuse projected onto the base from the 90-degree angle)
+            // TODO: replace this with actual area of each triangle!
+            double fake_area = sqrt(2.0) / 2.0;
+
+
+            std::cout << "PREPROCESSING STEP:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+
+            std::cout << "\nInitialised vxtch1:" << std::endl;
+            print2Darray(vxtch1);
+
+            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            std::cout << "\nInitialised vxtch2:" << std::endl;
+            print2Darray(vxtch2);
+
+            for (int i = 0; i < trianglelist.size(); i++)
+            {
+                // ASSUMPTION #1:
+                // FOR EACH TRIANGLE, ITS VERTICES ARE GIVEN IN INCREASING ORDER OF VALUE:
+                // HIGH, MID, LOW
+                // lowvalue, midvalue, highvalue
+                double Lv, Mv, Hv;
+                Hv = (double)trianglelist[i].p1;
+                Mv = (double)trianglelist[i].p2;
+                Lv = (double)trianglelist[i].p3;
+
+                // ASSUMPTION #2:
+                // THE POINTS ARE THE SAME AS THEIR VALUES GIVEN IN THE FILE
+
+                // m=h1=slope for a line equation:
+                // h1 for equation starting at the LOW vertex:
+                double Mml = fake_area / (Mv-Lv);
+                // h1 for equation starting at the HIGH vertex:
+                double Mmh = fake_area / (Mv-Hv);
+
+                // c=h2=intercept for a line equation:
+                // h2 for equation starting at the LOW vertex:
+                double cL = -Mml * Lv;
+                double cH = -Mmh * Hv;
+
+                // deltas:
+                // Low-vertex deltas (same as original since adding from 0)
+                double ld1 = Mml;
+                double ld2 = cL;
+
+                vxtch1[trianglelist[i].p3][i] = ld1;
+                vxtch2[trianglelist[i].p3][i] = ld2;
+
+                // Middle-vertex deltas:
+                double md1 = Mmh - ld1;
+                double md2 = cH - ld2;
+
+                vxtch1[trianglelist[i].p2][i] = md1;
+                vxtch2[trianglelist[i].p2][i] = md2;
+
+                // High-vertex deltas:
+                double hd1 = -Mmh;
+                double hd2 = -cH;
+
+                vxtch1[trianglelist[i].p1][i] = hd1;
+                vxtch2[trianglelist[i].p1][i] = hd2;
+
+    //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
+            }
+            std::cout << "vxtch1" << std::endl;
+            print2Darray(vxtch1);
+            std::cout << "vxtch2" << std::endl;
+            print2Darray(vxtch2);
+
+
+            // now with deltas computed, also compute the prefix sums of the different components:
+
+            delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+
+            std::cout << "deltas:" << std::endl;
+
+            for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+            {
+                vx_delta_h1_sum.push_back(0.0);
+                vx_delta_h2_sum.push_back(0.0);
+
+                for (int j = 0; j < trianglelist.size(); j++)
+                {
+                    vx_delta_h1_sum[i] += vxtch1[i][j];
+                    vx_delta_h2_sum[i] += vxtch2[i][j];
+                }
+
+                std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " ~ "; //<< std::endl;
+
+                if (i == 0)
+                {
+                    delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
+    //                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
+                    delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
+    //                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
+                }
+                else
+                {
+                    delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
+                    delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
+                }
+
+                std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << std::endl;
+            }
+        }
+        else if(dim2)
+        {
+            std::cout << "Computing 2D coefficients:" << std::endl;
+
+            // (below is the area of a full 1x1 90-degree triangle)
+            // TODO: replace this with actual area of each triangle!
+            double fake_area = 0.5; //sqrt(2.0) / 2.0;
+
+            double a_mid[] = {0.2148571, 0.0625, 0.16667, 0.25, 0.4375, 0.14285, 0.16667, 0.375};
+
+            std::cout << "Printing a_mid areas:" << std::endl;
+            for(int i = 0; i < 8; i++)
+            {
+                std::cout << a_mid[i] << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "PREPROCESSING STEP:" << std::endl;
+
+            std::cout << "// ----------------------------------- PRE-PROCESS ----------------------------------- //" << std::endl;
+
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+
+            std::cout << "\nInitialised vxtch1:" << std::endl;
+            print2Darray(vxtch1);
+
+            std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            std::cout << "\nInitialised vxtch2:" << std::endl;
+            print2Darray(vxtch2);
+
+            std::vector<std::vector<double>> vxtch3(contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (trianglelist.size(), 0.0));
+            print2Darray(vxtch3);
+            std::cout << "\nInitialised vxtch3:" << std::endl;
+
+            for (int i = 0; i < trianglelist.size(); i++)
+            {
+                // ASSUMPTION #1:
+                // FOR EACH TRIANGLE, ITS VERTICES ARE GIVEN IN INCREASING ORDER OF VALUE:
+                // HIGH, MID, LOW
+                // lowvalue, midvalue, highvalue
+                double Lv, Mv, Hv;
+                Hv = (double)trianglelist[i].p1;
+                Mv = (double)trianglelist[i].p2;
+                Lv = (double)trianglelist[i].p3;
+
+                // ASSUMPTION #2:
+                // THE POINTS ARE THE SAME AS THEIR VALUES GIVEN IN THE FILE
+
+                double Dn = Mv - Lv;
+                double Dm = Hv - Mv;
+
+                double Ba1 = 1.0/Dn;
+                double Ba2 = Lv/Dn;
+
+                double Bb1 = Hv / Dm;
+                double Bb2 = 1.0/ Dm;
+
+
+                // deltas:
+                // Low-vertex deltas (same as original since adding from 0)
+                double H12D = Ba1*Ba1 * a_mid[i];
+                double H22D = 2 * Ba1 * Ba2 * a_mid[i];
+                double H32D = Ba2*Ba2 * a_mid[i];
+
+//                vxtch1[trianglelist[i].p3][i] = H12D;
+//                vxtch2[trianglelist[i].p3][i] = H22D;
+//                vxtch3[trianglelist[i].p3][i] = H32D;
+
+                double H1b2D = -1.0 * (Bb2*Bb2) * (fake_area - a_mid[i]);
+                double H2b2D = -2.0 * Bb2 * Bb1 * (fake_area - a_mid[i]);
+                double H3b2D = fake_area - (Bb1 * Bb1) * (fake_area - a_mid[i]);
+
+//                // Middle-vertex deltas:
+//                vxtch1[trianglelist[i].p2][i] = H1b2D - H12D;
+//                vxtch2[trianglelist[i].p2][i] = H2b2D - H22D;
+//                vxtch3[trianglelist[i].p2][i] = H3b2D - H32D;
+
+//                // High-vertex deltas:
+//                vxtch1[trianglelist[i].p1][i] = -H1b2D;
+//                vxtch2[trianglelist[i].p1][i] = -H2b2D;
+//                vxtch3[trianglelist[i].p1][i] = -H3b2D;
+
+                // invert operation:
+//                // low:
+//                vxtch1[trianglelist[i].p3][i] = -((H1b2D - H12D) -H1b2D); // = H12D
+//                vxtch2[trianglelist[i].p3][i] = -((H2b2D - H22D) -H2b2D); // = H22D
+//                vxtch3[trianglelist[i].p3][i] = -((H3b2D - H32D) -H3b2D); // = H32D
+
+                // middle:
+                vxtch1[trianglelist[i].p2][i] = -(-H1b2D + H12D);
+                vxtch2[trianglelist[i].p2][i] = -(-H2b2D + H22D);
+                vxtch3[trianglelist[i].p2][i] = -(-H3b2D + H32D);
+
+                // high:
+                vxtch1[trianglelist[i].p1][i] = -(H12D + (H1b2D - H12D));
+                vxtch2[trianglelist[i].p1][i] = -(H22D + (H2b2D - H22D));
+                vxtch3[trianglelist[i].p1][i] = fake_area-(H32D + (H3b2D - H32D));
+
+                // low:
+                vxtch1[trianglelist[i].p3][i] = -(vxtch1[trianglelist[i].p2][i] + vxtch1[trianglelist[i].p1][i]);  // -((H1b2D - H12D) -H1b2D); // = H12D
+                vxtch2[trianglelist[i].p3][i] = -(vxtch2[trianglelist[i].p2][i] + vxtch2[trianglelist[i].p1][i]);  // -((H2b2D - H22D) -H2b2D); // = H22D
+                vxtch3[trianglelist[i].p3][i] = fake_area-(vxtch3[trianglelist[i].p2][i] + vxtch3[trianglelist[i].p1][i]);  // fake_area-((H3b2D - H32D) -H3b2D); // = H32D
+
+    //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
+            }
+
+
+//            else if (dim4)
+//            {
+
+//            }
+
+            std::cout << "vxtch1" << std::endl;
+            print2Darray(vxtch1);
+            std::cout << "vxtch2" << std::endl;
+            print2Darray(vxtch2);
+            std::cout << "vxtch3" << std::endl;
+            print2Darray(vxtch3);
+
+
+            // now with deltas computed, also compute the prefix sums of the different components:
+
+//            std::vector<double> vx_delta_h1_sum;
+//            std::vector<double> vx_delta_h2_sum;
+
+//            std::vector<double> delta_h1_pfixsum; // = 0.0;
+//            std::vector<double> delta_h2_pfixsum; // = 0.0;
+
+            delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+            delta_h3_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
+
+            std::cout << "2D deltas:" << std::endl;
+
+            for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+            {
+                vx_delta_h1_sum.push_back(0.0);
+                vx_delta_h2_sum.push_back(0.0);
+                vx_delta_h3_sum.push_back(0.0);
+
+                for (int j = 0; j < trianglelist.size(); j++)
+                {
+                    vx_delta_h1_sum[i] += vxtch1[i][j];
+                    vx_delta_h2_sum[i] += vxtch2[i][j];
+                    vx_delta_h3_sum[i] += vxtch3[i][j];
+                }
+
+                std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " del(h3)=" << vx_delta_h3_sum[i] << " ~ "; //<< std::endl;
+
+                if (i == 0)
+                {
+                    delta_h1_pfixsum[0] = vx_delta_h1_sum[0];
+    //                delta_h1_pfixsum.push_back(vx_delta_h1_sum[0]);
+                    delta_h2_pfixsum[0] = vx_delta_h2_sum[0];
+    //                delta_h2_pfixsum.push_back(vx_delta_h2_sum[0]);
+                    delta_h3_pfixsum[0] = vx_delta_h3_sum[0];
+                }
+                else
+                {
+                    delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
+                    delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
+                    delta_h3_pfixsum[i] += delta_h3_pfixsum[i-1] + vx_delta_h3_sum[i];
+                }
+
+                std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << " pfix(h3)=" << delta_h3_pfixsum[i] << std::endl;
+            }
+        }
+        else if(dim3)
+        {
+            std::cout << "Computing 3D Coefficients ..." << std::endl;
+
+            // process one tet at a time ...
+            // ... starting with they local coordinates and individual volumes
+            for(int i = 0; i < tetlist.size(); i++)
+            {
+                std::cout << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
+                std::cout << "(" << tetlistSorted[i][0] << " " << tetlistSorted[i][1] << " " << tetlistSorted[i][2] << " " << tetlistSorted[i][3] << ")" << std::endl;
+
+                std::cout << "\t " << tetlistSorted[i][0] << " = <" << coordlist3D[tetlistSorted[i][0]].x << " " << coordlist3D[tetlistSorted[i][0]].y << " " << coordlist3D[tetlistSorted[i][0]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][1] << " = <" << coordlist3D[tetlistSorted[i][1]].x << " " << coordlist3D[tetlistSorted[i][1]].y << " " << coordlist3D[tetlistSorted[i][1]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][2] << " = <" << coordlist3D[tetlistSorted[i][2]].x << " " << coordlist3D[tetlistSorted[i][2]].y << " " << coordlist3D[tetlistSorted[i][2]].z << ">" << std::endl;
+                std::cout << "\t " << tetlistSorted[i][3] << " = <" << coordlist3D[tetlistSorted[i][3]].x << " " << coordlist3D[tetlistSorted[i][3]].y << " " << coordlist3D[tetlistSorted[i][3]].z << ">" << std::endl;
+            }
+
+
+            // ==================== \/ Step 1: Name the vertices that define each tetrahedron A, B, C, D \/ ==================== //
+            // ... together with h1, h2, h3, h4
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                verticesA.emplace_back( coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z );
+                verticesB.emplace_back( coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z );
+                verticesC.emplace_back( coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z );
+                verticesD.emplace_back( coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z );
+
+                // keep track of tetrahedron boundary values h1, h2, h3, and h4
+                teth1s.emplace_back(tetlistSorted[i][0]);
+                teth2s.emplace_back(tetlistSorted[i][1]);
+                teth3s.emplace_back(tetlistSorted[i][2]);
+                teth4s.emplace_back(tetlistSorted[i][3]);
+            }
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "===" << std::endl;
+                std::cout << "\t" << teth1s[i] << " = " << verticesA[i] << std::endl;
+                std::cout << "\t" << teth2s[i] << " = " << verticesB[i] << std::endl;
+                std::cout << "\t" << teth3s[i] << " = " << verticesC[i] << std::endl;
+                std::cout << "\t" << teth4s[i] << " = " << verticesD[i] << std::endl;
+                std::cout << "===" << std::endl;
+            }
+
+            // =================== \/ Step 1.5: from points A, B, C, D define vectors between them \/ ================== //
+
+//            std::vector<vtkm::Vec3f_32> vectorsAB;
+//            std::vector<vtkm::Vec3f_32> vectorsAC;
+
+            std::vector<PositionVector> vectorsAB;
+            std::vector<PositionVector> vectorsAC;
+            std::vector<PositionVector> vectorsAD;
+            std::vector<PositionVector> vectorsBD;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsAB.emplace_back(verticesA[i], verticesB[i]);
+                vectorsAC.emplace_back(verticesA[i], verticesC[i]);
+                vectorsAD.emplace_back(verticesA[i], verticesD[i]);
+                vectorsBD.emplace_back(verticesB[i], verticesD[i]);
+
+            }
+
+            std::cout << "Vectors AB for each tet:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << i << " " << vectorsAD[i].start << " " << vectorsAD[i].end << " - " << vectorsAD[i].difference << std::endl;
+                std::cout << i << " " << vectorsAC[i].start << " " << vectorsAC[i].end << " + " << vectorsAC[i].difference << std::endl;
+//                vectorsAB[i].lerp(0.5);
+//                std::cout << i << " " << vectorsAB[i].start << " " << vectorsAB[i].end << " + " << vectorsAB[i].difference << std::endl;
+            }
+
+
+            // =================== /\ Step 1.5: from points A, B, C, D define vectors between them /\ ================== //
+
+            // ==================== \/ Step 2: Deriving middle slab triangle vertices E, F, G, H \/ ==================== //
+
+            // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
+
+            // We will now be computing:
+            //            verticesE;
+            //            verticesF;
+            // ... from vectors AD and AC respectively.
+
+
+            for(int i = 0; i < tetlistSorted.size(); i++)
+            {
+                // lerp at h=2 on AD between 1 and 4 (a=1, d=4)
+                double lerpADh2_h1_h4 = double(teth2s[i] - teth1s[i]) / double(teth4s[i] - teth1s[i]);
+                verticesE.push_back(vectorsAD[i].lerp2point(lerpADh2_h1_h4));
+
+                double lerpACh2_h1_h3 = double(teth2s[i] - teth1s[i]) / double(teth3s[i] - teth1s[i]);
+                verticesF.push_back(vectorsAC[i].lerp2point(lerpACh2_h1_h3));
+
+                std::cout << "lerpADh2_h1_h4: " << lerpADh2_h1_h4 << " E = " << verticesE[i] << std::endl;
+                std::cout << "lerpACh2_h1_h3: " << lerpACh2_h1_h3 << " F = " << verticesF[i] << std::endl;
+            }
+
+
+            // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET SLAB
+            // We will now be computing:
+            //            verticesG;
+            //            verticesH;
+            // ... from vectors AD and BD respectively.
+
+            for(int i = 0; i < tetlistSorted.size(); i++)
+            {
+                // lerp at h=3 on AD between h2 and h3 (a=h1, d=h4)
+                double lerpADh3_h1_h4 = double(teth3s[i] - teth1s[i]) / double(teth4s[i] - teth1s[i]);
+                verticesG.push_back(vectorsAD[i].lerp2point(lerpADh3_h1_h4));
+
+                // lerp at h3 on BD between h2 and h4 (b=h2, d=h4)
+
+                double lerpBDh2_h2_h4 = double(teth3s[i] - teth2s[i]) / double(teth4s[i] - teth2s[i]);
+                verticesH.push_back(vectorsBD[i].lerp2point(lerpBDh2_h2_h4));
+
+                std::cout << "lerpADh3_h1_h4: " << lerpADh3_h1_h4 << " G = " << verticesG[i] << std::endl;
+                std::cout << "lerpBDh2_h2_h4: " << lerpBDh2_h2_h4 << " H = " << verticesH[i] << std::endl;
+            }
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "===" << std::endl;
+                std::cout << "\t" << teth1s[i] << " = " << verticesA[i] << std::endl;
+                std::cout << "\t" << teth2s[i] << " = " << verticesB[i] << std::endl;
+                std::cout << "\t" << teth3s[i] << " = " << verticesC[i] << std::endl;
+                std::cout << "\t" << teth4s[i] << " = " << verticesD[i] << std::endl;
+                std::cout << "===" << std::endl;
+            }
+            // ==================== /\ Step 2: Deriving middle slab triangle vertices E, F, G, H /\ ==================== //
+
+
+
+
+            // =========================== \/ Step 3: Compute Entire (full) Tet Volumes \/ ============================ //
+
+            std::vector<double> full_tet_volumes;
+
+            std::cout << "TET VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+
+                PositionVector a_vol(verticesA[i], verticesC[i]);
+                PositionVector b_vol(verticesA[i], verticesD[i]);
+                PositionVector c_vol(verticesA[i], verticesB[i]);
+
+                full_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
+                std::cout << i << " = " << full_tet_volumes[i] << std::endl;
+            }
+
+
+
+            // =========================== /\ Step 3: Compute Entire (full) Tet Volumes  /\ ============================ //
+
+
+
+            // ---------------------------------------------- FIRST SLAB ----------------------------------------------- //
+
+
+
+            // ============== \/ Step 4: Compute the first slab volume (defined from isovalues h1-h2) \/ =============== //
+
+            std::vector<double> slab1_h1h2_tet_volumes;
+
+            std::cout << "SLAB1 VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+                double alpha_h2= std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth3s[i]-teth1s[i])));
+
+                double beta_h2 = std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth4s[i]-teth1s[i])));
+
+                // NOTE: gamma can be optimised away, since we reach point B at h2 (because B holds h2) ...
+                // ... gamma will always be 1.0
+                double gamma_h2= std::max(0.0, std::min(1.0,
+                                          double(teth2s[i]-teth1s[i])/double(teth2s[i]-teth1s[i])));
+
+
+                PositionVector a_h1h2_vol(verticesA[i], verticesC[i]);
+                PositionVector b_h1h2_vol(verticesA[i], verticesD[i]);
+                PositionVector c_h1h2_vol(verticesA[i], verticesB[i]);
+
+                a_h1h2_vol.lerp(alpha_h2);
+                b_h1h2_vol.lerp(beta_h2);
+                c_h1h2_vol.lerp(gamma_h2);
+
+                slab1_h1h2_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference, b_h1h2_vol.difference),
+                                                                           c_h1h2_vol.difference) ) );
+                std::cout << i << " = " << slab1_h1h2_tet_volumes[i] << "(" << alpha_h2 << ", " << beta_h2 << ", " << gamma_h2 << ")" << std::endl;
+            }
+
+
+
+            // ==========  \/ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) \/ ============ //
+
+            //
+            std::vector<double> a_h1h2;
+            std::vector<double> b_h1h2;
+            std::vector<double> c_h1h2;
+            std::vector<double> d_h1h2;
+
+
+            std::cout << "SLAB1 h1h2 coefficients:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                a_h1h2.push_back(slab1_h1h2_tet_volumes[i]                                  / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                b_h1h2.push_back(-(3.0 * slab1_h1h2_tet_volumes[i] * teth1s[i])              / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                c_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+                d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
+
+
+                std::cout << i << " = " << "a = " << a_h1h2[i]<< ", b = " << b_h1h2[i]<< ", c = " << c_h1h2[i] << ", d = " << d_h1h2[i] << std::endl;
+            }
+
+            // ========== /\ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) /\ ============ //
+
+
+
+            // ---------------------------------------------- LAST SLAB ----------------------------------------------- //
+
+
+
+
+            // ============== \/ Step 6: Compute the last slab volume (defined from isovalues h3-h4) \/ =============== //
+
+
+            std::vector<double> slab3_h3h4_tet_volumes; // only the slab volume
+            std::vector<double> slab3_h3h4_tet_volumes_sweeping_up; // (total volume) - (slab)
+
+            std::cout << "SLAB3 VOLUMES:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+//                vtkm::Vec3f_32 a_vol = verticesA[i];
+//                vtkm::Vec3f_32 b_vol = verticesB[i];
+//                vtkm::Vec3f_32 c_vol = verticesC[i];
+                double alpha_h3= std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth2s[i]-teth4s[i])));
+
+                double beta_h3 = std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth1s[i]-teth4s[i])));
+
+                double gamma_h3= std::max(0.0, std::min(1.0,
+                                          double(teth3s[i]-teth4s[i])/double(teth3s[i]-teth4s[i])));
+
+
+                PositionVector a_h3h4_vol(verticesD[i], verticesB[i]);
+                PositionVector b_h3h4_vol(verticesD[i], verticesA[i]);
+                PositionVector c_h3h4_vol(verticesD[i], verticesC[i]);
+
+                a_h3h4_vol.lerp(alpha_h3);
+                b_h3h4_vol.lerp(beta_h3);
+                c_h3h4_vol.lerp(gamma_h3);
+
+                slab3_h3h4_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h3h4_vol.difference, b_h3h4_vol.difference),
+                                                                           c_h3h4_vol.difference) ) );
+
+                slab3_h3h4_tet_volumes_sweeping_up.push_back(full_tet_volumes[i] - slab3_h3h4_tet_volumes[i]);
+
+                std::cout << i << " = " << slab3_h3h4_tet_volumes[i] << "(" << alpha_h3 << ", " << beta_h3 << ", " << gamma_h3 << ")" << std::endl;
+            }
+
+            // ============== /\ Step 6: Compute the last slab volume (defined from isovalues h3-h4) /\ =============== //
+
+            // ==========  \/ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) \/ ============ //
+
+            //
+            std::vector<double> a_h3h4;
+            std::vector<double> b_h3h4;
+            std::vector<double> c_h3h4;
+            std::vector<double> d_h3h4;
+            std::vector<double> d_h3h4_down;
+
+            // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
+            // ... and 'slab3_h3h4_tet_volumes' as v_volumeh3moveup
+
+
+            std::cout << "SLAB3 h3h4 coefficients:" << std::endl;
+//            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
+            double d_h3h3_to0;              //       updated 'd' coefficient that moves the slab function to start at y=0
+            std::vector<double> d_h3h4_up;  // final updated 'd' coefficient that moves the slab function to start at y=volume_h3
+            double vol_h3 = 0.0;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << slab3_h3h4_tet_volumes_sweeping_up[i] << " " << full_tet_volumes[i] << std::endl;
+                a_h3h4.push_back((slab3_h3h4_tet_volumes_sweeping_up[i] - full_tet_volumes[i])                                                              / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+                b_h3h4.push_back((-3.0*teth4s[i] * slab3_h3h4_tet_volumes_sweeping_up[i] + 3.0*teth4s[i] * full_tet_volumes[i])                             / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+                c_h3h4.push_back(( 3.0*std::pow(teth4s[i],2) * slab3_h3h4_tet_volumes_sweeping_up[i] - 3.0*std::pow(teth4s[i],2) * full_tet_volumes[i])     / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
+
+                // compute the base d coefficient, update it later to lift the function up:
+                d_h3h4.push_back((-std::pow(teth4s[i],3) * slab3_h3h4_tet_volumes_sweeping_up[i] + std::pow(teth4s[i],3) * full_tet_volumes[i])                     / double( std::pow((teth3s[i] - teth4s[i]), 3)));
+
+
+                vol_h3 = a_h3h4[i]*std::pow(teth3s[i], 3) + b_h3h4[i]*std::pow(teth3s[i], 2) + c_h3h4[i]*teth3s[i] + d_h3h4[i];
+
+                d_h3h3_to0 = d_h3h4[i] - vol_h3;
+
+                // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
+                d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
+
+
+                std::cout << i << " = " << "a = " << a_h3h4[i]<< ", b = " << b_h3h4[i]<< ", c = " << c_h3h4[i] << ", d = " << d_h3h4_up[i] << std::endl;
+            }
+
+            // ========== /\ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) /\ ============ //
+
+
+
+            // ---------------------------------------------- MID SLAB ----------------------------------------------- //
+
+
+            // =========================  \/ Step 8: Compute sin(theta1) and sin(theta2) \/ ========================== //
+            // sin theta 1 computation:
+
+            std::vector<double> areas_CGH;
+            std::vector<double> sin_theta_1s;
+
+            std::vector<PositionVector> vectorsGH;
+            std::vector<PositionVector> vectorsCH;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsGH.emplace_back(verticesG[i], verticesH[i]);
+                vectorsCH.emplace_back(verticesC[i], verticesH[i]);
+            }
+
+            std::cout << "Areas CGH:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                areas_CGH.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsGH[i].difference, vectorsCH[i].difference )) );
+                sin_theta_1s.push_back(2.0 * areas_CGH[i]/ (vectorsGH[i].mag() * vectorsCH[i].mag()) );
+
+                std::cout << "Area of " << i << " = " << areas_CGH[i] << std::endl;
+                std::cout << "sin(theta1) of " << i << " = " << sin_theta_1s[i] << std::endl;
+            }
+
+
+
+            // sin theta 2 computation:
+
+            std::vector<double> areas_BEF;
+            std::vector<double> sin_theta_2s;
+
+            std::vector<PositionVector> vectorsFB;
+            std::vector<PositionVector> vectorsFE;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsFB.emplace_back(verticesF[i], verticesB[i]);
+                vectorsFE.emplace_back(verticesF[i], verticesE[i]);
+            }
+
+            std::cout << "Areas BEF:" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                areas_BEF.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsFB[i].difference, vectorsFE[i].difference )) );
+                sin_theta_2s.push_back(2.0 * areas_BEF[i]/ (vectorsFB[i].mag() * vectorsFE[i].mag()) );
+
+                std::cout << "Area of " << i << " = " << areas_BEF[i] << std::endl;
+                std::cout << "sin(theta1) of " << i << " = " << sin_theta_2s[i] << std::endl;
+            }
+
+
+            // =========================  /\ Step 8: Compute sin(theta1) and sin(theta2) /\ ========================== //
+
+
+            // ===========================  \/ Step 9: Compute Middle Slab Coefficients \/ =========================== //
+
+            // ----------------------------------------------- BATCH 1 ----------------------------------------------- //
+            // a_s1, b_s1, c_s1
+            std::vector<PositionVector> vectorsHG;
+            std::vector<PositionVector> vectorsBE;
+            std::vector<PositionVector> vectorsHC;
+            std::vector<PositionVector> vectorsCG;
+            // FE - already defined
+            // FB - already defined
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                vectorsHG.emplace_back(verticesH[i], verticesG[i]);
+                vectorsBE.emplace_back(verticesB[i], verticesE[i]);
+                vectorsHC.emplace_back(verticesH[i], verticesC[i]);
+                vectorsCG.emplace_back(verticesC[i], verticesG[i]);
+
+            }
+
+
+            std::vector<double> tetk2s;
+            std::vector<double> a_s1;
+            std::vector<double> b_s1;
+            std::vector<double> c_s1;
+
+            // local variables for simplifying notation:
+            double n1;
+            double n2;
+            double n3;
+            double n4;
+
+            std::cout << "Mid slab pre-coefficients" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // noting down repeating terms as I am writing the code for the first time:
+                //                (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() )
+
+                tetk2s.push_back( 1.0 / double(teth3s[i] - teth2s[i]) );
+
+                n1 = (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() ));
+                n2 = (vectorsHC[i].mag() * tetk2s[i]);
+
+                n3 = ( teth2s[i] * tetk2s[i] * vectorsHG[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
+                n4 = ( tetk2s[i] * teth3s[i] * vectorsBE[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
+
+
+                a_s1.push_back( n1 * n2 );
+                b_s1.push_back( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
+                c_s1.push_back( n3 * teth2s[i] - n4 * teth2s[i] );
+
+                std::cout << "[a_s1] " << i << " == " << a_s1[i] << std::endl;
+                std::cout << "[b_s1] " << i << " == " << b_s1[i] << std::endl;
+                std::cout << "[c_s1] " << i << " == " << c_s1[i] << std::endl;
+
+            }
+
+            // ----------------------------------------------- BATCH 2 ----------------------------------------------- //
+            // a_s2, b_s2, c_s2
+
+            // HG - already defined
+            // BE - already defined
+            // HC - already defined
+            // CG - already defined
+            // FE - already defined
+            // FB - already defined
+
+            std::vector<double> a_s2;
+            std::vector<double> b_s2;
+            std::vector<double> c_s2;
+
+            // local variables for simplifying notation:
+            double m1;
+            double m2;
+            double m3;
+            double m4;
+
+            std::cout << "Mid slab pre-coefficients" << std::endl;
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                m1 = (tetk2s[i] * (vectorsCG[i].mag() - vectorsFE[i].mag() ));
+                m2 = (-vectorsFB[i].mag() * tetk2s[i]);
+
+                m3 = (-teth2s[i] * tetk2s[i] * vectorsCG[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
+                m4 = ( tetk2s[i] * teth3s[i] * vectorsFE[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
+
+
+                a_s2.push_back( m1 * m2 );
+                b_s2.push_back( m1 * -m2 * teth3s[i] - m3 -m4);
+                c_s2.push_back( m3 * teth3s[i] + m4 * teth3s[i] );
+
+                std::cout << "[a_s2] " << i << " == " << a_s2[i] << std::endl;
+                std::cout << "[b_s2] " << i << " == " << b_s2[i] << std::endl;
+                std::cout << "[c_s2] " << i << " == " << c_s2[i] << std::endl;
+
+            }
+
+            // ------------------------------------------ COMBINE BATCH 1+2 ------------------------------------------- //
+            std::vector<double> a_mid;
+            std::vector<double> b_mid;
+            std::vector<double> c_mid;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                a_mid.push_back(sin_theta_1s[i] / 2.0 * a_s1[i] + sin_theta_2s[i] / 2.0 * a_s2[i]);
+                b_mid.push_back(sin_theta_1s[i] / 2.0 * b_s1[i] + sin_theta_2s[i] / 2.0 * b_s2[i]);
+                c_mid.push_back(sin_theta_1s[i] / 2.0 * c_s1[i] + sin_theta_2s[i] / 2.0 * c_s2[i]);
+
+                std::cout << "comb " << i << " " << a_mid[i] << " " << b_mid[i] << " " << c_mid[i] << std::endl;
+            }
+
+
+            // ---------------------------- Compute the Integration correction coefficient ---------------------------- //
+            std::vector<vtkm::Vec3f_32> plane_normals;
+            std::vector<double> plane_distances;
+            vtkm::Vec3f_32 FExFB_cross_product;
+
+            std::vector<double> correction_factor_nominators;
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                FExFB_cross_product = vtkm::Cross(vectorsFE[i].difference, vectorsFB[i].difference);
+
+                plane_normals.push_back( FExFB_cross_product / (vtkm::Magnitude(FExFB_cross_product)) );
+                plane_distances.push_back( vtkm::Magnitude(vtkm::Dot(plane_normals[i], verticesB[i]) - vtkm::Dot(plane_normals[i], verticesH[i]) ) / (vtkm::Magnitude(plane_normals[i]) ) );
+//                plane_distances.push_back( (vtkm::Dot(plane_normals[i], verticesB[i]) - vtkm::Dot(plane_normals[i], verticesH[i]) ) / (vtkm::Magnitude(plane_normals[i]) ) );
+
+
+                correction_factor_nominators.push_back(plane_distances[i] * tetk2s[i]);
+
+                std::cout << "corr: " << i << " " << correction_factor_nominators[i] << std::endl;
+
+            }
+
+
+            // ---------------------------- Compute the Integration correction coefficient ---------------------------- //
+
+            double d_h2h3_to0;
+//            double d_h2h3_up;
+//            std::vector<double> d_mid;
+
+            std::vector<double> a_h2h3;
+            std::vector<double> b_h2h3;
+            std::vector<double> c_h2h3;
+            std::vector<double> d_h2h3;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                a_h2h3.push_back(correction_factor_nominators[i]/3.0 * a_mid[i]);
+                b_h2h3.push_back(correction_factor_nominators[i]/2.0 * b_mid[i]);
+                c_h2h3.push_back(correction_factor_nominators[i]     * c_mid[i]);
+
+                d_h2h3_to0 = a_h2h3[i]  * std::pow(teth2s[i], 3) +\
+                             b_h2h3[i]  * std::pow(teth2s[i], 2) +\
+                             c_h2h3[i]  *          teth2s[i];
+
+//                d_mid.push_back();
+
+
+                d_h2h3.push_back(-d_h2h3_to0 + slab1_h1h2_tet_volumes[i]);
+
+
+            }
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                std::cout << "mid coeffs " << i << " : " << a_h2h3[i] << " " << b_h2h3[i] << " " << c_h2h3[i] << " " << d_h2h3[i] << std::endl;
+            }
+
+
+            // ===========================  /\ Step 9: Compute Middle Slab Coefficients /\ ===========================  //
+
+
+
+
+
+            // ============================  \/ Step 10: Compute UP coefficients table  \/ ============================  //
+
+            std::cout << "Initialised coefficient tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_coeffs_h1:" << std::endl;
+            print2Darray(tet_coeffs_h1);
+
+            std::vector<std::vector<double>> tet_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h2:" << std::endl;
+            print2Darray(tet_coeffs_h2);
+
+            std::vector<std::vector<double>> tet_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h3:" << std::endl;
+            print2Darray(tet_coeffs_h3);
+
+            std::vector<std::vector<double>> tet_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_coeffs_h4:" << std::endl;
+            print2Darray(tet_coeffs_h4);
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+                for(int h = teth1s[i]; h < teth2s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h1h2[i];
+                    tet_coeffs_h2[h][i] = b_h1h2[i];
+                    tet_coeffs_h3[h][i] = c_h1h2[i];
+                    tet_coeffs_h4[h][i] = d_h1h2[i];
+                }
+                for(int h = teth2s[i]; h < teth3s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h2h3[i];
+                    tet_coeffs_h2[h][i] = b_h2h3[i];
+                    tet_coeffs_h3[h][i] = c_h2h3[i];
+                    tet_coeffs_h4[h][i] = d_h2h3[i];
+                }
+                for(int h = teth3s[i]; h < teth4s[i]; h++)
+                {
+                    tet_coeffs_h1[h][i] = a_h3h4[i];
+                    tet_coeffs_h2[h][i] = b_h3h4[i];
+                    tet_coeffs_h3[h][i] = c_h3h4[i];
+                    tet_coeffs_h4[h][i] = d_h3h4_up[i];
+                }
+                for(int h = teth4s[i]; h < 8; h++)
+                {
+                    tet_coeffs_h1[h][i] = 0.0;
+                    tet_coeffs_h2[h][i] = 0.0;
+                    tet_coeffs_h3[h][i] = 0.0;
+                    tet_coeffs_h4[h][i] = full_tet_volumes[i];
+                }
+            }
+
+            std::cout << "\nh1 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h1);
+            std::cout << "\nh2 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h2);
+            std::cout << "\nh3 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h3);
+            std::cout << "\nh4 UP coefficients written to table:" << std::endl;
+            print2Darray(tet_coeffs_h4);
+
+
+
+            // ============================  /\ Step 10: Compute UP coefficients table  /\ ============================  //
+
+
+
+
+
+            // =========================  \/ Step 11: Compute UP coefficient deltas table  \/ =========================  //
+
+            std::cout << "Initialised coefficient deltas tables:" << std::endl;
+            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "  << std::endl;
+            std::cout << "Contour Tree Number of Arcs: " << contourTree.Arcs.GetNumberOfValues() << std::endl;
+            std::cout << "Total Sweep Values then +1 : " << num_sweep_values << std::endl; // 2024-11-18 updated sweep value
+            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "  << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_deltas_h1:" << std::endl;
+            print2Darray(tet_deltas_h1);
+
+            std::vector<std::vector<double>> tet_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h2:" << std::endl;
+            print2Darray(tet_deltas_h2);
+
+            std::vector<std::vector<double>> tet_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h3:" << std::endl;
+            print2Darray(tet_deltas_h3);
+
+            std::vector<std::vector<double>> tet_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_deltas_h4:" << std::endl;
+            print2Darray(tet_deltas_h4 );
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+//                for(int h = teth1s[i]; h < teth2s[i]; h++)
+//                {
+                    tet_deltas_h1[teth1s[i]+1][i] = a_h1h2[i] - 0.0;
+                    tet_deltas_h2[teth1s[i]+1][i] = b_h1h2[i] - 0.0;
+                    tet_deltas_h3[teth1s[i]+1][i] = c_h1h2[i] - 0.0;
+                    tet_deltas_h4[teth1s[i]+1][i] = d_h1h2[i] - 0.0;
+//                }
+//                for(int h = teth2s[i]; h < teth3s[i]; h++)
+//                {
+                    tet_deltas_h1[teth2s[i]+1][i] = a_h2h3[i] - a_h1h2[i];
+                    tet_deltas_h2[teth2s[i]+1][i] = b_h2h3[i] - b_h1h2[i];
+                    tet_deltas_h3[teth2s[i]+1][i] = c_h2h3[i] - c_h1h2[i];
+                    tet_deltas_h4[teth2s[i]+1][i] = d_h2h3[i] - d_h1h2[i];
+//                }
+//                for(int h = teth3s[i]; h < teth4s[i]; h++)
+//                {
+                    tet_deltas_h1[teth3s[i]+1][i] = a_h3h4[i] - a_h2h3[i];
+                    tet_deltas_h2[teth3s[i]+1][i] = b_h3h4[i] - b_h2h3[i];
+                    tet_deltas_h3[teth3s[i]+1][i] = c_h3h4[i] - c_h2h3[i];
+                    tet_deltas_h4[teth3s[i]+1][i] = d_h3h4_up[i] - d_h2h3[i];
+//                }
+//                for(int h = teth4s[i]; h < 8; h++)
+//                {
+                    tet_deltas_h1[teth4s[i]+1][i] = - a_h3h4[i];
+                    tet_deltas_h2[teth4s[i]+1][i] = - b_h3h4[i];
+                    tet_deltas_h3[teth4s[i]+1][i] = - c_h3h4[i];
+                    tet_deltas_h4[teth4s[i]+1][i] = full_tet_volumes[i] - d_h3h4_up[i];
+//                }
+            }
+
+            std::cout << "\nh1 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h1);
+            std::cout << "\nh2 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h2);
+            std::cout << "\nh3 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h3);
+            std::cout << "\nh4 UP coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_deltas_h4);
+
+
+
+            // =========================  /\ Step 11: Compute UP coefficient deltas table  /\ =========================  //
+
+
+
+
+
+
+            // ============================ \/ Step 12: Compute DOWN coefficient tables  \/ ==========================  //
+
+            std::vector<double> d_h1h2_down;
+            std::vector<double> d_h2h3_down;
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+                d_h2h3_down.push_back( (  -a_h2h3[i] * std::pow(teth3s[i], 3) - b_h2h3[i] * std::pow(teth3s[i], 2) - c_h2h3[i] * teth3s[i] ) \
+                                       - (-a_h3h4[i] * std::pow(teth3s[i], 3) - b_h3h4[i] * std::pow(teth3s[i], 2) - c_h3h4[i] * teth3s[i] - d_h3h4[i] ) );
+
+                d_h1h2_down.push_back( (  -a_h1h2[i] * std::pow(teth2s[i], 3) - b_h1h2[i] * std::pow(teth2s[i], 2) - c_h1h2[i] * teth2s[i] ) \
+                                       - (-a_h2h3[i] * std::pow(teth2s[i], 3) - b_h2h3[i] * std::pow(teth2s[i], 2) - c_h2h3[i] * teth2s[i] - d_h2h3_down[i] ) );
+
+            }
+
+
+
+
+
+
+
+            std::cout << "Initialised DOWN coefficient tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_down_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_down_coeffs_h1:" << std::endl;
+            print2Darray(tet_down_coeffs_h1);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h2:" << std::endl;
+            print2Darray(tet_down_coeffs_h2);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h3:" << std::endl;
+            print2Darray(tet_down_coeffs_h3);
+
+            std::vector<std::vector<double>> tet_down_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_coeffs_h4:" << std::endl;
+            print2Darray(tet_down_coeffs_h4);
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in before the h1 coeffs:
+                for(int h = 0; h < teth1s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = 0.0;
+                    tet_down_coeffs_h2[h][i] = 0.0;
+                    tet_down_coeffs_h3[h][i] = 0.0;
+                    tet_down_coeffs_h4[h][i] = full_tet_volumes[i];
+                }
+
+                // fill in just the h1 coeffs:
+                for(int h = teth1s[i]; h < teth2s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h1h2[i];
+                    tet_down_coeffs_h2[h][i] = -b_h1h2[i];
+                    tet_down_coeffs_h3[h][i] = -c_h1h2[i];
+                    tet_down_coeffs_h4[h][i] = -d_h1h2_down[i];
+                }
+                for(int h = teth2s[i]; h < teth3s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h2h3[i];
+                    tet_down_coeffs_h2[h][i] = -b_h2h3[i];
+                    tet_down_coeffs_h3[h][i] = -c_h2h3[i];
+                    tet_down_coeffs_h4[h][i] = -d_h2h3_down[i];
+                }
+                for(int h = teth3s[i]; h < teth4s[i]; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = -a_h3h4[i];
+                    tet_down_coeffs_h2[h][i] = -b_h3h4[i];
+                    tet_down_coeffs_h3[h][i] = -c_h3h4[i];
+                    tet_down_coeffs_h4[h][i] = -d_h3h4[i];
+                }
+                for(int h = teth4s[i]; h < 8; h++)
+                {
+                    tet_down_coeffs_h1[h][i] = 0.0;
+                    tet_down_coeffs_h2[h][i] = 0.0;
+                    tet_down_coeffs_h3[h][i] = 0.0;
+                    tet_down_coeffs_h4[h][i] = 0.0;
+                }
+            }
+
+            std::cout << "\nh1 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h1);
+            std::cout << "\nh2 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h2);
+            std::cout << "\nh3 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h3);
+            std::cout << "\nh4 DOWN coefficients written to table:" << std::endl;
+            print2Darray(tet_down_coeffs_h4);
+
+
+
+            // ============================ /\ Step 12: Compute DOWN coefficient tables  /\ ==========================  //
+
+
+
+
+
+
+
+
+            // ======================== \/ Step 13: Compute DOWN coefficient delta tables  \/ =======================  //
+
+            std::cout << "Initialised DOWN coefficient deltas tables:" << std::endl;
+
+            // Initializing the 2-D vector
+            std::vector<std::vector<double>> tet_down_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+
+            std::cout << "\nInitialised tet_down_deltas_h1:" << std::endl;
+            print2Darray(tet_down_deltas_h1);
+
+            std::vector<std::vector<double>> tet_down_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h2:" << std::endl;
+            print2Darray(tet_down_deltas_h2);
+
+            std::vector<std::vector<double>> tet_down_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h3:" << std::endl;
+            print2Darray(tet_down_deltas_h3);
+
+            std::vector<std::vector<double>> tet_down_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (tetlistSorted.size(), 0.0));
+            std::cout << "\nInitialised tet_down_deltas_h4:" << std::endl;
+            print2Darray(tet_down_deltas_h4 );
+
+
+
+            for (int i = 0; i < tetlistSorted.size(); i++)
+            {
+
+                // fill in just the h1 coeffs:
+//                for(int h = teth1s[i]; h < teth2s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth1s[i]][i] = 0.0 + a_h1h2[i];
+                    tet_down_deltas_h2[teth1s[i]][i] = 0.0 + b_h1h2[i];
+                    tet_down_deltas_h3[teth1s[i]][i] = 0.0 + c_h1h2[i];
+                    tet_down_deltas_h4[teth1s[i]][i] = full_tet_volumes[i] + d_h1h2_down[i];
+//                }
+//                for(int h = teth2s[i]; h < teth3s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth2s[i]][i] = -a_h1h2[i] + a_h2h3[i];
+                    tet_down_deltas_h2[teth2s[i]][i] = -b_h1h2[i] + b_h2h3[i];
+                    tet_down_deltas_h3[teth2s[i]][i] = -c_h1h2[i] + c_h2h3[i];
+                    tet_down_deltas_h4[teth2s[i]][i] = -d_h1h2_down[i] + d_h2h3_down[i];
+//                }
+//                for(int h = teth3s[i]; h < teth4s[i]; h++)
+//                {
+                    tet_down_deltas_h1[teth3s[i]][i] = -a_h2h3[i] + a_h3h4[i];
+                    tet_down_deltas_h2[teth3s[i]][i] = -b_h2h3[i] + b_h3h4[i];
+                    tet_down_deltas_h3[teth3s[i]][i] = -c_h2h3[i] + c_h3h4[i];
+                    tet_down_deltas_h4[teth3s[i]][i] = -d_h2h3_down[i] + d_h3h4[i];
+//                }
+//                for(int h = teth4s[i]; h < 8; h++)
+//                {
+                    tet_down_deltas_h1[teth4s[i]][i] = -a_h3h4[i];
+                    tet_down_deltas_h2[teth4s[i]][i] = -b_h3h4[i];
+                    tet_down_deltas_h3[teth4s[i]][i] = -c_h3h4[i];
+                    tet_down_deltas_h4[teth4s[i]][i] = -d_h3h4[i];
+//                }
+            }
+
+            std::cout << "\nh1 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h1);
+            std::cout << "\nh2 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h2);
+            std::cout << "\nh3 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h3);
+            std::cout << "\nh4 DOWN coefficient deltas written to table:" << std::endl;
+            print2Darray(tet_down_deltas_h4);
+
+
+            // ======================== /\ Step 13: Compute DOWN coefficient delta tables  /\ =======================  //
+
+
+
+            // ======================= \/ Step 14: Compute delta table up/down prefix sums \/ =======================  //
+
+            std::vector<std::vector<double>> tet_up_deltas_pfix(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (4, 0.0));
+
+
+            std::vector<std::vector<double>> tet_down_deltas_pfix(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
+                                                  std::vector<double> (4, 0.0));
+
+            for (int i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+            // num_sweep_values, // 2024-11-18 updated sweep value
+            for (int i = 0; i < num_sweep_values; i++)
+            {
+                double a_coeff_sum = 0.0;
+                double b_coeff_sum = 0.0;
+                double c_coeff_sum = 0.0;
+                double d_coeff_sum = 0.0;
+
+                // up deltas
+                for(int k = 0; k < tetlistSorted.size(); k++)
+                {
+                    a_coeff_sum += tet_deltas_h1[i][k];
+                    b_coeff_sum += tet_deltas_h2[i][k];
+                    c_coeff_sum += tet_deltas_h3[i][k];
+                    d_coeff_sum += tet_deltas_h4[i][k];
+                }
+                tet_up_deltas_pfix[i][0] =  a_coeff_sum;
+                tet_up_deltas_pfix[i][1] =  b_coeff_sum;
+                tet_up_deltas_pfix[i][2] =  c_coeff_sum;
+                tet_up_deltas_pfix[i][3] =  d_coeff_sum;
+
+
+                a_coeff_sum = 0.0;
+                b_coeff_sum = 0.0;
+                c_coeff_sum = 0.0;
+                d_coeff_sum = 0.0;
+
+                // down deltas
+                for(int k = 0; k < tetlistSorted.size(); k++)
+                {
+                    a_coeff_sum += tet_down_deltas_h1[i][k];
+                    b_coeff_sum += tet_down_deltas_h2[i][k];
+                    c_coeff_sum += tet_down_deltas_h3[i][k];
+                    d_coeff_sum += tet_down_deltas_h4[i][k];
+                }
+                tet_down_deltas_pfix[i][0] =  a_coeff_sum;
+                tet_down_deltas_pfix[i][1] =  b_coeff_sum;
+                tet_down_deltas_pfix[i][2] =  c_coeff_sum;
+                tet_down_deltas_pfix[i][3] =  d_coeff_sum;
+
+            }
+
+            std::cout << "tet_up_deltas_pfix:" << std::endl;
+            print2Darray(tet_up_deltas_pfix);
+
+            std::cout << "tet_down_deltas_pfix:" << std::endl;
+            print2Darray(tet_down_deltas_pfix);
+
+            // ======================= /\ Step 14: Compute delta table up/down prefix sums /\ =======================  //
+
+            std::cout << std::endl;
+
+//            for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
+            for (vtkm::Id i = 0; i < num_sweep_values; i++)
+            {
+//                vx_delta_h1_sum.push_back(tet_up_deltas_pfix[i][0]);
+//                vx_delta_h2_sum.push_back(tet_up_deltas_pfix[i][1]);
+//                vx_delta_h3_sum.push_back(tet_up_deltas_pfix[i][2]);
+//                vx_delta_h4_sum.push_back(tet_up_deltas_pfix[i][3]);
+
+                vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
+                vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
+                vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
+                vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
+
+                vx_down_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
+                vx_down_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
+                vx_down_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
+                vx_down_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
+            }
+
+            std::cout << "up delta totals:" << std::endl;
+
+            for (vtkm::Id i = 0; i < num_sweep_values; i++)
+            {
+                std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " del(h3)=" << vx_delta_h3_sum[i] << " del(h4)=" << vx_delta_h4_sum[i] << std::endl;
+            }
+
+            std::cout << "down delta totals:" << std::endl;
+
+            for (vtkm::Id i = 0; i < num_sweep_values; i++)
+            {
+                std::cout << i << ") del(h1)=" << vx_down_delta_h1_sum[i] << " del(h2)=" << vx_down_delta_h2_sum[i] << " del(h3)=" << vx_down_delta_h3_sum[i] << " del(h4)=" << vx_down_delta_h4_sum[i] << std::endl;
+            }
+
+
+
+/* THE FOLLOWING REQUIRES SWEEP ISOVALUE H */
+            // ==================== \/ Step 3: Deriving middle slab quad vertices P, Q, R, S \/ ==================== //
+
+//            // First we define control vectors for the middle quad within the middle slab ...
+//            // ... from our new middle slab points E F G H from Step 2:
+//            std::vector<PositionVector> vectorsBH;
+//            std::vector<PositionVector> vectorsEG;
+//            std::vector<PositionVector> vectorsFC;
+//            std::vector<PositionVector> vectorsBC;
+
+//            for (int i = 0; i < tetlistSorted.size(); i++)
+//            {
+//                vectorsBH.emplace_back(verticesB[i], verticesH[i]);
+//                vectorsEG.emplace_back(verticesE[i], verticesG[i]);
+//                vectorsFC.emplace_back(verticesF[i], verticesC[i]);
+//                vectorsBC.emplace_back(verticesB[i], verticesC[i]);
+
+//                // interpolation value will be same for all points E F G H:
+//                double lerpEFGH = double(h - teth2s[i]) / double(teth3s[i] - teth2s[i]);
+
+//            }
+
+            // ==================== /\ Step 3: Deriving middle slab quad vertices P, Q, R, S /\ ==================== //
+/* THE PAST REQUIRES SWEEP ISOVALUE H */
+        }
+
+
+
+        // ----------------------------------- PRE-PROCESS ----------------------------------- //
+
+
+        std::cout << "// ----------------------------------- PRE-PROCESS ----------------------------------- //" << std::endl;
+
+
+        // for the sweep, we will be using the pre-computed delta coefficients from the mesh
+
+        // -------------------------------------- SWEEP  ------------------------------------- //
+
+
+        std::cout << "// -------------------------------------- SWEEP  ------------------------------------- //" << std::endl;
+
+        std::vector<double> coefficientweightList;
+        coefficientweightList.resize(superparentsPortal.GetNumberOfValues());
+
+
+        std::vector<double> delta_h1_partial_pfixsum; // = 0.0;
+        std::vector<double> delta_h2_partial_pfixsum; // = 0.0;
+        std::vector<double> delta_h3_partial_pfixsum; // = 0.0;
+        std::vector<double> delta_h4_partial_pfixsum; // = 0.0;
+
+
+        delta_h1_partial_pfixsum.resize(num_sweep_values); // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues());
+        delta_h2_partial_pfixsum.resize(num_sweep_values); // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues());contourTree.Arcs.GetNumberOfValues());
+        delta_h3_partial_pfixsum.resize(num_sweep_values); // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues());contourTree.Arcs.GetNumberOfValues());
+        delta_h4_partial_pfixsum.resize(num_sweep_values); // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues());contourTree.Arcs.GetNumberOfValues());
+
+
+        for(int i = 0; i < coefficientweightList.size(); i++)
+        {
+            coefficientweightList[i] = 0.0;
+            delta_h1_partial_pfixsum[i] = 0.0;
+            delta_h2_partial_pfixsum[i] = 0.0;
+            delta_h3_partial_pfixsum[i] = 0.0;
+            delta_h3_partial_pfixsum[i] = 0.0;
+        }
+
+        auto arcsPortal = contourTree.Arcs.ReadPortal();
+        auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+        auto supernodesPortal = contourTree.Supernodes.ReadPortal();
+
+        vtkm::Id prevIndex = -1;
+        vtkm::Id superNodeID = prevIndex;
+
+        std::cout << "Num of supernodes: " << contourTree.Supernodes.GetNumberOfValues() << std::endl;
+
+        std::map<vtkm::Id, vtkm::Id> tailends;
+
+        for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
+        {
+            vtkm::Id superNode = supernodesPortal.Get(supernode);
+
+            std::cout << supernode << " - " << superNode << "->" << supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))) << std::endl;
+
+            tailends.insert(std::make_pair(superNode, supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))));
+        }
+
+        std::cout << "-----------------------------" << std::endl;
+
+        if(dim1)
+        {// test 1D coefficients
+            for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+            { // per node in sorted order
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+              if (prevIndex != superparent)
+              {
+                  prevIndex = superparent;
+                  // tail-end of a branch
+                  superNodeID = sortID;
+              }
+
+              std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+
+              if (sortedNode == 0)
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+              else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+
+
+              // CHANGES:
+              // UPDATE AT REGULAR NODE: +1
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
+
+              // UPDATE AT REGULAR NODE: +area/3
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
+
+              // weights before 2024-08-27:
+              // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
+
+              // weights after 2024-08-27:
+              delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
+              delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
+
+              coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * sortID + delta_h2_partial_pfixsum[superparent];
+
+              std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                        << sortID << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
+
+
+              if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
+              {
+                  vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
+                  vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+                  if(nextSuperparent != superparent)
+                  {
+                      // std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+
+                      delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
+                      delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+
+                      std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+                      coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                      std::cout << "\t\t" << tailends[superNodeID] << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                                << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+                  }
+
+              }
+              else
+              {
+                // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+                std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+                coefficientweightList[superparent] += delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                          << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+
+              }
+
+              superarcIntrinsicWeightPortal.Set(superparent,
+                                                superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
+
+            } // per node in sorted order
+        }
+
+        else if (dim2)
+        {// test 2D coefficients
+
+            double a_mid[] = {0.2148571, 0.0625, 0.16667, 0.25, 0.4375, 0.14285, 0.16667, 0.375};
+
+            for(int i = 0; i < 8; i++)
+            {
+                std::cout << a_mid[i] << " ";
+            }
+            std::cout << std::endl;
+
+            for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+            { // per node in sorted order
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+              if (prevIndex != superparent)
+              {
+                  prevIndex = superparent;
+                  // tail-end of a branch
+                  superNodeID = sortID;
+              }
+
+              std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+
+              if (sortedNode == 0)
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+              else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+
+
+              // CHANGES:
+              // UPDATE AT REGULAR NODE: +1
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
+
+              // UPDATE AT REGULAR NODE: +area/3
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
+
+              // weights before 2024-08-27:
+              // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
+
+              // weights after 2024-08-27:
+              delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
+              delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
+              delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[sortID];
+
+              // 1/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+              coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (sortID*sortID) - delta_h2_partial_pfixsum[superparent] * sortID + delta_h3_partial_pfixsum[superparent];
+
+              std::cout << "\t\t" << sortID << " - " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                        << sortID << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << sortID << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
+
+
+              if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
+              {
+                  vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
+                  vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+                  if(nextSuperparent != superparent)
+                  {
+                      // std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+
+                      delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
+                      delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+                      delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[tailends[superNodeID]];
+
+                      std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+                      // 2/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+                      coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]) - delta_h2_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h3_partial_pfixsum[superparent];
+                              //delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                      std::cout << "\t\t" << tailends[superNodeID]  << " -h " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                                << tailends[superNodeID]  << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID]  << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
+
+                  }
+
+              }
+              else
+              {
+                // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+                std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+                // 3/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+                coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                std::cout << "\t\t" << sortID << " -g " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                          << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+
+              }
+
+              superarcIntrinsicWeightPortal.Set(superparent,
+                                                superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
+
+            } // per node in sorted order
+        }
+
+        else if (dim3)
+        {// test 3D coefficients
+            std::cout << "3D Coefficients Sweep" << std::endl;
+            for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+            { // per node in sorted order
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+              if (prevIndex != superparent)
+              {
+                  prevIndex = superparent;
+                  // tail-end of a branch
+                  superNodeID = sortID;
+              }
+
+              std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+
+              if (sortedNode == 0)
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+              else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+                firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+
+
+              // CHANGES:
+              // UPDATE AT REGULAR NODE: +1
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+1);
+
+              // UPDATE AT REGULAR NODE: +area/3
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[superparent]);
+              //        superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortedNode]);
+
+              // weights before 2024-08-27:
+              // superarcIntrinsicWeightPortal.Set(superparent, superarcIntrinsicWeightPortal.Get(superparent)+weightList[sortID]);
+
+              // weights after 2024-08-27:
+              delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[sortID];
+              delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[sortID];
+              delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[sortID];
+              delta_h4_partial_pfixsum[superparent] += vx_delta_h4_sum[sortID];
+
+              // 1/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+              coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (sortID*sortID*sortID) +\
+                                                   delta_h2_partial_pfixsum[superparent] * (sortID*sortID) +\
+                                                   delta_h3_partial_pfixsum[superparent] * sortID + \
+                                                   delta_h4_partial_pfixsum[superparent];
+
+              std::cout << "\t\t" << sortID << " - " << superparent << "\t"
+                        << delta_h1_partial_pfixsum[superparent] << " * " << sortID << "^3 + "
+                        << delta_h2_partial_pfixsum[superparent] << " * " << sortID << "^2 + "
+                        << delta_h3_partial_pfixsum[superparent] << " * " << sortID << " + "
+                        << delta_h4_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
+
+
+              if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
+              {
+                  vtkm::Id nextSortID = nodesPortal.Get(sortedNode+1);
+                  vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+                  if(nextSuperparent != superparent)
+                  {
+                      // std::cout << nextSuperparent << " -vs- " << superparent <<  " -- TRIGGER\n" << std::endl;
+
+                      delta_h1_partial_pfixsum[superparent] += vx_delta_h1_sum[tailends[superNodeID]];
+                      delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
+                      delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[tailends[superNodeID]];
+                      delta_h4_partial_pfixsum[superparent] += vx_delta_h4_sum[tailends[superNodeID]];
+                      std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
+
+                      // 2/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+//                      coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]) - delta_h2_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h3_partial_pfixsum[superparent];
+                              //delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+                      coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]*tailends[superNodeID]) +\
+                                                           delta_h2_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]) +\
+                                                           delta_h3_partial_pfixsum[superparent] * tailends[superNodeID] + \
+                                                           delta_h4_partial_pfixsum[superparent];
+
+//                      std::cout << "\t\t" << tailends[superNodeID]  << " -h " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+//                                << tailends[superNodeID]  << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID]  << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
+
+                      std::cout << "\t\t" << sortID << " -h " << superparent << "\t"
+                                << delta_h1_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << "^3 + "
+                                << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << "^2 + "
+                                << delta_h3_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << " + "
+                                << delta_h4_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
+
+
+                  }
+
+              }
+              else
+              {
+                // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+                std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+                // 3/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
+                coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
+
+                std::cout << "\t\t" << sortID << " -g " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
+                          << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
+
+
+              }
+
+              superarcIntrinsicWeightPortal.Set(superparent,
+                                                superarcIntrinsicWeightPortal.Get(superparent)+coefficientweightList[superparent]);
+
+            } // per node in sorted order
+        }
+
+
+        // -------------------------------------- SWEEP  ------------------------------------- //
+
+        std::cout << std::endl;
+
+    //      std::cout << "target transfer weights:\n";
+    //      // step 4: transfer the dependent weight to the hyperarc's target supernode
+    //      for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
+    //      { // per hypernode
+    //        // last superarc for the hyperarc
+    //        vtkm::Id lastSuperarc;
+    //        // special case for the last hyperarc
+    //        if (hypernode == contourTree.Hypernodes.GetNumberOfValues() - 1)
+    //          // take the last superarc in the array
+    //          lastSuperarc = contourTree.Supernodes.GetNumberOfValues() - 1;
+    //        else
+    //          // otherwise, take the next hypernode's ID and subtract 1
+    //          lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
+
+    //        // now, given the last superarc for the hyperarc, transfer the dependent weight
+    //        hyperarcDependentWeightPortal.Set(hypernode,
+    //                                          superarcDependentWeightPortal.Get(lastSuperarc));
+
+    //        // note that in parallel, this will have to be split out as a sort & partial sum in another array
+    //        vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+    //        supernodeTransferWeightPortal.Set(hyperarcTarget,
+    //                                          supernodeTransferWeightPortal.Get(hyperarcTarget) +
+    //                                            hyperarcDependentWeightPortal.Get(hypernode));
+
+    //        std::cout << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
+
+    //      } // per hypernode
+
+    //      // COMMS: old trick to compute the intrinsic wts of branches ...
+    //      // COMMS: ... now we replace that with an array pass above
+    //      // now we use that to compute the intrinsic weights
+    //      for (vtkm::Id superarc = 0; superarc < contourTree.Superarcs.GetNumberOfValues(); superarc++)
+    //        if (superarc == contourTree.Superarcs.GetNumberOfValues() - 1)
+    //          superarcIntrinsicWeightPortal.Set(superarc,
+    //                                            contourTree.Arcs.GetNumberOfValues() -
+    //                                              firstVertexForSuperparentPortal.Get(superarc));
+    //        else
+    //          superarcIntrinsicWeightPortal.Set(superarc,
+    //                                            firstVertexForSuperparentPortal.Get(superarc + 1) -
+    //                                              firstVertexForSuperparentPortal.Get(superarc));
+
+        // now initialise the arrays for transfer & dependent weights
+        vtkm::cont::ArrayCopy(
+          vtkm::cont::ArrayHandleConstant<ValueType>(0.f, contourTree.Superarcs.GetNumberOfValues()),
+          superarcDependentWeight);
+        vtkm::cont::ArrayCopy(
+          vtkm::cont::ArrayHandleConstant<ValueType>(0.f, contourTree.Supernodes.GetNumberOfValues()),
+          supernodeTransferWeight);
+        vtkm::cont::ArrayCopy(
+          vtkm::cont::ArrayHandleConstant<ValueType>(0.f, contourTree.Hyperarcs.GetNumberOfValues()),
+          hyperarcDependentWeight);
+
+        // set up the array which tracks which supernodes to deal with on which iteration:
+        // 1) VOLUMES:
+        auto firstSupernodePerIterationPortal = contourTree.FirstSupernodePerIteration.ReadPortal();
+        auto firstHypernodePerIterationPortal = contourTree.FirstHypernodePerIteration.ReadPortal();
+        auto supernodeTransferWeightPortal = supernodeTransferWeight.WritePortal();
+        auto superarcDependentWeightPortal = superarcDependentWeight.WritePortal();
+        auto hyperarcDependentWeightPortal = hyperarcDependentWeight.WritePortal();
+
+        auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
+
+        // 2) COEFFICIENTS:
+//        auto firstSupernodePerIterationPortal = contourTree.FirstSupernodePerIteration.ReadPortal();
+//        auto firstHypernodePerIterationPortal = contourTree.FirstHypernodePerIteration.ReadPortal();
+//        auto supernodeTransferWeightCoeffPortal    = supernodeTransferWeightCoeff.WritePortal();
+//        auto superarcDependentWeightCoeffPortal    = superarcDependentWeightCoeff.WritePortal();
+//        auto hyperarcDependentWeightCoeffPortal    = hyperarcDependentWeightCoeff.WritePortal();
+
+//        superarcIntrinsicWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
+//        auto superarcIntrinsicWeightCoeffPortal = superarcIntrinsicWeightCoeff.WritePortal();
+
+        superarcDependentWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
+        auto superarcDependentWeightCoeffPortal = superarcDependentWeightCoeff.WritePortal();
+
+        supernodeTransferWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
+        auto supernodeTransferWeightCoeffPortal = supernodeTransferWeightCoeff.WritePortal();
+
+//        superarcIntrinsicWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
+//        auto superarcIntrinsicWeightCoeffPortal = superarcIntrinsicWeightCoeff.WritePortal();
+
+
+        auto hyperarcDependentWeightCoeffPortal = hyperarcDependentWeightCoeff.WritePortal();
+
+//        auto superparentsPortal = contourTree.Superparents.ReadPortal();
+
+        Coefficients SAlocalIntrinsic;
+        Coefficients SNlocalTransfer;
+        Coefficients SAlocalDependent;
+        Coefficients HAlocalDependent;
+
+        // initialise the coefficient arrays:
+        // intrinsic to
+
+        std::cout << "number of arcs:" << contourTree.Arcs.GetNumberOfValues() << std::endl;
+
+//        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+//            contourTree.Supernodes.GetNumberOfValues()
+
+//        contourTree.
+
+        // Initialise the intrinsic array with 0s
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
+        { // per node in sorted order
+            SAlocalIntrinsic.h1 = 0.0;
+            SAlocalIntrinsic.h2 = 0.0;
+            SAlocalIntrinsic.h3 = 0.0;
+            SAlocalIntrinsic.h4 = 0.0;
+
+            SNlocalTransfer.h1 = 0.0;
+            SNlocalTransfer.h2 = 0.0;
+            SNlocalTransfer.h3 = 0.0;
+            SNlocalTransfer.h4 = 0.0;
+
+            SAlocalDependent.h1 = 0.0;
+            SAlocalDependent.h2 = 0.0;
+            SAlocalDependent.h3 = 0.0;
+            SAlocalDependent.h4 = 0.0;
+
+            superarcIntrinsicWeightCoeffPortal.Set(sortedNode, SAlocalIntrinsic);
+            supernodeTransferWeightCoeffPortal.Set(sortedNode, SNlocalTransfer);
+            superarcDependentWeightCoeffPortal.Set(sortedNode, SAlocalDependent);
+        }
+
+        std::cout << "SuperARC check: " << std::endl;
+//        for(vtkm::Id nodeID = 0; nodeID < contourTree.Hyperarcs.GetNumberOfValues(); nodeID++)
+        for (vtkm::Id hypernode = 0; hypernode < contourTree.Hypernodes.GetNumberOfValues(); hypernode++)
+        {
+            vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+//            std::cout << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
+
+            std::cout << hypernode << ") " << hyperarcTarget << std::endl;
+        }
+
+
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+        {
+            vtkm::Id sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+            SAlocalIntrinsic.h1 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h1 + vx_delta_h1_sum[sortID];
+            SAlocalIntrinsic.h2 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h2 + vx_delta_h2_sum[sortID];
+            SAlocalIntrinsic.h3 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h3 + vx_delta_h3_sum[sortID];
+            SAlocalIntrinsic.h4 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h4 + vx_delta_h4_sum[sortID];
+
+            superarcIntrinsicWeightCoeffPortal.Set(superparent, SAlocalIntrinsic);
+
+            vtkm::Id supertarget = vtkm::cont::ArrayGetValue(superparent, contourTree.Superarcs);
+
+            vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(superparent)); //sortedNode));
+
+            if (!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget))
+            {
+                SNlocalTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + vx_delta_h1_sum[sortID];
+                SNlocalTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + vx_delta_h2_sum[sortID];
+                SNlocalTransfer.h3 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + vx_delta_h3_sum[sortID];
+                SNlocalTransfer.h4 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + vx_delta_h4_sum[sortID];
+
+                supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, SNlocalTransfer);
+
+                std::cout << "Writing " << SNlocalTransfer.h1 << " " << SNlocalTransfer.h2 << " " << SNlocalTransfer.h3 << " " << SNlocalTransfer.h4 << " to target: " << hyperarcTarget << std::endl;
+            }
+
+
+            SAlocalDependent.h1 = SAlocalIntrinsic.h1 + supernodeTransferWeightCoeffPortal.Get(superparent).h1;
+            SAlocalDependent.h2 = SAlocalIntrinsic.h2 + supernodeTransferWeightCoeffPortal.Get(superparent).h2;
+            SAlocalDependent.h3 = SAlocalIntrinsic.h3 + supernodeTransferWeightCoeffPortal.Get(superparent).h3;
+            SAlocalDependent.h4 = SAlocalIntrinsic.h4 + supernodeTransferWeightCoeffPortal.Get(superparent).h4;
+
+            superarcDependentWeightCoeffPortal.Set(superparent, SAlocalDependent);
+
+
+
+
+//             std::cout << "SP: " << superparentsPortal.Get(sortedNode) << " - " << nodesPortal.Get(sortedNode) << "\n";
+             std::cout << "SP: " << superparent << " - " << sortID << "(" << hyperarcTarget << ")\n";
+//             std::cout << "SP: " << superparent << " - " << sortID << "(" << sortedNode << ")\n";
+        }
+
+        std::cout << "------------ setting SAlocalIntrinsic ------------" << std::endl;
+
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
+        { // per node in sorted order
+
+            vtkm::Id sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+//            SAlocalIntrinsic.h1 = vx_delta_h1_sum[sortedNode];
+//            SAlocalIntrinsic.h2 = vx_delta_h2_sum[sortedNode];
+//            SAlocalIntrinsic.h3 = vx_delta_h3_sum[sortedNode];
+//            SAlocalIntrinsic.h4 = vx_delta_h4_sum[sortedNode];
+
+//            superarcIntrinsicWeightCoeffPortal.Set(sortedNode, SAlocalIntrinsic);
+            std::cout << "SP: " << superparent << " - "; //superparentsPortal.Get(sortedNode) << " - ";
+            std::cout << "SA: " << sortedNode << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << " ";
+            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << " ";
+            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h3 << " ";
+            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h4 << "\t\t\t"; //std::endl;
+
+            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h1 << " ";
+            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h2 << " ";
+            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h3 << " ";
+            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h4 << "\t\t\t";
+
+
+            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h1 << " ";
+            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h2 << " ";
+            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h3 << " ";
+            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h4 << std::endl;
+
+//            std::cout << "SA: " << sortedNode << " " << SAlocalIntrinsic.h1 << " ";
+//            std::cout << SAlocalIntrinsic.h2 << " ";
+//            std::cout << SAlocalIntrinsic.h3 << " ";
+//            std::cout << SAlocalIntrinsic.h4 << std::endl;
+
+        }
+
+
+        /*
+        vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleConstant<vtkm::Id>(0, nIterations + 1),
+                              firstSupernodePerIteration);
+        auto firstSupernodePerIterationPortal = firstSupernodePerIteration.WritePortal();
+        for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues();
+             supernode++)
+        { // per supernode
+          vtkm::Id when = MaskedIndex(whenTransferredPortal.Get(supernode));
+          if (supernode == 0)
+          { // zeroth supernode
+            firstSupernodePerIterationPortal.Set(when, supernode);
+          } // zeroth supernode
+          else if (when != MaskedIndex(whenTransferredPortal.Get(supernode - 1)))
+          { // non-matching supernode
+            firstSupernodePerIterationPortal.Set(when, supernode);
+          } // non-matching supernode
+        }   // per supernode
+        for (vtkm::Id iteration = 1; iteration < nIterations; ++iteration)
+          if (firstSupernodePerIterationPortal.Get(iteration) == 0)
+            firstSupernodePerIterationPortal.Set(iteration,
+                                                 firstSupernodePerIterationPortal.Get(iteration + 1));
+
+        // set the sentinel at the end of the array
+        firstSupernodePerIterationPortal.Set(nIterations, contourTree.Supernodes.GetNumberOfValues());
+
+        // now use that array to construct a similar array for hypernodes
+        IdArrayType firstHypernodePerIteration;
+        firstHypernodePerIteration.Allocate(nIterations + 1);
+        auto firstHypernodePerIterationPortal = firstHypernodePerIteration.WritePortal();
+        auto supernodeTransferWeightPortal = supernodeTransferWeight.WritePortal();
+        auto superarcDependentWeightPortal = superarcDependentWeight.WritePortal();
+        auto hyperarcDependentWeightPortal = hyperarcDependentWeight.WritePortal();
+        for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+          firstHypernodePerIterationPortal.Set(
+            iteration, hyperparentsPortal.Get(firstSupernodePerIterationPortal.Get(iteration)));
+        firstHypernodePerIterationPortal.Set(nIterations, contourTree.Hypernodes.GetNumberOfValues());
+        */
+
+        // now iterate, propagating weights inwards
+        for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+        { // per iteration
+
+          std::cout << "Iteration: " << iteration << std::endl;
+
+          // pull the array bounds into register
+          vtkm::Id firstSupernode = firstSupernodePerIterationPortal.Get(iteration);
+          vtkm::Id lastSupernode = firstSupernodePerIterationPortal.Get(iteration + 1);
+          vtkm::Id firstHypernode = firstHypernodePerIterationPortal.Get(iteration);
+          vtkm::Id lastHypernode = firstHypernodePerIterationPortal.Get(iteration + 1);
+
+          // Recall that the superarcs are sorted by (iteration, hyperarc), & that all superarcs for a given hyperarc are processed
+          // in the same iteration.  Assume therefore that:
+          //      i. we now have the intrinsic weight assigned for each superarc, and
+          // ii. we also have the transfer weight assigned for each supernode.
+          //
+          // Suppose we have a sequence of superarcs
+          //                      s11 s12 s13 s14 s21 s22 s23 s31
+          // with transfer weights at their origins and intrinsic weights along them
+          //      sArc                     s11 s12 s13 s14 s21 s22 s23 s31
+          //      transfer wt               0   1   2   1   2   3   1   0
+          //      intrinsic wt              1   2   1   5   2   6   1   1
+          //
+          //  now, if we do a prefix sum on each of these and add the two sums together, we get:
+          //      sArc                                  s11 s12 s13 s14 s21 s22 s23 s31
+          //      hyperparent sNode ID                  s11 s11 s11 s11 s21 s21 s21 s31
+          //      transfer weight                       0   1   2   1   2   3   1   0
+          //      intrinsic weight                      1   2   1   5   2   6   1   1
+          //      sum(xfer + intrinsic)                 1   3   3   6   4   9   2   1
+          //  prefix sum (xfer + int)                   1   4   7  13  17  26  28  29
+          //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  16
+
+
+          std::cout << "SUPERARCS: ";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+              std::cout << supernode << " ";
+          }
+          std::cout << std::endl;
+
+
+          std::cout << "transfer: ";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+              std::cout << supernodeTransferWeightPortal.Get(supernode) << " ";
+          }
+          std::cout << std::endl;
+
+          std::cout << "intrinsic: ";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+              std::cout << superarcIntrinsicWeightPortal.Get(supernode) << " ";
+          }
+          std::cout << std::endl;
+
+          std::cout << "step 1: ";
+          // so, step 1: add xfer + int & store in dependent weight
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+            superarcDependentWeightPortal.Set(supernode,
+                                              supernodeTransferWeightPortal.Get(supernode) +
+                                                superarcIntrinsicWeightPortal.Get(supernode));
+
+            std::cout << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << " ";
+          }
+          std::cout << " - DEPENDENT = TRANSFER + INTRINSIC" << std::endl;
+
+          std::cout << "step 2: " << std::endl;
+          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
+          // step 2: perform prefix sum on the dependent weight range
+          for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
+          {
+            superarcDependentWeightPortal.Set(supernode,
+                                              superarcDependentWeightPortal.Get(supernode) +
+                                                superarcDependentWeightPortal.Get(supernode - 1));
+            //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
+
+            std::cout << supernode << " - " << superarcDependentWeightPortal.Get(supernode) << std::endl;
+
+          }
+          std::cout << std::endl;
+    //      std::cout << " - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]" << std::endl;
+
+          // step 3: subtract out the dependent weight of the prefix to the entire hyperarc. This will be a transfer, but for now, it's easier
+          // to show it in serial. NB: Loops backwards so that computation uses the correct value
+          // As a bonus, note that we test > firstsupernode, not >=.  This is because we've got unsigned integers, & otherwise it will not terminate
+          // But the first is always correct anyway (same reason as the short-cut termination on hyperparent), so we're fine
+          std::cout << "subtract:\n";
+          for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
+          { // per supernode
+            // retrieve the hyperparent & convert to a supernode ID
+            vtkm::Id hyperparent = hyperparentsPortal.Get(supernode);
+            vtkm::Id hyperparentSuperID = hypernodesPortal.Get(hyperparent);
+
+            // if the hyperparent is the first in the sequence, dependent weight is already correct
+            if (hyperparent == firstHypernode)
+              continue;
+
+            // otherwise, subtract out the dependent weight *immediately* before the hyperparent's supernode
+            superarcDependentWeightPortal.Set(
+              supernode,
+              superarcDependentWeightPortal.Get(supernode) -
+                superarcDependentWeightPortal.Get(hyperparentSuperID - 1));
+
+            std::cout << supernode << "(" << hyperparentSuperID << ")" << " - " << superarcDependentWeightPortal.Get(hyperparentSuperID - 1) << std::endl;
+
+          } // per supernode
+
+
+          std::cout << "target transfer weights:\n";
+          // step 4: transfer the dependent weight to the hyperarc's target supernode
+          for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
+          { // per hypernode
+            // last superarc for the hyperarc
+            vtkm::Id lastSuperarc;
+            // special case for the last hyperarc
+            if (hypernode == contourTree.Hypernodes.GetNumberOfValues() - 1)
+              // take the last superarc in the array
+              lastSuperarc = contourTree.Supernodes.GetNumberOfValues() - 1;
+            else
+              // otherwise, take the next hypernode's ID and subtract 1
+              lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
+
+            // now, given the last superarc for the hyperarc, transfer the dependent weight
+            hyperarcDependentWeightPortal.Set(hypernode,
+                                              superarcDependentWeightPortal.Get(lastSuperarc));
+
+            // note that in parallel, this will have to be split out as a sort & partial sum in another array
+            vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+            supernodeTransferWeightPortal.Set(hyperarcTarget,
+                                              supernodeTransferWeightPortal.Get(hyperarcTarget) +
+                                                hyperarcDependentWeightPortal.Get(hypernode));
+
+            std::cout << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
+
+          } // per hypernode
+
+          std::cout << std::endl;
+          std::cout << "final:\n";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+    //        superarcDependentWeightPortal.Set(supernode,
+    //                                          superarcDependentWeightPortal.Get(supernode) +
+    //                                            superarcDependentWeightPortal.Get(supernode - 1));
+            //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
+
+            std::cout << supernode << " - " << superarcDependentWeightPortal.Get(supernode) << std::endl;
+
+          }
+          std::cout << std::endl;
+
+        }   // per iteration
+
+        std::cout << std::endl << "Superarc Intrinsic Weight Portal:" << std::endl;
+        for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << " -> " << superarcIntrinsicWeightPortal.Get(i) << std::endl;
+        }
+        std::cout << std::endl;
+
+        std::cout << std::endl << "superarc Dependent Weight Portal:" << std::endl;
+        for(int i = 0; i < superarcDependentWeightPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << " -> " << superarcDependentWeightPortal.Get(i) << std::endl;
+        }
+        std::cout << std::endl;
+
+
+        std::cout << std::endl << "supernodeTransferWeight Portal:" << std::endl;
+        for(int i = 0; i < supernodeTransferWeightPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << " -> " << supernodeTransferWeightPortal.Get(i) << std::endl;
+        }
+        std::cout << std::endl;
+
+        std::cout << std::endl << "hyperarcDependentWeight Portal:" << std::endl;
+        for(int i = 0; i < hyperarcDependentWeightPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << " -> " << hyperarcDependentWeightPortal.Get(i) << std::endl;
+        }
+        std::cout << std::endl;
+
+        std::cout << "END ComputeVolumeWeightsSerialStructCoefficients" << std::endl;
+
+    }  // END ComputeVolumeWeightsSerialStructCoefficients
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     struct ContourLengthCoef
     {
         double v1h1; // slope     v1
@@ -4753,7 +7163,8 @@ public:
     { // ComputeVolumeBranchDecomposition()
       std::cout << "ComputeVolumeBranchDecompositionSerialFloat()\n";
 
-      // COMMS: NOTE: both intrinsic and dependent weights come pre-computed!!!
+      // COMMS: Both 'intrinsic' and 'dependent' weights come precomputed from 'ComputeVolumeWeights()'
+      // ... the following just sets up the read portals for both
       auto superarcDependentWeightPortal = superarcDependentWeight.ReadPortal();
       auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
 
@@ -4762,14 +7173,18 @@ public:
       vtkm::Id nSuperarcs = nSupernodes - 1;
 
       // STAGE I:  Find the upward and downwards weight for each superarc, and set up arrays
-      // COMMS: just allocate up weight, but do not set values
+
+      // Allocation/initialization
+      // COMMS: just allocate up-weight arrays, do not set values yet
       IdArrayType upWeight;
       upWeight.Allocate(nSuperarcs);
       auto upWeightPortal = upWeight.WritePortal();
-      // COMMS: just allocate down weight, but do not set values
+      // COMMS: just allocate down-weight arrays, do not set values yet
       IdArrayType downWeight;
       downWeight.Allocate(nSuperarcs);
       auto downWeightPortal = downWeight.WritePortal();
+
+
       // set up
       // initialise to a known value, indicating that no best up/down is known (yet)
       IdArrayType bestUpward;
