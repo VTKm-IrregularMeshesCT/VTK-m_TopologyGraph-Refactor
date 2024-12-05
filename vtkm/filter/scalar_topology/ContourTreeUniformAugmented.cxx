@@ -432,6 +432,7 @@ VTKM_CONT void ContourTreeAugmented::DoPostExecute(const vtkm::cont::Partitioned
     // Run the worklet to compute the final contour tree
     std::cout << "using meshBoundaryExecObj inside worklet.Run()\n";
     std::cout << "... alternative suggested was copying this file and removing all meshBoundaryExecObj dependencies}\n";
+    // worklet.Run function is defined in:
     worklet.Run(
       contourTreeMeshOut.SortedValues, // Unused param. Provide something to keep API happy
       contourTreeMeshOut,

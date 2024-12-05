@@ -5320,6 +5320,33 @@ public:
         }
 
 
+
+
+
+        // -------------------------------------- SWEEP  ------------------------------------- //
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // -------------------------------------- SWEEP  ------------------------------------- //
 
         std::cout << std::endl;
@@ -5402,13 +5429,8 @@ public:
         supernodeTransferWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
         auto supernodeTransferWeightCoeffPortal = supernodeTransferWeightCoeff.WritePortal();
 
-//        superarcIntrinsicWeightCoeff.Allocate(contourTree.Superarcs.GetNumberOfValues());
-//        auto superarcIntrinsicWeightCoeffPortal = superarcIntrinsicWeightCoeff.WritePortal();
-
-
+        hyperarcDependentWeightCoeff.Allocate(contourTree.Hyperarcs.GetNumberOfValues());
         auto hyperarcDependentWeightCoeffPortal = hyperarcDependentWeightCoeff.WritePortal();
-
-//        auto superparentsPortal = contourTree.Superparents.ReadPortal();
 
         Coefficients SAlocalIntrinsic;
         Coefficients SNlocalTransfer;
@@ -5418,14 +5440,18 @@ public:
         // initialise the coefficient arrays:
         // intrinsic to
 
-        std::cout << "number of arcs:" << contourTree.Arcs.GetNumberOfValues() << std::endl;
+        std::cout << "number of arcs:"      << contourTree.Arcs.GetNumberOfValues() << std::endl;
+        std::cout << "number of superarcs:" << contourTree.Superarcs.GetNumberOfValues() << std::endl;
+        std::cout << "number of hyperarcs:" << contourTree.Hyperarcs.GetNumberOfValues() << std::endl;
+
 
 //        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
 //            contourTree.Supernodes.GetNumberOfValues()
 
 //        contourTree.
 
-        // Initialise the intrinsic array with 0s
+        // Initialise the super{node/arc} weight arrays with 0s
+        // (data below depends on the super{nodes/arcs}
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
         { // per node in sorted order
             SAlocalIntrinsic.h1 = 0.0;
@@ -5448,6 +5474,19 @@ public:
             superarcDependentWeightCoeffPortal.Set(sortedNode, SAlocalDependent);
         }
 
+        // Initialise the hyper{node/arc} weight arrays with 0s
+        // (data below depends on the hyper{nodes/arcs}
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Hypernodes.GetNumberOfValues(); sortedNode++)
+        { // per node in sorted order
+            HAlocalDependent.h1 = 0.0;
+            HAlocalDependent.h2 = 0.0;
+            HAlocalDependent.h3 = 0.0;
+            HAlocalDependent.h4 = 0.0;
+
+            hyperarcDependentWeightCoeffPortal.Set(sortedNode, HAlocalDependent);
+        }
+
+
         std::cout << "SuperARC check: " << std::endl;
 //        for(vtkm::Id nodeID = 0; nodeID < contourTree.Hyperarcs.GetNumberOfValues(); nodeID++)
         for (vtkm::Id hypernode = 0; hypernode < contourTree.Hypernodes.GetNumberOfValues(); hypernode++)
@@ -5459,10 +5498,76 @@ public:
         }
 
 
+        vtkm::Id previousParent = -1;
+        vtkm::Id nextParent = -1;
+
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+
+        std::cout << "Arcs count: " << contourTree.Arcs.GetNumberOfValues() << std::endl;
+
+        std::cout << "Supernodes   count: " << contourTree.Supernodes.GetNumberOfValues() << std::endl;
+        std::cout << "Superarcs    count: " << contourTree.Superarcs.GetNumberOfValues() << std::endl;
+        std::cout << "Superparents count: " << contourTree.Superparents.GetNumberOfValues() << std::endl;
+
+        std::cout << "Hypernodes   count: " << contourTree.Hypernodes.GetNumberOfValues() << std::endl;
+        std::cout << "Hyperarcs    count: "  << contourTree.Hyperarcs.GetNumberOfValues() << std::endl;
+        std::cout << "Hyperparents count: "  << contourTree.Hyperparents.GetNumberOfValues() << std::endl;
+
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+
+        std::cout << "'Node -> Superarc' relationships" << std::endl;
+
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {
             vtkm::Id sortID = nodesPortal.Get(sortedNode);
             vtkm::Id superparent = superparentsPortal.Get(sortID);
+//            vtkm::Id hyperparent = hyperparentsPortal.Get(sortID);
+
+            vtkm::Id nextSortID = (sortedNode+1 == contourTree.Arcs.GetNumberOfValues()) ? 0 : nodesPortal.Get(sortedNode+1);
+//            vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+            std::cout << sortID << ") superparent = " << superparent << ", next = " << nextSortID << std::endl;
+        }
+
+        std::cout << "'Supernode -> Hyperarc (Hyperparent)' relationships" << std::endl;
+
+
+//        for (vtkm::Id sortedSupernode = 0; sortedSupernode < contourTree.Supernodes.GetNumberOfValues(); sortedSupernode++)
+//        {
+//            std::cout << "sortedSupernode = " << sortedSupernode << std::endl;
+//            vtkm::Id sortID = supernodesPortal.Get(sortedSupernode );
+//            std::cout << "sortID = " << sortID << std::endl;
+//            vtkm::Id hyperarc = hyperarcsPortal.Get(sortID);
+//            vtkm::Id hyperparent = hyperparentsPortal.Get(sortID);
+
+
+//            vtkm::Id nextSortID = (sortedSupernode+1 == contourTree.Superarcs.GetNumberOfValues()) ? 0 : nodesPortal.Get(sortedSupernode+1);
+////            vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+
+//            std::cout << sortID << ") hyperarc = " << hyperarc << ", hyperparent = " << hyperparent << ", next = " << nextSortID << std::endl;
+//        }
+
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+
+        // TODO: Assumption - for now, treat hyperarcs same as superarcs
+
+
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+        {
+            vtkm::Id sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id superparent = superparentsPortal.Get(sortID);
+//            vtkm::Id hyperparent = hyperparentsPortal.Get(sortID);
+
+            vtkm::Id nextSortID = (sortedNode+1 == contourTree.Arcs.GetNumberOfValues()) ? 0 : nodesPortal.Get(sortedNode+1);
+            vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
+//            vtkm::Id nextHyperparent = hyperparentsPortal.Get(nextSortID);
+
+
+            if(superparent != previousParent )
+            {
+                std::cout << "----------------------------------------------------------------------" << std::endl;
+                previousParent = superparent;
+            }
 
             SAlocalIntrinsic.h1 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h1 + vx_delta_h1_sum[sortID];
             SAlocalIntrinsic.h2 = superarcIntrinsicWeightCoeffPortal.Get(superparent).h2 + vx_delta_h2_sum[sortID];
@@ -5475,31 +5580,67 @@ public:
 
             vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(superparent)); //sortedNode));
 
-            if (!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget))
-            {
-                SNlocalTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + vx_delta_h1_sum[sortID];
-                SNlocalTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + vx_delta_h2_sum[sortID];
-                SNlocalTransfer.h3 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + vx_delta_h3_sum[sortID];
-                SNlocalTransfer.h4 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + vx_delta_h4_sum[sortID];
+            std::cout << "SP: " << superparent << " - " << sortID << " (Target: " << hyperarcTarget << "), next=" << nextSuperparent << "\n";
 
-                supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, SNlocalTransfer);
+            std::cout << "Intrinsic: " << vx_delta_h1_sum[sortID] << " " << vx_delta_h2_sum[sortID] << " " << vx_delta_h3_sum[sortID] << " " << vx_delta_h4_sum[sortID] << std::endl;
+            std::cout << "\tIntrinsic Total: " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h1 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h2 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h3 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h4 << std::endl << std::endl;
 
-                std::cout << "Writing " << SNlocalTransfer.h1 << " " << SNlocalTransfer.h2 << " " << SNlocalTransfer.h3 << " " << SNlocalTransfer.h4 << " to target: " << hyperarcTarget << std::endl;
-            }
+//            if (!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget))
+//            {
+//                SNlocalTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + vx_delta_h1_sum[sortID];
+//                SNlocalTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + vx_delta_h2_sum[sortID];
+//                SNlocalTransfer.h3 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + vx_delta_h3_sum[sortID];
+//                SNlocalTransfer.h4 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + vx_delta_h4_sum[sortID];
+
+//                supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, SNlocalTransfer);
+
+//                std::cout << "Transfer: " << vx_delta_h1_sum[sortID] << " " << vx_delta_h2_sum[sortID] << " " << vx_delta_h3_sum[sortID] << " " << vx_delta_h4_sum[sortID] << " to target: " << hyperarcTarget << std::endl;
+//                std::cout << "\tTarget Total: " << SNlocalTransfer.h1 << " " << SNlocalTransfer.h2 << " " << SNlocalTransfer.h3 << " " << SNlocalTransfer.h4 << " to target: " << hyperarcTarget << std::endl;
+//            }
 
 
-            SAlocalDependent.h1 = SAlocalIntrinsic.h1 + supernodeTransferWeightCoeffPortal.Get(superparent).h1;
-            SAlocalDependent.h2 = SAlocalIntrinsic.h2 + supernodeTransferWeightCoeffPortal.Get(superparent).h2;
-            SAlocalDependent.h3 = SAlocalIntrinsic.h3 + supernodeTransferWeightCoeffPortal.Get(superparent).h3;
-            SAlocalDependent.h4 = SAlocalIntrinsic.h4 + supernodeTransferWeightCoeffPortal.Get(superparent).h4;
+            // TOGGLEWEIGHT Enable Dependent Weight computation
+
+            SAlocalDependent.h1 = 0.0; //SAlocalIntrinsic.h1 + supernodeTransferWeightCoeffPortal.Get(superparent).h1;
+            SAlocalDependent.h2 = 0.0; //SAlocalIntrinsic.h2 + supernodeTransferWeightCoeffPortal.Get(superparent).h2;
+            SAlocalDependent.h3 = 0.0; //SAlocalIntrinsic.h3 + supernodeTransferWeightCoeffPortal.Get(superparent).h3;
+            SAlocalDependent.h4 = 0.0; //SAlocalIntrinsic.h4 + supernodeTransferWeightCoeffPortal.Get(superparent).h4;
 
             superarcDependentWeightCoeffPortal.Set(superparent, SAlocalDependent);
 
+            // TODO: Assumption - for now, treat hyperarcs same as superarcs
+            hyperarcDependentWeightCoeffPortal.Set(superparent, SAlocalDependent);
 
+            std::cout << "Dependent: " << supernodeTransferWeightCoeffPortal.Get(superparent).h1 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h2 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h3 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h4 << " to target: " << superparent << std::endl;
+            std::cout << "\tDependent Total: " << SAlocalDependent.h1 << " " << SAlocalDependent.h2 << " " << SAlocalDependent.h3 << " " << SAlocalDependent.h4 << " of target: " << superparent << std::endl << std::endl;
+
+
+//            if(superparent != previousParent )
+//            {
+//                std::cout << "----------------------------------------------------------------------" << std::endl;
+//                previousParent = superparent;
+//            }
+
+
+
+            // TOGGLEWEIGHT Enable Transfer Weight computation
+
+            if ((!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget)) && (superparent != nextSuperparent ))
+            {
+                SNlocalTransfer.h1 = 0.0; // supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + SAlocalDependent.h1;
+                SNlocalTransfer.h2 = 0.0; // supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + SAlocalDependent.h2;
+                SNlocalTransfer.h3 = 0.0; // supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + SAlocalDependent.h3;
+                SNlocalTransfer.h4 = 0.0; // supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + SAlocalDependent.h4;
+
+                supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, SNlocalTransfer);
+
+                std::cout << "Transfer: " << SAlocalDependent.h1 << " " << SAlocalDependent.h2 << " " << SAlocalDependent.h3 << " " << SAlocalDependent.h4 << " to target: " << hyperarcTarget << std::endl;
+                std::cout << "\tTarget (" << hyperarcTarget << ") Total: " << SNlocalTransfer.h1 << " " << SNlocalTransfer.h2 << " " << SNlocalTransfer.h3 << " " << SNlocalTransfer.h4 << " to target: " << hyperarcTarget << std::endl << std::endl;
+            }
 
 
 //             std::cout << "SP: " << superparentsPortal.Get(sortedNode) << " - " << nodesPortal.Get(sortedNode) << "\n";
-             std::cout << "SP: " << superparent << " - " << sortID << "(" << hyperarcTarget << ")\n";
+             std::cout << std::endl;
 //             std::cout << "SP: " << superparent << " - " << sortID << "(" << sortedNode << ")\n";
         }
 
@@ -5518,21 +5659,21 @@ public:
 
 //            superarcIntrinsicWeightCoeffPortal.Set(sortedNode, SAlocalIntrinsic);
             std::cout << "SP: " << superparent << " - "; //superparentsPortal.Get(sortedNode) << " - ";
-            std::cout << "SA: " << sortedNode << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << " ";
-            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << " ";
-            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h3 << " ";
-            std::cout << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h4 << "\t\t\t"; //std::endl;
+            std::cout << "SA: " << sortedNode << std::setw(10) << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+            std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+            std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+            std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h4 << "\t"; //std::endl;
 
-            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h1 << " ";
-            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h2 << " ";
-            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h3 << " ";
-            std::cout << superarcDependentWeightCoeffPortal.Get(sortedNode).h4 << "\t\t\t";
+            std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+            std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+            std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+            std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h4 << "\t";
 
 
-            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h1 << " ";
-            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h2 << " ";
-            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h3 << " ";
-            std::cout << supernodeTransferWeightCoeffPortal.Get(sortedNode).h4 << std::endl;
+            std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+            std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+            std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+            std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h4 << std::endl;
 
 //            std::cout << "SA: " << sortedNode << " " << SAlocalIntrinsic.h1 << " ";
 //            std::cout << SAlocalIntrinsic.h2 << " ";
@@ -5540,6 +5681,20 @@ public:
 //            std::cout << SAlocalIntrinsic.h4 << std::endl;
 
         }
+
+
+
+
+
+
+
+
+        // ===================== ITERATIVE WEIGHT PROPAGATION INWARDS ===================== //
+
+
+
+
+
 
 
         /*
@@ -5581,10 +5736,14 @@ public:
         */
 
         // now iterate, propagating weights inwards
-        for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+        //        for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+        // try to run for one more iteration to capture the whole tree
+        for (vtkm::Id iteration = 0; iteration < nIterations+1; iteration++)
         { // per iteration
 
-          std::cout << "Iteration: " << iteration << std::endl;
+          std::string indent = "\t";
+
+          std::cout << "Iteration: " << iteration << "\n{\n" << std::endl;
 
           // pull the array bounds into register
           vtkm::Id firstSupernode = firstSupernodePerIterationPortal.Get(iteration);
@@ -5614,42 +5773,116 @@ public:
           //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  16
 
 
-          std::cout << "SUPERARCS: ";
+          std::cout << indent << "SUPERARCS:\n" << indent << "{\n";
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
-              std::cout << supernode << " ";
+              std::cout << indent << indent << supernode << " ";
           }
-          std::cout << std::endl;
+          std::cout << std::endl << indent << "}\n" << std::endl;
 
 
-          std::cout << "transfer: ";
+          std::cout << indent << "transfer (simple):\n" << indent << "{\n";
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
-              std::cout << supernodeTransferWeightPortal.Get(supernode) << " ";
+              std::cout << indent << indent << supernodeTransferWeightPortal.Get(supernode) << " ";
           }
-          std::cout << std::endl;
+          std::cout << std::endl << indent << "}\n" << std::endl;
 
-          std::cout << "intrinsic: ";
+          std::cout << indent << "transfer (coeff):\n" << indent << "{\n";
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
-              std::cout << superarcIntrinsicWeightPortal.Get(supernode) << " ";
+               std::cout << indent << indent << supernodeTransferWeightCoeffPortal.Get(supernode).h1 << " " \
+                         << supernodeTransferWeightCoeffPortal.Get(supernode).h2 << " " \
+                         << supernodeTransferWeightCoeffPortal.Get(supernode).h3 << " " \
+                         << supernodeTransferWeightCoeffPortal.Get(supernode).h4 << std::endl;
           }
-          std::cout << std::endl;
+          std::cout << indent << "}\n" << std::endl;
 
-          std::cout << "step 1: ";
+
+          std::cout << indent << "intrinsic (simple):\n" << indent << "{\n";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+              std::cout  << indent << indent << superarcIntrinsicWeightPortal.Get(supernode) << " ";
+          }
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+
+          std::cout << indent << "intrinsic (coeff):\n" << indent << "{\n";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+              std::cout << indent << indent << superarcIntrinsicWeightCoeffPortal.Get(supernode).h1 << " " \
+                        << superarcIntrinsicWeightCoeffPortal.Get(supernode).h2 << " " \
+                        << superarcIntrinsicWeightCoeffPortal.Get(supernode).h3 << " " \
+                        << superarcIntrinsicWeightCoeffPortal.Get(supernode).h4 << std::endl;
+          }
+          std::cout << indent << "}\n" << std::endl;
+
+
+          Coefficients step1Dependent;
+          Coefficients step2Dependent;
+          Coefficients step3Dependent;
+          Coefficients step4HyperarcDependent;
+          Coefficients step4SupernodeTransfer;
+
+          std::map<vtkm::Id, vtkm::Id> tailends;
+
+          std::cout << indent << "tailends:\n" << indent << "{\n";
+          for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
+          {
+              vtkm::Id superNode = supernodesPortal.Get(supernode);
+
+              std::cout << indent << indent << supernode << " - " << superNode << "->" << supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))) << std::endl;
+
+              tailends.insert(std::make_pair(superNode, supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))));
+          }
+          std::cout << indent << "}\n" << std::endl;
+
+          std::cout << indent <<  "//step 1: Calculate DEPENDENT weight, which is INTRINSIC + TRANSFER" << std::endl;
+          std::cout << indent << "step 1 (simple):\n" << indent << "{\n";
           // so, step 1: add xfer + int & store in dependent weight
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
+            std::cout << indent << indent << "DependentSA[" << supernode << "] = TransferSN[" << supernode << " + " << "IntrinsicSA[" << supernode << "]\n";
+
             superarcDependentWeightPortal.Set(supernode,
                                               supernodeTransferWeightPortal.Get(supernode) +
                                                 superarcIntrinsicWeightPortal.Get(supernode));
 
-            std::cout << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << " ";
+            std::cout << indent << indent << supernode << " = " << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << " ";
           }
-          std::cout << " - DEPENDENT = TRANSFER + INTRINSIC" << std::endl;
+          std::cout << std::endl << indent << indent << "(SIMPL.) - DEPENDENT = TRANSFER + INTRINSIC\n" << indent << "}\n" << std::endl;
 
-          std::cout << "step 2: " << std::endl;
-          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
+
+
+
+          std::cout << indent << "step 1 (coeff):\n" << indent << "{\n";
+          // so, step 1: add xfer + int & store in dependent weight
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+
+            step1Dependent.h1 = supernodeTransferWeightCoeffPortal.Get(supernode).h1 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h1;
+            step1Dependent.h2 = supernodeTransferWeightCoeffPortal.Get(supernode).h2 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h2;
+            step1Dependent.h3 = supernodeTransferWeightCoeffPortal.Get(supernode).h3 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h3;
+            step1Dependent.h4 = supernodeTransferWeightCoeffPortal.Get(supernode).h4 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h4;
+
+            superarcDependentWeightCoeffPortal.Set(supernode, step1Dependent);
+
+//            std::cout << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << " ";
+            std::cout << indent << indent << supernode << " = " << step1Dependent.h1 << " " \
+                              << step1Dependent.h2 << " " \
+                              << step1Dependent.h3 << " " \
+                              << step1Dependent.h4 << std::endl;
+          }
+          std::cout << std::endl << indent << indent << "(COEFF.) - DEPENDENT = TRANSFER + INTRINSIC\n" << indent << "}\n" << std::endl;
+
+
+
+
+          std::cout << "//step 2: Calculate DEPENDENT weight, which is INTRINSIC + TRANSFER" << std::endl;
+
+          std::cout << indent << "step 2 (simple):\n" << indent << "{\n" << indent << indent;
+          std::cout << "from: " << firstSupernode+1 << " to " << lastSupernode << std::endl << indent << indent;
+          //          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
           // step 2: perform prefix sum on the dependent weight range
           for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
           {
@@ -5658,17 +5891,51 @@ public:
                                                 superarcDependentWeightPortal.Get(supernode - 1));
             //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
 
-            std::cout << supernode << " - " << superarcDependentWeightPortal.Get(supernode) << std::endl;
+            std::cout << supernode << " = " << superarcDependentWeightPortal.Get(supernode) << std::endl;
 
           }
+
+          std::cout << std::endl << indent << indent << "(SIMPL.) - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]\n" << indent << "}\n" << std::endl;
+
           std::cout << std::endl;
-    //      std::cout << " - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]" << std::endl;
+          std::cout << " " << std::endl;
+
+
+          std::cout << indent << "step 2 (coeff):\n" << indent << "{\n" << indent << indent;
+//          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
+          // step 2: perform prefix sum on the dependent weight range
+          for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
+          {
+
+              step2Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 + superarcDependentWeightCoeffPortal.Get(supernode-1).h1;
+              step2Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 + superarcDependentWeightCoeffPortal.Get(supernode-1).h2;
+              step2Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 + superarcDependentWeightCoeffPortal.Get(supernode-1).h3;
+              step2Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 + superarcDependentWeightCoeffPortal.Get(supernode-1).h4;
+
+              superarcDependentWeightCoeffPortal.Set(supernode, step2Dependent);
+
+              std::cout << supernode << " = " << step2Dependent.h1 << " " \
+                                << step2Dependent.h2 << " " \
+                                << step2Dependent.h3 << " " \
+                                << step2Dependent.h4 << std::endl;
+          }
+
+          std::cout << std::endl << indent << indent << "(COEFF.) - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]\n" << indent << "}\n" << std::endl;
+
+
+
+
+
+
+
+
+
 
           // step 3: subtract out the dependent weight of the prefix to the entire hyperarc. This will be a transfer, but for now, it's easier
           // to show it in serial. NB: Loops backwards so that computation uses the correct value
           // As a bonus, note that we test > firstsupernode, not >=.  This is because we've got unsigned integers, & otherwise it will not terminate
           // But the first is always correct anyway (same reason as the short-cut termination on hyperparent), so we're fine
-          std::cout << "subtract:\n";
+          std::cout << indent << "step 3 (simple) - subtract:\n" << indent << "{\n" << indent << indent;
           for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
           { // per supernode
             // retrieve the hyperparent & convert to a supernode ID
@@ -5689,8 +5956,40 @@ public:
 
           } // per supernode
 
+          std::cout << std::endl << indent << "}\n" << std::endl;
 
-          std::cout << "target transfer weights:\n";
+
+          std::cout << indent << "step 3 (coeff) - subtract:\n" << indent << "{\n" << indent << indent;
+          for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
+          { // per supernode
+            // retrieve the hyperparent & convert to a supernode ID
+            vtkm::Id hyperparent = hyperparentsPortal.Get(supernode);
+            vtkm::Id hyperparentSuperID = hypernodesPortal.Get(hyperparent);
+
+            // if the hyperparent is the first in the sequence, dependent weight is already correct
+            if (hyperparent == firstHypernode)
+              continue;
+
+
+            step3Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h1;
+            step3Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h2;
+            step3Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h3;
+            step3Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h4;
+
+            // otherwise, subtract out the dependent weight *immediately* before the hyperparent's supernode
+            superarcDependentWeightCoeffPortal.Set(supernode, step3Dependent);
+
+            std::cout << "\t" << supernode << " = " << step3Dependent.h1 << " " \
+                              << step3Dependent.h2 << " " \
+                              << step3Dependent.h3 << " " \
+                              << step3Dependent.h4 << std::endl;
+
+          } // per supernode
+
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+
+          std::cout << indent << "step 4 (simple) - target transfer weights:\n" << indent << "{\n";
           // step 4: transfer the dependent weight to the hyperarc's target supernode
           for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
           { // per hypernode
@@ -5705,21 +6004,85 @@ public:
               lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
 
             // now, given the last superarc for the hyperarc, transfer the dependent weight
+            std::cout << indent << indent << "DependentHA[" << hypernode << "] = DependentSA[" << lastSuperarc << "]\n";
             hyperarcDependentWeightPortal.Set(hypernode,
                                               superarcDependentWeightPortal.Get(lastSuperarc));
 
             // note that in parallel, this will have to be split out as a sort & partial sum in another array
             vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+            std::cout << indent << indent << "TransferSN[" << hyperarcTarget << "] = TransferSN[" << hyperarcTarget << "] + DependentHA[" << hypernode << "]\n";
             supernodeTransferWeightPortal.Set(hyperarcTarget,
                                               supernodeTransferWeightPortal.Get(hyperarcTarget) +
                                                 hyperarcDependentWeightPortal.Get(hypernode));
 
-            std::cout << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
+
+            std::cout << indent << indent << "hyperarcDependentWeightPortal:" << std::endl << indent << indent;
+            std::cout << indent << indent << hypernode << " - " << hyperarcDependentWeightPortal.Get(hypernode) << std::endl;
+
+            std::cout << indent << indent << "supernodeTransferWeightPortal:" << std::endl << indent << indent;
+            std::cout << indent << indent << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
 
           } // per hypernode
 
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+
+
+          std::cout << indent << "step 4 (coeff) - target transfer weights:\n" << indent << "{\n";
+          // step 4: transfer the dependent weight to the hyperarc's target supernode
+          for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
+          { // per hypernode
+            // last superarc for the hyperarc
+            vtkm::Id lastSuperarc;
+            // special case for the last hyperarc
+            if (hypernode == contourTree.Hypernodes.GetNumberOfValues() - 1)
+              // take the last superarc in the array
+              lastSuperarc = contourTree.Supernodes.GetNumberOfValues() - 1;
+            else
+              // otherwise, take the next hypernode's ID and subtract 1
+              lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
+
+            std::cout << indent << indent << "DependentHA[" << hypernode << "] = DependentSA[" << lastSuperarc << "]\n";
+            step4HyperarcDependent.h1 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h1;
+            step4HyperarcDependent.h2 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h2;
+            step4HyperarcDependent.h3 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h3;
+            step4HyperarcDependent.h4 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h4;
+
+            // now, given the last superarc for the hyperarc, transfer the dependent weight
+            hyperarcDependentWeightCoeffPortal.Set(hypernode, step4HyperarcDependent);
+
+            // note that in parallel, this will have to be split out as a sort & partial sum in another array
+            vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+            std::cout << indent << indent << "TransferSN[" << hyperarcTarget << "] = TransferSN[" << hyperarcTarget << "] + DependentHA[" << hypernode << "]\n" << std::endl;
+            step4SupernodeTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h1;
+            step4SupernodeTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h2;
+            step4SupernodeTransfer.h3 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h3;
+            step4SupernodeTransfer.h4 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h4;
+
+            // now, given the last superarc for the hyperarc, transfer the dependent weight
+//            hyperarcDependentWeightCoeffPortal.Set(hypernode, step4HyperarcDependent);
+
+            supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, step4SupernodeTransfer);
+
+            std::cout << indent << indent << "hyperarcDependentWeightCoeffPortal:" << std::endl << indent << indent;
+            std::cout << hypernode << " = " << step4HyperarcDependent.h1 << " " \
+                              << step4HyperarcDependent.h2 << " " \
+                              << step4HyperarcDependent.h3 << " " \
+                              << step4HyperarcDependent.h4 << std::endl;
+
+            std::cout << indent << indent << "supernodeTransferWeightCoeffPortal:" << std::endl << indent << indent;
+            std::cout << hyperarcTarget << " = " << step4SupernodeTransfer.h1 << " " \
+                              << step4SupernodeTransfer.h2 << " " \
+                              << step4SupernodeTransfer.h3 << " " \
+                              << step4SupernodeTransfer.h4 << std::endl << std::endl;
+
+          } // per hypernode
+
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+
           std::cout << std::endl;
-          std::cout << "final:\n";
+          std::cout << indent << "final (simple):\n" << indent << "{\n";
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
     //        superarcDependentWeightPortal.Set(supernode,
@@ -5727,10 +6090,74 @@ public:
     //                                            superarcDependentWeightPortal.Get(supernode - 1));
             //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
 
-            std::cout << supernode << " - " << superarcDependentWeightPortal.Get(supernode) << std::endl;
+            std::cout << indent << indent << supernode << " = " << superarcDependentWeightPortal.Get(supernode) << std::endl;
 
           }
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+//          for (vtkm::Id nodeID = firstSupernode; nodeID < lastSupernode; nodeID++)
+
+          std::cout << indent << "sorted nodes:\n" << indent << "{\n";
+          for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
+          {
+              vtkm::Id superNode = supernodesPortal.Get(supernode);
+
+              std::cout << indent << indent << supernode << " - " << superNode << "->" << tailends[superNode] << std::endl;
+          }
+
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+          std::cout << indent << "final (coeff):\n" << indent << "{\n";
+          for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+          {
+
+            vtkm::Id superNode = supernodesPortal.Get(supernode);
+
+            std::cout << indent << indent << supernode << "(" << superNode << "->" << tailends[superNode] << ") = " << superarcDependentWeightCoeffPortal.Get(supernode).h1 << " " \
+                              << superarcDependentWeightCoeffPortal.Get(supernode).h2 << " " \
+                              << superarcDependentWeightCoeffPortal.Get(supernode).h3 << " " \
+                              << superarcDependentWeightCoeffPortal.Get(supernode).h4 << " = "; // std::endl;
+
+            double a_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h1 * std::pow(tailends[superNode], 3);
+            double b_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h2 * std::pow(tailends[superNode], 2);
+            double c_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
+            double d_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h4;
+
+            std::cout << a_coeff + b_coeff + c_coeff + d_coeff << std::endl;
+          }
+
+          std::cout << std::endl << indent << "}\n" << std::endl;
+
+          std::cout << std::endl << "}\n" << std::endl;
+
+
+
+          for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
+          { // per node in sorted
+
+              vtkm::Id sortID = nodesPortal.Get(sortedNode);
+              vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+              std::cout << "SP: " << superparent << " - "; //superparentsPortal.Get(sortedNode) << " - ";
+              std::cout << "SA: " << sortedNode << std::setw(10) << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+              std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+              std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+              std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h4 << "\t"; //std::endl;
+
+              std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+              std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+              std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+              std::cout << std::setw(10) << superarcDependentWeightCoeffPortal.Get(sortedNode).h4 << "\t";
+
+              std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+              std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h2 << "\t";
+              std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h3 << "\t";
+              std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h4 << std::endl;
+
+          }
+
           std::cout << std::endl;
+
 
         }   // per iteration
 
