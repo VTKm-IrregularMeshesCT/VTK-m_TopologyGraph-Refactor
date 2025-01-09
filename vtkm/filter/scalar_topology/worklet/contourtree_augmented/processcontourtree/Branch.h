@@ -115,6 +115,8 @@ public:
 
   void AccumulateIntervals(int type, T eps, PiecewiseLinearFunction<T>& plf) const;
 
+  void PrintBranchInformation(); // TODO
+
 private:
   // Private default constructore to ensure that branch decomposition can only be created from a contour tree or loaded from storate (via static methods)
   Branch()
@@ -146,7 +148,9 @@ struct VolumeSorter
 { // VolumeSorter()
   inline bool operator()(Branch<T>* a, Branch<T>* b)
   {
-      std::cout << "< Branch Comparitor >" << std::endl;
+      std::cout << "< VolumeSorter Branch Comparitor >: ";
+      std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << a->ExtremumVal << ")->(" << a->SaddleVal << ") ";
+      std::cout << a->Volume << " < " << b->Volume << std::endl;
       return a->Volume < b->Volume;
   }
 }; // VolumeSorter()
@@ -156,7 +160,11 @@ struct VolumeSorterFloat
 { // VolumeSorter()
   inline bool operator()(Branch<T>* a, Branch<T>* b)
   {
-      std::cout << "< Branch Comparitor >" << std::endl;
+      // FIXME: No simulation of simplicity - WHY NOT?
+      // (no fallback for them being identical)
+      std::cout << "< VolumeSorterFloat Branch Comparitor >: ";
+      std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << a->ExtremumVal << ")->(" << a->SaddleVal << ") ";
+      std::cout << a->VolumeFloat << " < " << b->VolumeFloat << std::endl << std::endl;
       return a->VolumeFloat < b->VolumeFloat;
   }
 }; // VolumeSorter()
@@ -264,7 +272,39 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
       ->Volume++; // Increment Volume
   }
 
+
   // 2024-08-16 Get the existing volume information instead of just counting nodes
+
+  std::cout << "Number of SPs: " << contourTreeSuperparents.GetNumberOfValues() << std::endl;
+
+  // 2025-01-05 getting the right (floating point) volume information
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    branches[static_cast<size_t>(
+               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
+      ->VolumeFloat = 0.5f; // Increment Volume
+
+//    vtkm::Id sortID = supernodesPortal.Get(i);
+
+//    // retrieve ID of target supernode
+////    vtkm::Id superTo = superarcsPortal.Get(supernode);
+
+//    // if this is true, it is the last pruned vertex & is omitted
+//    if (NoSuchElement(superTo))
+//      continue;
+
+//    // otherwise, strip out the flags
+//    superTo = MaskedIndex(superTo);
+
+    // otherwise, we need to convert the IDs to regular mesh IDs
+//    vtkm::Id regularID = sortOrderPortal.Get(MaskedIndex(sortID));
+
+    std::cout << "'Incremented' Volume ... of [Branch " << MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i))))
+              << "] of SP: (" << superparentsPortal.Get(i) << ") = " << std::endl; // << regularID << std::endl;
+
+  }
+
+
 
   if (root)
   {
@@ -284,13 +324,44 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
   if (targetSize <= 1)
     return;
 
-  // Top-down simplification, starting from one branch and adding in the rest on a biggest-first basis
+  // Top-down simplification:
+  // starting from one branch (the main one) ...
+  // ... and adding in the rest on a biggest-first basis
   std::vector<Branch<T>*> q;
   q.push_back(this);
 
+
+
+  // Print the branch (root) information - using 'this' to get the (main) branch this function was called from:
+  vtkm::Id OriginalId;              // Index of the extremum in the mesh
+  vtkm::Id Extremum;                // Index of the extremum in the mesh
+  T ExtremumVal;                    // Value at the extremum:w
+  vtkm::Id Saddle;                  // Index of the saddle in the mesh (or minimum for root branch)
+  T SaddleVal;                      // Corresponding value
+  vtkm::Id Volume;                  // Volume
+  ValueType VolumeFloat;
+  Branch<T>* Parent;                // Pointer to parent, or nullptr if no parent
+  std::vector<Branch<T>*> Children; // List of pointers to children
+  std::cout << "------------------branchDecompostionRoot-----------------" << std::endl;
+  std::cout << "branch ID: "            << this->OriginalId  << std::endl;      // Index of the extremum in the mesh
+  std::cout << "branch Extremum: "      << this->Extremum    << std::endl;      // Index of the extremum in the mesh
+  std::cout << "branch ExtremumVal: "   << this->ExtremumVal << std::endl;      // Value at the extremum:w
+  std::cout << "branch Saddle: "        << this->Saddle      << std::endl;      // Index of the saddle in the mesh (or minimum for root branch)
+  std::cout << "branch SaddleVal: "     << this->SaddleVal   << std::endl;      // Corresponding value
+  std::cout << "branch Volume: "        << this->Volume      << std::endl;      // Volume
+  std::cout << "branch VolumeFloat: "   << this->VolumeFloat << std::endl;
+//  Branch<T>* Parent;                // Pointer to parent, or nullptr if no parent
+//  std::vector<Branch<T>*> Children; // List of pointers to children
+  std::cout << "------------------branchDecompostionRoot-----------------\n" << std::endl;
+
+
+  int num_active_branches = 0;
+
+  // local array - active definition:
   std::vector<Branch<T>*> active;
   while (active.size() < static_cast<std::size_t>(targetSize) && !q.empty())
   {
+    std::cout << "====================== iteration " << num_active_branches << " ======================" << std::endl;
     std::cout << "-Branch.h-> active.size() = " << active.size() << std::endl;
 
     if (usePersistenceSorter)
@@ -318,19 +389,53 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 
     active.push_back(b);
 
+    std::cout << "-Branch.h-> active.size() = " << active.size() << std::endl;
+
+    std::cout << "\n---------------------------------------------------------" << std::endl;
+    std::cout << "branch ID: "            << b->OriginalId      << std::endl;      // Index of the extremum in the mesh
+    std::cout << "branch Extremum: "      << b->Extremum        << std::endl;      // Index of the extremum in the mesh
+    std::cout << "branch ExtremumVal: "   << b->ExtremumVal     << std::endl;      // Value at the extremum:w
+    std::cout << "branch Saddle: "        << b->Saddle          << std::endl;      // Index of the saddle in the mesh (or minimum for root branch)
+    std::cout << "branch SaddleVal: "     << b->SaddleVal       << std::endl;      // Corresponding value
+    std::cout << "branch Volume: "        << b->Volume          << std::endl;      // Volume
+    std::cout << "branch VolumeFloat: "   << b->VolumeFloat     << std::endl;
+    std::cout << "branch Children: "      << b->Children.size() << std::endl;
+  //  Branch<T>* Parent;                // Pointer to parent, or nullptr if no parent
+  //  std::vector<Branch<T>*> Children; // List of pointers to children
+    std::cout << "---------------------------------------------------------\n" << std::endl;
+
+    int child_num = 0;
+
     for (Branch<T>* c : b->Children)
     {
-      std::cout << "----------> Processing Branch: " << c->ExtremumVal << std::endl;
+      std::cout << "---------> (Child " << child_num << ") Processing Branch: " << c->ExtremumVal << std::endl;
       q.push_back(c);
+
+      for (auto e : q)
+      {
+          std::cout << e->ExtremumVal << ' ';
+          std::cout << '\n';
+      }
+
       if (usePersistenceSorter)
       {
         std::push_heap(q.begin(), q.end(), PersistenceSorter<T>());
       }
       else
       {
-        std::push_heap(q.begin(), q.end(), VolumeSorter<T>());
+        std::cout << "\t-> pushing child" << std::endl;
+        // std::push_heap(q.begin(), q.end(), VolumeSorter<T>());
+        std::push_heap(q.begin(), q.end(), VolumeSorterFloat<T>());
       }
+
+      child_num++;
+
     }
+
+    std::cout << "====================== iteration " << num_active_branches << " ======================" << std::endl;
+
+    num_active_branches++;
+
   }
 
   // Rest are inactive

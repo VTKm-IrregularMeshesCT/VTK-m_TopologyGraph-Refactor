@@ -88,7 +88,7 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/HypersweepWorklets.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/PointerDoubling.h>
 
-//#define DEBUG_PRINT
+#define DEBUG_PRINT
 
 
 namespace process_contourtree_inc_ns =
@@ -7867,14 +7867,14 @@ public:
 
     //JUMP
 
-    std::cout << "Up Weights" << std::endl;
+    std::cout << "Up Weights (float)" << std::endl;
     for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
     {
         vtkm::Id superNode = supernodesPortal.Get(superarc);
 
         std::cout << superarc << "(" << superNode  << ") = " << upWeightFloatCorrectPortal.Get(superarc) << std::endl;
     }
-    std::cout << "Down Weights" << std::endl;
+    std::cout << "Down Weights (float)" << std::endl;
     for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
     {
         vtkm::Id superNode = supernodesPortal.Get(superarc);
@@ -7882,13 +7882,31 @@ public:
         std::cout << superarc << "(" << superNode  << ") = " << downWeightFloatCorrectPortal.Get(superarc) << std::endl;
     }
 
+    std::cout << std::endl;
+    std::cout << "Up Weights (int)" << std::endl;
+    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+    {
+        vtkm::Id superNode = supernodesPortal.Get(superarc);
+
+        std::cout << superarc << "(" << superNode  << ") = " << upWeightPortal.Get(superarc) << std::endl;
+    }
+    std::cout << "Down Weights (int)" << std::endl;
+    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+    {
+        vtkm::Id superNode = supernodesPortal.Get(superarc);
+
+        std::cout << superarc << "(" << superNode  << ") = " << downWeightPortal.Get(superarc) << std::endl;
+    }
+
     #ifdef DEBUG_PRINT
       std::cout << "II A. Weights Computed" << std::endl;
       PrintHeader(upWeight.GetNumberOfValues());
       //PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
       //PrintIndices("Dependent Weight", superarcDependentWeight);
-      PrintIndices("Upwards Weight", upWeight);
-      PrintIndices("Downwards Weight", downWeight);
+      PrintIndices("Upwards Weight",           upWeight);
+      PrintValues("Upwards Weight (float)",   upWeightFloatCorrect);
+      PrintIndices("Downwards Weight",         downWeight);
+      PrintValues("Downwards Weight (float)", downWeightFloatCorrect);
       std::cout << std::endl;
     #endif
 
@@ -7898,10 +7916,15 @@ public:
       superarcSorter.Allocate(nSuperarcs);
       auto superarcSorterPortal = superarcSorter.WritePortal();
       // make the array of indices for indirect sorting
-      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
-        superarcSorterPortal.Set(superarc, superarc);
 
-      // OLD: Vertex count sort
+      std::cout << "Unsorted arcs:" << std::endl;
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+      {
+        superarcSorterPortal.Set(superarc, superarc);
+        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
+      }
+
+//      // OLD: Vertex count sort
 //      vtkm::cont::Algorithm::Sort(
 //        superarcSorter,
 //                  // false / true = either ascending/descending
@@ -7915,6 +7938,19 @@ public:
                   // sort by up/down weight so that we have a segmented array
         process_contourtree_inc_ns::SuperArcVolumetricComparator(upWeightFloatCorrect, superarcList, false));
 
+
+      std::cout << "Sorted arcs (by float upweight):" << std::endl;
+      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+      {
+        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
+      }
+
+
+//      std::cout << "Sorted arcs (by int supernode count):" << std::endl;
+//      for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+//      {
+//        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
+//      }
 
 
       // Initialize after in-place sort algorithm. (Kokkos)
@@ -7941,15 +7977,15 @@ public:
       // II B 3.  Repeat for lower vertex
 
       // OLD: Vertex count sort
+      vtkm::cont::Algorithm::Sort(
+        superarcSorter,
+        process_contourtree_inc_ns::SuperArcVolumetricComparator(downWeight, superarcList, true));
+
+
+//      // CHANGE: sort by the float down weights
 //      vtkm::cont::Algorithm::Sort(
 //        superarcSorter,
 //        process_contourtree_inc_ns::SuperArcVolumetricComparator(downWeightFloatCorrect, superarcList, true));
-
-
-      // CHANGE: sort by the float down weights
-      vtkm::cont::Algorithm::Sort(
-        superarcSorter,
-        process_contourtree_inc_ns::SuperArcVolumetricComparator(downWeightFloatCorrect, superarcList, true));
 
 
 
@@ -8258,13 +8294,14 @@ public:
 #endif
 
     ProcessContourTree::ComputeBranchData(contourTree,
-                                          whichBranch,
-                                          branchMinimum,
-                                          branchMaximum,
-                                          branchSaddle,
-                                          branchParent,
-                                          bestUpward,
-                                          bestDownward);
+                                          whichBranch,      // (output)
+                                          branchMinimum,    // (output)
+                                          branchMaximum,    // (output)
+                                          branchSaddle,     // (output)
+                                          branchParent,     // (output)
+                          /* input */     bestUpward,
+                          /* input */     bestDownward);
+
   } // ComputeVolumeBranchDecomposition()
 
   // routine to compute the branch decomposition by volume
@@ -8274,8 +8311,8 @@ public:
                                 IdArrayType& branchMaximum,     // (output)
                                 IdArrayType& branchSaddle,      // (output)
                                 IdArrayType& branchParent,      // (output)
-                                IdArrayType& bestUpward,
-                                IdArrayType& bestDownward)
+                /* (input) */   IdArrayType& bestUpward,
+                /* (input) */   IdArrayType& bestDownward)
   { // ComputeBranchData()
 
     // Each superarc has an up and a down supernode.
@@ -8297,8 +8334,15 @@ public:
     vtkm::cont::ArrayCopy(noSuchElementArray, whichBranch);
 
     // STAGE III: For each vertex, identify which neighbours are on same branch
-    // Let v = BestUp(u). Then if u = BestDown(v), copy BestUp(u) to whichBranch(u)
-    // Otherwise, let whichBranch(u) = BestUp(u) | TERMINAL to mark the end of the side branch
+    // Let v = BestUp(u).
+    // Then:
+    //      if u = BestDown(v), ...
+    //      ... copy v (BestUp(u) = v) to whichBranch[u]
+    // Otherwise, ...
+    //      let whichBranch[u] = u | TERMINAL to mark the end of the side branch
+    //      ( | TERMINAL is a bitmask which looks as '.t...' when printed in terminal)
+    //      [this comment used to be incorrect - it had whichBranch[u] = BestUp(u)] ...
+    //
     // NB 1: Leaves already have the flag set, but it's redundant so its safe
     // NB 2: We don't need to do it downwards because it's symmetric
     vtkm::cont::Invoker invoke;
@@ -8307,11 +8351,13 @@ public:
     invoke(propagateBestUpDownWorklet, bestUpward, bestDownward, whichBranch);
 
 #ifdef DEBUG_PRINT
-    std::cout << "III. Branch Neighbours Identified" << std::endl;
+    std::cout <<  std::endl << std::endl << "III. Branch Neighbours Identified" << std::endl;
     PrintHeader(whichBranch.GetNumberOfValues());
     PrintIndices("Which Branch", whichBranch);
     std::cout << std::endl;
 #endif
+
+    // -------------------------------------------------- POINTER DOUBLING START --------------------------------------------------- //
 
     // STAGE IV: Use pointer-doubling on whichBranch to propagate branches
     // Compute the number of log steps required in this pass
@@ -8329,8 +8375,10 @@ public:
     } // per iteration
 
 
+    // --------------------------------------------------- POINTER DOUBLING END --------------------------------------------------- //
+
 #ifdef DEBUG_PRINT
-    std::cout << "IV. Branch Chains Propagated" << std::endl;
+    std::cout <<  std::endl << std::endl << "IV. Branch Chains Propagated" << std::endl;
     PrintHeader(whichBranch.GetNumberOfValues());
     PrintIndices("Which Branch", whichBranch);
     std::cout << std::endl;
@@ -8361,7 +8409,7 @@ public:
     vtkm::cont::ArrayCopy(noSuchElementArrayNBranches, branchParent);
 
 #ifdef DEBUG_PRINT
-    std::cout << "V. Branch Arrays Created" << std::endl;
+    std::cout <<  std::endl << std::endl << "V. Branch Arrays Created" << std::endl;
     PrintHeader(chainToBranch.GetNumberOfValues());
     PrintIndices("Chain To Branch", chainToBranch);
     PrintHeader(nBranches);
@@ -8387,7 +8435,7 @@ public:
     PermuteArray<vtkm::Id>(contourTree.Supernodes, supernodeSorter, permutedRegularID);
 
 #ifdef DEBUG_PRINT
-    std::cout << "VI A. Sorted into Branches" << std::endl;
+    std::cout <<  std::endl << std::endl << "VI A. Sorted into Branches" << std::endl;
     PrintHeader(nSupernodes);
     PrintIndices("Supernode IDs", supernodeSorter);
     PrintIndices("Branch", permutedBranches);
@@ -8402,8 +8450,18 @@ public:
       branchMinMaxSetWorklet(nSupernodes);
     invoke(branchMinMaxSetWorklet, supernodeSorter, whichBranch, branchMinimum, branchMaximum);
 
+
+
+//    std::cout << "VI. Branches Set" << std::endl;
+//    PrintHeader(nBranches);
+//    PrintIndices("Branch Maximum", branchMaximum);
+//    PrintIndices("Branch Minimum", branchMinimum);
+//    PrintIndices("Branch Saddle", branchSaddle);
+//    PrintIndices("Branch Parent", branchParent);
+
+
 #ifdef DEBUG_PRINT
-    std::cout << "VI. Branches Set" << std::endl;
+    std::cout <<  std::endl << std::endl << "VI. Branches Set" << std::endl;
     PrintHeader(nBranches);
     PrintIndices("Branch Maximum", branchMaximum);
     PrintIndices("Branch Minimum", branchMinimum);
@@ -8423,7 +8481,7 @@ public:
            branchParent);
 
 #ifdef DEBUG_PRINT
-    std::cout << "VII. Branches Constructed" << std::endl;
+    std::cout <<  std::endl << std::endl << "VII. Branches Constructed" << std::endl;
     PrintHeader(nBranches);
     PrintIndices("Branch Maximum", branchMaximum);
     PrintIndices("Branch Minimum", branchMinimum);
