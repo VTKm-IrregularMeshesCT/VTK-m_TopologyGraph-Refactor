@@ -1023,6 +1023,7 @@ int main(int argc, char* argv[])
 //    auto branchParentPortal  = branchParent.ReadPortal();
 
 
+
     std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
     std::cout << "whichBranch:";
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
@@ -1107,21 +1108,94 @@ int main(int argc, char* argv[])
 
 #endif
 
+      auto superarcIntrinsicWeightNEWPortal = superarcIntrinsicWeightNEW.ReadPortal();
+      auto superarcDependentWeightNEWPortal = superarcDependentWeightNEW.ReadPortal();
+
+      std::cout << std::endl << "Superarc Intrinsic from decomposition:" << std::endl;
+      for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
+      {
+          std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
+      }
+
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
-      // create explicit representation of the branch decompostion from the array representation
+      std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
+
+
+      // OLD Branch.h version:
+//      // create explicit representation of the branch decompostion from the array representation
+//      BranchType* branchDecompostionRoot =
+//        ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
+//          filter.GetContourTree().Superparents,
+//          filter.GetContourTree().Supernodes,
+//          whichBranch,
+//          branchMinimum,
+//          branchMaximum,
+//          branchSaddle,
+//          branchParent,
+//          filter.GetSortOrder(),
+//          dataField,
+//          dataFieldIsSorted);
+
+      // CHANGE: because at the moment the dependent and intrinsic weights have some errors ...
+      // ... I write the arrays with the correct values for each to see how the BT should work.
+      FloatArrayType superarcDependentWeightCorrect; //= superarcDependentWeight.ReadPortal();
+      FloatArrayType superarcIntrinsicWeightCorrect; //= superarcIntrinsicWeight.ReadPortal();
+
+      superarcDependentWeightCorrect.Allocate(superarcDependentWeightNEWPortal.GetNumberOfValues());
+      superarcIntrinsicWeightCorrect.Allocate(superarcIntrinsicWeightNEWPortal.GetNumberOfValues());
+
+      // The following is taken from ProcessContourTree.h and hardcoded here for testing
+      std::string indent = "\t";
+      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111,                   0.0};
+      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.0};
+
+      auto superarcDependentWeightCorrectReadPortal = superarcDependentWeightCorrect.ReadPortal();
+      auto superarcIntrinsicWeightCorrectReadPortal = superarcIntrinsicWeightCorrect.ReadPortal();
+
+      auto superarcDependentWeightCorrectWritePortal = superarcDependentWeightCorrect.WritePortal();
+      auto superarcIntrinsicWeightCorrectWritePortal = superarcIntrinsicWeightCorrect.WritePortal();
+
+
+      std::cout << std::endl << "(ContourTreeApp) Superarc Intrinsic Weight Portal (vs Correct):" << std::endl;
+      for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
+      {
+          std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
+
+          superarcIntrinsicWeightCorrectWritePortal.Set(i, realIntrinsic[i]);
+
+          std::cout << indent << i << " -> " << superarcIntrinsicWeightCorrectReadPortal.Get(i) << std::endl;
+
+
+      }
+      std::cout << std::endl;
+
+      std::cout << std::endl << "(ContourTreeApp) Superarc Dependent Weight Portal:" << std::endl;
+      for(int i = 0; i < superarcDependentWeightNEWPortal.GetNumberOfValues(); i++)
+      {
+          std::cout << i << " -> " << superarcDependentWeightNEWPortal.Get(i) << std::endl;
+
+          superarcDependentWeightCorrectWritePortal.Set(i, realDependent[i]);
+
+          std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
+      }
+
       BranchType* branchDecompostionRoot =
-        ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
-          filter.GetContourTree().Superparents,
-          filter.GetContourTree().Supernodes,
-          whichBranch,
-          branchMinimum,
-          branchMaximum,
-          branchSaddle,
-          branchParent,
-          filter.GetSortOrder(),
-          dataField,
-          dataFieldIsSorted);
+          ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
+            filter.GetContourTree().Superparents,
+            filter.GetContourTree().Supernodes,
+            whichBranch,
+            branchMinimum,
+            branchMaximum,
+            branchSaddle,
+            branchParent,
+            filter.GetSortOrder(),
+            dataField,
+            dataFieldIsSorted,
+            superarcIntrinsicWeightCorrect,
+            superarcDependentWeightCorrect);
+
+      // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
 
       /// DEBUG PRINT
       std::cout << "!Computing the Branch Decomposition: PRINTING\n";

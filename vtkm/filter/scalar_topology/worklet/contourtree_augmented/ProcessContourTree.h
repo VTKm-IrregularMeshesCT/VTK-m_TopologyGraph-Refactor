@@ -7629,7 +7629,7 @@ public:
       auto superarcIntrinsicWeightCorrectWritePortal = superarcIntrinsicWeightCorrect.WritePortal();
 
 
-      std::cout << std::endl << "Superarc Intrinsic Weight Portal:" << std::endl;
+      std::cout << std::endl << "Superarc Intrinsic Weight Portal (vs Correct):" << std::endl;
       for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       {
           std::cout << i << " -> " << superarcIntrinsicWeightPortal.Get(i) << std::endl;
@@ -8516,6 +8516,44 @@ public:
       sortOrder,
       dataField,
       dataFieldIsSorted);
+  }
+
+
+
+  // Create branch decomposition from contour tree
+  template <typename T, typename StorageType>
+  static process_contourtree_inc_ns::Branch<T>* ComputeBranchDecomposition(
+    const IdArrayType& contourTreeSuperparents,
+    const IdArrayType& contourTreeSupernodes,
+    const IdArrayType& whichBranch,
+    const IdArrayType& branchMinimum,
+    const IdArrayType& branchMaximum,
+    const IdArrayType& branchSaddle,
+    const IdArrayType& branchParent,
+    const IdArrayType& sortOrder,
+    const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
+    bool dataFieldIsSorted,
+    const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
+    const FloatArrayType& superarcIntrinsicWeight)
+  {
+
+    std::cout << "\nContourTreeApp -> ProcessContourTree -> Branch.h ";
+    std::cout << "\nProcessContourTree::ComputeBranchDecomposition<ValueType> REDIRECT TO: ";
+    std::cout << "process_contourtree_inc_ns::Branch<T>::ComputeBranchDecomposition\n" << std::endl;
+
+    return process_contourtree_inc_ns::Branch<T>::ComputeBranchDecomposition(
+      contourTreeSuperparents,
+      contourTreeSupernodes,
+      whichBranch,
+      branchMinimum,
+      branchMaximum,
+      branchSaddle,
+      branchParent,
+      sortOrder,
+      dataField,
+      dataFieldIsSorted,
+      superarcDependentWeight,
+      superarcIntrinsicWeight);
   }
 
 

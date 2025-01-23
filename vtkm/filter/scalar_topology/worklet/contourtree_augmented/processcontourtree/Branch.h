@@ -69,6 +69,9 @@ namespace contourtree_augmented
 namespace process_contourtree_inc
 {
 using ValueType = vtkm::Float32;
+using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
+
+
 // TODO The pointered list structure and use of std::vector don't seem to fit well with using Branch with VTKM
 template <typename T>
 class Branch
@@ -98,6 +101,23 @@ public:
     const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
     bool dataFieldIsSorted);
 
+
+  template <typename StorageType>
+  static Branch<T>* ComputeBranchDecomposition(
+    const IdArrayType& contourTreeSuperparents,
+    const IdArrayType& contourTreeSupernodes,
+    const IdArrayType& whichBranch,
+    const IdArrayType& branchMinimum,
+    const IdArrayType& branchMaximum,
+    const IdArrayType& branchSaddle,
+    const IdArrayType& branchParent,
+    const IdArrayType& sortOrder,
+    const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
+    bool dataFieldIsSorted,
+    const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
+    const FloatArrayType& superarcIntrinsicWeight);
+
+
   // Simplify branch composition down to target size (i.e., consisting of targetSize branches)
   void SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter = true);
 
@@ -125,7 +145,7 @@ private:
     , Saddle((vtkm::Id)vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT)
     , SaddleVal(0)
     , Volume(0)
-    , VolumeFloat(0.023232323f)
+    , VolumeFloat(0.f) //0.023232323f) // VolumeFloat Placeholder - Initialisation
     , Parent(nullptr)
     , Children()
   {
@@ -162,9 +182,9 @@ struct VolumeSorterFloat
   {
       // FIXME: No simulation of simplicity - WHY NOT?
       // (no fallback for them being identical)
-      std::cout << "< VolumeSorterFloat Branch Comparitor >: ";
-      std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << a->ExtremumVal << ")->(" << a->SaddleVal << ") ";
-      std::cout << a->VolumeFloat << " < " << b->VolumeFloat << std::endl << std::endl;
+      std::cout << "< VolumeSorterFloat Branch Comparitor > | ";
+      std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << b->ExtremumVal << ")->(" << b->SaddleVal << ") |";
+      std::cout << a->VolumeFloat << " < " << b->VolumeFloat << " |" << std::endl << std::endl;
       return a->VolumeFloat < b->VolumeFloat;
   }
 }; // VolumeSorter()
@@ -187,6 +207,11 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 { // C)omputeBranchDecomposition()
 
   std::cout << "-Branch.h-> Calling: ComputeBranchDecomposition()" << std::endl;
+
+  std::cout << "##################################################################" << std::endl;
+  std::cout << "############################# START ##############################" << std::endl;
+  std::cout << "##################### Branch.H Decomposition #####################" << std::endl;
+  std::cout << "##################################################################" << std::endl;
 
   auto branchMinimumPortal = branchMinimum.ReadPortal();
   auto branchMaximumPortal = branchMaximum.ReadPortal();
@@ -272,6 +297,34 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
       ->Volume++; // Increment Volume
   }
 
+  // 2025-01-13
+  std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
+
+  // loop through all the regular nodes, ...
+  // ... then counting how many regular nodes are on each branch
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+    //      vtkm::Id sortID = supernodesPortal.Get(i);
+    //    std::cout << i << " [sortID=" << sortID << "]" << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+              << branches[branchID]->Volume
+              << std::endl;
+  }
+  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
+
+  std::cout << "------------- vvv Branch FLOATIN weights vvv -------------" << std::endl;
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+
+    std::cout << MaskedIndex(superparentsPortal.Get(i)) << ") "
+              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+              << branches[branchID]->VolumeFloat
+              << std::endl;
+  }
+  std::cout << "------------- ^^^ Branch FLOATIN weights ^^^ -------------" << std::endl;
 
   // 2024-08-16 Get the existing volume information instead of just counting nodes
 
@@ -311,13 +364,364 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
     root->removeSymbolicPerturbation();
   }
 
+  std::cout << "##################################################################" << std::endl;
+  std::cout << "############################# FINISH #############################" << std::endl;
+  std::cout << "##################### Branch.H Decomposition #####################" << std::endl;
+  std::cout << "##################################################################" << std::endl;
+
+
   return root;
 } // ComputeBranchDecomposition()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template <typename T>
+template <typename StorageType>
+Branch<T>* Branch<T>::ComputeBranchDecomposition(
+  const IdArrayType& contourTreeSuperparents,
+  const IdArrayType& contourTreeSupernodes,
+  const IdArrayType& whichBranch,
+  const IdArrayType& branchMinimum,
+  const IdArrayType& branchMaximum,
+  const IdArrayType& branchSaddle,
+  const IdArrayType& branchParent,
+  const IdArrayType& sortOrder,
+  const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
+  bool dataFieldIsSorted,
+  const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincid
+  const FloatArrayType& superarcDependentWeight)
+{ // C)omputeBranchDecomposition()
+
+  std::cout << "-Branch.h-> Calling: ComputeBranchDecomposition()" << std::endl;
+
+  std::cout << "##################################################################" << std::endl;
+  std::cout << "############################# START ##############################" << std::endl;
+  std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
+  std::cout << "##################################################################" << std::endl;
+
+  auto branchMinimumPortal = branchMinimum.ReadPortal();
+  auto branchMaximumPortal = branchMaximum.ReadPortal();
+  auto branchSaddlePortal = branchSaddle.ReadPortal();
+  auto branchParentPortal = branchParent.ReadPortal();
+  auto sortOrderPortal = sortOrder.ReadPortal();
+  auto supernodesPortal = contourTreeSupernodes.ReadPortal();
+  auto dataFieldPortal = dataField.ReadPortal();
+
+  // NEW: add the read portals for branch intrinsic weights:
+  auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
+
+  vtkm::Id nBranches = branchSaddle.GetNumberOfValues();
+  std::vector<Branch<T>*> branches;
+  Branch<T>* root = nullptr;
+  branches.reserve(static_cast<std::size_t>(nBranches));
+
+  for (int branchID = 0; branchID < nBranches; ++branchID)
+    branches.push_back(new Branch<T>);
+
+  // Reconstruct explicit branch decomposition from array representation
+  for (std::size_t branchID = 0; branchID < static_cast<std::size_t>(nBranches); ++branchID)
+  {
+    branches[branchID]->OriginalId = static_cast<vtkm::Id>(branchID);
+    if (!NoSuchElement(branchSaddlePortal.Get(static_cast<vtkm::Id>(branchID))))
+    {
+      branches[branchID]->Saddle = MaskedIndex(
+        supernodesPortal.Get(MaskedIndex(branchSaddlePortal.Get(static_cast<vtkm::Id>(branchID)))));
+      vtkm::Id branchMin = MaskedIndex(supernodesPortal.Get(
+        MaskedIndex(branchMinimumPortal.Get(static_cast<vtkm::Id>(branchID)))));
+      vtkm::Id branchMax = MaskedIndex(supernodesPortal.Get(
+        MaskedIndex(branchMaximumPortal.Get(static_cast<vtkm::Id>(branchID)))));
+      if (branchMin < branches[branchID]->Saddle)
+        branches[branchID]->Extremum = branchMin;
+      else if (branchMax > branches[branchID]->Saddle)
+        branches[branchID]->Extremum = branchMax;
+      else
+      {
+        std::cerr << "Internal error";
+        return 0;
+      }
+    }
+    else
+    {
+      branches[branchID]->Saddle =
+        supernodesPortal.Get(MaskedIndex(branchMinimumPortal.Get(static_cast<vtkm::Id>(branchID))));
+      branches[branchID]->Extremum =
+        supernodesPortal.Get(MaskedIndex(branchMaximumPortal.Get(static_cast<vtkm::Id>(branchID))));
+    }
+
+    if (dataFieldIsSorted)
+    {
+      branches[branchID]->SaddleVal = dataFieldPortal.Get(branches[branchID]->Saddle);
+      branches[branchID]->ExtremumVal = dataFieldPortal.Get(branches[branchID]->Extremum);
+    }
+    else
+    {
+      branches[branchID]->SaddleVal =
+        dataFieldPortal.Get(sortOrderPortal.Get(branches[branchID]->Saddle));
+      branches[branchID]->ExtremumVal =
+        dataFieldPortal.Get(sortOrderPortal.Get(branches[branchID]->Extremum));
+    }
+
+    branches[branchID]->Saddle = sortOrderPortal.Get(branches[branchID]->Saddle);
+    branches[branchID]->Extremum = sortOrderPortal.Get(branches[branchID]->Extremum);
+
+    if (NoSuchElement(branchParentPortal.Get(static_cast<vtkm::Id>(branchID))))
+    {
+      root = branches[branchID]; // No parent -> this is the root branch
+    }
+    else
+    {
+      branches[branchID]->Parent = branches[static_cast<size_t>(
+        MaskedIndex(branchParentPortal.Get(static_cast<vtkm::Id>(branchID))))];
+      branches[branchID]->Parent->Children.push_back(branches[branchID]);
+    }
+  }
+
+  // FIXME: This is a somewhat hackish way to compute the Volume, but it works
+  // It would probably be better to compute this from the already computed Volume information
+  auto whichBranchPortal = whichBranch.ReadPortal();
+  auto superparentsPortal = contourTreeSuperparents.ReadPortal();
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    branches[static_cast<size_t>(
+               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
+      ->Volume++; // Increment Volume
+  }
+
+  // 2025-01-13
+  std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
+
+  // loop through all the regular nodes, ...
+  // ... then counting how many regular nodes are on each branch
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+    //      vtkm::Id sortID = supernodesPortal.Get(i);
+    //    std::cout << i << " [sortID=" << sortID << "]" << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+              << branches[branchID]->Volume
+              << std::endl;
+  }
+  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
+
+  std::cout << "------------- vvv Branch FLOATIN weights vvv -------------" << std::endl;
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+
+//    std::cout << MaskedIndex(superparentsPortal.Get(i)) << ") "
+//              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+//              << branches[branchID]->VolumeFloat
+//              << std::endl;
+
+    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+              << branches[branchID]->VolumeFloat
+              << std::endl;
+
+  }
+  std::cout << "------------- ^^^ Branch FLOATIN weights ^^^ -------------" << std::endl;
+
+
+
+  int previous_superparent = MaskedIndex(superparentsPortal.Get(0));
+  int current_superparent;
+
+  int previous_branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(0)))));
+  int current_branchID;
+  bool last_iteration = false;
+
+  std::cout << "------------- vvv Weight computation by summing branch intrinsic weights vvv -------------" << std::endl;
+  // loop through all the regular nodes, ...
+  // ... then counting how many regular nodes are on each branch
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+    if(i+1 == contourTreeSuperparents.GetNumberOfValues())
+    {
+        last_iteration = true;
+    }
+    current_superparent = MaskedIndex(superparentsPortal.Get(i));
+
+    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+
+    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+              << branches[branchID]->VolumeFloat
+              << std::endl;
+
+    if(current_superparent != previous_superparent)
+    {
+        std::cout << "\tbranch[" << previous_branchID << "] = " << branches[previous_branchID]->VolumeFloat << std::endl;
+
+        std::cout << "\t\tbranch[" << previous_branchID << "] += " << superarcIntrinsicWeightPortal.Get(previous_superparent) << std::endl;
+
+        branches[previous_branchID]->VolumeFloat += superarcIntrinsicWeightPortal.Get(previous_superparent);
+
+        std::cout << "\tbranch[" << previous_branchID << "] = " << branches[previous_branchID]->VolumeFloat << std::endl << std::endl;
+    }
+
+
+    previous_superparent = current_superparent;
+    previous_branchID = branchID;
+
+    if(last_iteration)
+    {
+        std::cout << "\tbranch[" << previous_branchID << "] = " << branches[previous_branchID]->VolumeFloat << std::endl;
+
+        std::cout << "\t\tbranch[" << previous_branchID << "] += " << superarcIntrinsicWeightPortal.Get(previous_superparent) << std::endl;
+
+        branches[previous_branchID]->VolumeFloat += superarcIntrinsicWeightPortal.Get(previous_superparent);
+
+        std::cout << "\tbranch[" << previous_branchID << "] = " << branches[previous_branchID]->VolumeFloat << std::endl << std::endl;
+    }
+
+
+  }
+  std::cout << "------------- ^^^ Weight computation by summing branch intrinsic weights ^^^ -------------" << std::endl;
+
+
+
+
+  // 2024-08-16 Get the existing volume information instead of just counting nodes
+
+  std::cout << "Number of SPs: " << contourTreeSuperparents.GetNumberOfValues() << std::endl;
+
+  // 2025-01-05 getting the right (floating point) volume information
+  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+  {
+//    branches[static_cast<size_t>(
+//               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
+//      ->VolumeFloat = 0.5f; // Increment Volume
+
+//    vtkm::Id sortID = supernodesPortal.Get(i);
+
+//    // retrieve ID of target supernode
+////    vtkm::Id superTo = superarcsPortal.Get(supernode);
+
+//    // if this is true, it is the last pruned vertex & is omitted
+//    if (NoSuchElement(superTo))
+//      continue;
+
+//    // otherwise, strip out the flags
+//    superTo = MaskedIndex(superTo);
+
+    // otherwise, we need to convert the IDs to regular mesh IDs
+//    vtkm::Id regularID = sortOrderPortal.Get(MaskedIndex(sortID));
+
+//    std::cout << "'Incremented' Volume ... of [Branch " << MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i))))
+//              << "] of SP: (" << superparentsPortal.Get(i) << ") = " << std::endl; // << regularID << std::endl;
+
+    std::cout << "branch[" << static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i))))) << "] = "
+              << branches[static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]->VolumeFloat
+              << std::endl;
+
+  }
+
+
+
+  if (root)
+  {
+    root->removeSymbolicPerturbation();
+  }
+
+  std::cout << "##################################################################" << std::endl;
+  std::cout << "############################ FINISH ##############################" << std::endl;
+  std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
+  std::cout << "##################################################################" << std::endl;
+
+
+  return root;
+} // ComputeBranchDecomposition()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 template <typename T>
 void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 { // SimplifyToSize()
+
+  std::cout << std::endl << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~ START ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
+
 
   std::cout << "-Branch.h-> Calling: SimplifyToSize() with targetSize = " << targetSize << std::endl;
 
@@ -379,8 +783,12 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
       std::pop_heap(
         q.begin(),
         q.end(),
-        VolumeSorter<
+        // VolumeSorter<
+        VolumeSorterFloat<
           T>()); // FIXME: This should be Volume, but we were doing this wrong for the demo, so let's start with doing this wrong here, too
+
+        //      std::push_heap(q.begin(), q.end(), VolumeSorterFloat<T>());
+
     }
     Branch<T>* b = q.back();
     q.pop_back();
@@ -428,6 +836,12 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
         std::push_heap(q.begin(), q.end(), VolumeSorterFloat<T>());
       }
 
+      for (auto e : q)
+      {
+          std::cout << e->ExtremumVal << ' ';
+          std::cout << '\n';
+      }
+
       child_num++;
 
     }
@@ -448,6 +862,14 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 
     delete b;
   }
+
+  std::cout << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FINISH ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << std::endl << std::endl;
+
 } // SimplifyToSize()
 
 
