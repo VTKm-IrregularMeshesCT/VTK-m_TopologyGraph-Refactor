@@ -1034,36 +1034,36 @@ int main(int argc, char* argv[])
 
 
 
-    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
-    std::cout << "whichBranch:";
+    std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:\n" << std::endl;
+    std::cout << "(ContourTreeApp.cxx) whichBranch:";
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
         std::cout << whichBranchPortal.Get(branchID) << " ";
     }
     std::cout << std::endl;
 
-    std::cout << "branchMinimum:";
+    std::cout << "(ContourTreeApp.cxx) branchMinimum:";
     for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
     {
         std::cout << branchMinimumPortal.Get(branchID) << " ";
     }
     std::cout << std::endl;
 
-    std::cout << "branchMaximum:";
+    std::cout << "(ContourTreeApp.cxx) branchMaximum:";
     for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
     {
         std::cout << branchMaximumPortal.Get(branchID) << " ";
     }
     std::cout << std::endl;
 
-    std::cout << "branchSaddlePortal:";
+    std::cout << "(ContourTreeApp.cxx) branchSaddlePortal:";
     for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
     {
         std::cout << branchSaddlePortal.Get(branchID) << " ";
     }
     std::cout << std::endl;
 
-    std::cout << "branchParentPortal:";
+    std::cout << "(ContourTreeApp.cxx) branchParentPortal:";
     for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
     {
         std::cout << branchParentPortal.Get(branchID) << " ";
@@ -1081,7 +1081,7 @@ int main(int argc, char* argv[])
     //----main branch decompostion end
     //----Isovalue seleciton start
 
-    std::cout << "NUM LEVELS: " << numLevels << std::endl;
+    std::cout << "(ContourTreeApp.cxx) NUM LEVELS: " << numLevels << std::endl;
     numLevels = 1;
     if (numLevels > 0) // if compute isovalues
     {
@@ -1121,7 +1121,7 @@ int main(int argc, char* argv[])
       auto superarcIntrinsicWeightNEWPortal = superarcIntrinsicWeightNEW.ReadPortal();
       auto superarcDependentWeightNEWPortal = superarcDependentWeightNEW.ReadPortal();
 
-      std::cout << std::endl << "Superarc Intrinsic from decomposition:" << std::endl;
+      std::cout << std::endl << "(ContourTreeApp.cxx) Superarc Intrinsic from decomposition:" << std::endl;
       for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
       {
           std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
@@ -1157,8 +1157,8 @@ int main(int argc, char* argv[])
 
       // The following is taken from ProcessContourTree.h and hardcoded here for testing
       std::string indent = "\t";
-      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111,                   0.0};
-      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.0};
+      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  1.636111,                   2.0}; // 0.0
+      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.1}; // 1.0
 
       auto superarcDependentWeightCorrectReadPortal = superarcDependentWeightCorrect.ReadPortal();
       auto superarcIntrinsicWeightCorrectReadPortal = superarcIntrinsicWeightCorrect.ReadPortal();
@@ -1190,6 +1190,9 @@ int main(int argc, char* argv[])
           std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
       }
 
+
+      std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
+
       BranchType* branchDecompostionRoot =
           ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
             filter.GetContourTree().Superparents,
@@ -1202,13 +1205,16 @@ int main(int argc, char* argv[])
             filter.GetSortOrder(),
             dataField,
             dataFieldIsSorted,
-            superarcIntrinsicWeightCorrect,
-            superarcDependentWeightCorrect);
+            superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,
+            superarcDependentWeightNEW); // used to use manually set values for BD: superarcDependentWeightCorrect );
 
       // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
+      std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
+
+      std::cout << std::endl;
 
       /// DEBUG PRINT
-      std::cout << "!Computing the Branch Decomposition: PRINTING\n";
+      std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
@@ -1225,11 +1231,12 @@ int main(int argc, char* argv[])
 
       // Simplify the contour tree of the branch decompostion
 //      branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
-      std::cout << "... Gonna do the BRANCH SIMPLIFICATION:\n";
+      std::cout << std::endl;
+      std::cout << "(ContourTreeApp) APPLYING BRANCH SIMPLIFICATION (BrS):\n";
       usePersistenceSorter = false;
       branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
       /// DEBUG PRINT
-      std::cout << "... Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
+      std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
 
       // Compute the relevant iso-values

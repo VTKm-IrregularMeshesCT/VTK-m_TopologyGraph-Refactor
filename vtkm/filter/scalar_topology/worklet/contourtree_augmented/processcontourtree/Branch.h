@@ -441,8 +441,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const FloatArrayType& superarcDependentWeight)
 { // C)omputeBranchDecomposition()
 
-  std::cout << "-Branch.h-> Calling: ComputeBranchDecomposition()" << std::endl;
+  std::cout << "ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())" << std::endl;
 
+  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
   std::cout << "##################################################################" << std::endl;
   std::cout << "############################# START ##############################" << std::endl;
   std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
@@ -458,6 +459,38 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
   // NEW: add the read portals for branch intrinsic weights:
   auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
+
+
+
+
+
+
+
+
+
+  std::cout << std::endl << "(Branch.h->ComputeBranchDecomposition) Superarc Intrinsic Weight Portal (PASSED IN):" << std::endl;
+  for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
+  {
+      std::cout << i << " -> " << superarcIntrinsicWeightPortal.Get(i) << std::endl;
+  }
+  std::cout << std::endl;
+
+//  NOT USING DEPENDENT WEIGHTS YET
+//  std::cout << std::endl << "(Branch.h->ComputeBranchDecomposition) Superarc Dependent Weight Portal:" << std::endl;
+//  for(int i = 0; i < superarcDependentWeightNEWPortal.GetNumberOfValues(); i++)
+//  {
+//      std::cout << i << " -> " << superarcDependentWeightNEWPortal.Get(i) << std::endl;
+
+//      superarcDependentWeightCorrectWritePortal.Set(i, realDependent[i]);
+
+//      std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
+//  }
+
+
+
+
+
+
 
   vtkm::Id nBranches = branchSaddle.GetNumberOfValues();
   std::vector<Branch<T>*> branches;
@@ -527,6 +560,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
   // FIXME: This is a somewhat hackish way to compute the Volume, but it works
   // It would probably be better to compute this from the already computed Volume information
+  std::cout << "Computing Integer Volumes" << std::endl;
   auto whichBranchPortal = whichBranch.ReadPortal();
   auto superparentsPortal = contourTreeSuperparents.ReadPortal();
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
@@ -534,7 +568,13 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
     branches[static_cast<size_t>(
                MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
       ->Volume++; // Increment Volume
+
+    std::cout << "branch[" << static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))
+              << "]" << branches[static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]->Volume
+              << std::endl;
   }
+
+  std::cout << std::endl;
 
   // 2025-01-13
   std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
@@ -553,7 +593,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   }
   std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
 
-  std::cout << "------------- vvv Branch FLOATIN weights vvv -------------" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "------- vvv Branch VALUE TYPE INITIAL weights vvv --------" << std::endl;
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
   {
     size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
@@ -569,7 +611,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
               << std::endl;
 
   }
-  std::cout << "------------- ^^^ Branch FLOATIN weights ^^^ -------------" << std::endl;
+  std::cout << "------- ^^^ Branch VALUE TYPE INITIAL weights ^^^ --------" << std::endl << std::endl;
 
 
 
@@ -580,7 +622,8 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   int current_branchID;
   bool last_iteration = false;
 
-  std::cout << "------------- vvv Weight computation by summing branch intrinsic weights vvv -------------" << std::endl;
+  std::cout << std::endl;
+  std::cout << "------------- vvv Weight computation by summing branch intrinsic VALUE TYPE weights vvv -------------" << std::endl;
   // loop through all the regular nodes, ...
   // ... then counting how many regular nodes are on each branch
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
@@ -626,8 +669,8 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
   }
-  std::cout << "------------- ^^^ Weight computation by summing branch intrinsic weights ^^^ -------------" << std::endl;
-
+  std::cout << "------------- ^^^ Weight computation by summing branch intrinsic VALUE TYPE weights ^^^ -------------" << std::endl;
+  std::cout << std::endl;
 
 
 
@@ -677,7 +720,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   std::cout << "############################ FINISH ##############################" << std::endl;
   std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
   std::cout << "##################################################################" << std::endl;
+  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
 
+  std::cout << "ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())" << std::endl;
 
   return root;
 } // ComputeBranchDecomposition()
@@ -715,7 +760,7 @@ template <typename T>
 void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 { // SimplifyToSize()
 
-  std::cout << std::endl << std::endl;
+  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
   std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
   std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~ START ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
   std::cout << "~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~" << std::endl;

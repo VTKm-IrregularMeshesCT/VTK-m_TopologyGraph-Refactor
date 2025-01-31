@@ -8717,10 +8717,7 @@ std::cout << std::endl << std::endl;
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
     const FloatArrayType& superarcIntrinsicWeight)
   {
-
-    std::cout << "\nContourTreeApp -> ProcessContourTree -> Branch.h ";
-    std::cout << "\nProcessContourTree::ComputeBranchDecomposition<ValueType> REDIRECT TO: ";
-    std::cout << "process_contourtree_inc_ns::Branch<T>::ComputeBranchDecomposition\n" << std::endl;
+    std::cout << "ContourTreeApp->(ProcessContourTree)->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
     return process_contourtree_inc_ns::Branch<T>::ComputeBranchDecomposition(
       contourTreeSuperparents,
