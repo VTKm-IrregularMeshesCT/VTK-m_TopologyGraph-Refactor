@@ -59,6 +59,7 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/PiecewiseLinearFunction.h>
 
 #include <cmath>
+#include <algorithm>
 
 namespace vtkm
 {
@@ -123,6 +124,8 @@ public:
 
   // Print the branch decomposition
   void PrintBranchDecomposition(std::ostream& os, std::string::size_type indent = 0) const;
+  //  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
+  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::vector<vtkm::Id>& local_branches, std::vector<float>& branch_weights, std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
 
   // Persistence of branch
   T Persistence() { return std::fabs(ExtremumVal - SaddleVal); }
@@ -922,6 +925,7 @@ template <typename T>
 // print the graph in python dict format:
 void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_type indent) const
 { // PrintBranchDecomposition()
+
   os << std::string(indent, ' ') << "{" << std::endl;
   os << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
      << std::endl;
@@ -929,15 +933,146 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
      << std::endl;
   os << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
   os << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
+
   if (!Children.empty())
   {
     os << std::string(indent, ' ') << "  'Children' : [" << std::endl;
     for (Branch<T>* c : Children)
+    {
       c->PrintBranchDecomposition(os, indent + 4);
+    }
     os << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
   }
   os << std::string(indent, ' ') << "}," << std::endl;
 } // PrintBranchDecomposition()
+
+
+
+
+
+
+
+
+template <typename T>
+// print the graph in dot (.gv) format
+void Branch<T>::PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::vector<vtkm::Id>& local_branches, std::vector<float>& branch_weights, std::string::size_type indent)
+{ // PrintBranchDecomposition()
+
+  std::string tab = "\t";
+  bool write_triggerGV = false;
+
+  std::cout << "Entered PrintDot BD" << std::endl;
+  for(vtkm::Id nodeID : saddles)
+  {
+      std::cout << nodeID << "->";
+  }
+  std::cout << std::endl;
+
+  // deal with leaf nodes in graphviz format (s#)
+  if (!saddles.empty())
+  {
+     os << tab << "s" << ExtremumVal << "[style=filled,fillcolor=green]" << std::endl;
+  }
+
+  if (saddles.empty())
+  {// if we are in the root call of recursion
+    saddles.push_back(ExtremumVal);
+    write_triggerGV = true;
+
+    os << "digraph G" << std::endl;
+    os << tab << "{" << std::endl;
+    os << tab << "size=\"6.5, 9\"" << std::endl;
+    os << tab << "ratio=\"fill\"" << std::endl;
+
+  }
+
+  std::vector<vtkm::Id> saddles_local; // saddle array (nodes on the main branch)
+  std::vector<vtkm::Id> nodes;
+
+  std::cout << std::string(indent, ' ') << "{" << std::endl;
+  std::cout << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
+     << std::endl;
+  std::cout << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
+     << std::endl;
+  std::cout << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
+  std::cout << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
+
+  saddles.push_back(SaddleVal);
+//  saddles.push_back(ExtremumVal);
+
+
+
+  if (!Children.empty())
+  {
+    std::cout << std::string(indent, ' ') << "  'Children' : [" << std::endl;
+    for (Branch<T>* c : Children)
+    {
+      c->PrintDotBranchDecomposition(os, saddles, local_branches, branch_weights, indent + 4);
+    }
+    std::cout << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
+  }
+  else
+  {
+      std::cout << ExtremumVal << "->" << SaddleVal << std::endl;
+//      os << tab << ExtremumVal << "->" << SaddleVal << std::endl;
+
+      local_branches.push_back(ExtremumVal);
+      local_branches.push_back(SaddleVal);
+
+      // hack - push the weights for both nodes rempresenting a branch
+      branch_weights.push_back(VolumeFloat);
+      branch_weights.push_back(VolumeFloat);
+
+//      for(vtkm::Id nodeID : saddles)
+//      {
+//          std::cout << nodeID << "->";
+//      }
+//      std::cout << std::endl;
+  }
+  std::cout << std::string(indent, ' ') << "}," << std::endl;
+
+  std::sort(saddles.begin(), saddles.end());
+
+  if (write_triggerGV)
+  { // write from the root recursion call (main branch)
+      std::cout << "Gathered saddle-nodes" << std::endl;
+
+      for(vtkm::Id nodeID : saddles)
+      {
+          std::cout << "s" << nodeID << std::endl;
+          os << tab << "s" << nodeID << "[style=filled,fillcolor=red]" << std::endl;
+      }
+      std::cout << std::endl;
+
+      int iterator = 0;
+//      for(vtkm::Id nodeID : saddles)
+      for(vtkm::Id iterator = 0; iterator < saddles.size()-1; iterator++)
+      {
+//          std::cout << "s" << saddles[iterator] << "->" << "s" << saddles[++iterator] << std::endl;
+          std::cout << "s" << saddles[iterator] << "->" << "s" << saddles[iterator+1] << std::endl;
+          os << tab << "s" << saddles[iterator] << " -> " << "s" << saddles[iterator+1] << "[label=\"(main) " << VolumeFloat << "\"]" << std::endl;
+          //          if(saddles[iterator]
+      }
+
+      iterator = 0;
+//      for(vtkm::Id nodeID : local_branches)
+      for(vtkm::Id iterator = 0; iterator < local_branches.size(); iterator+=2)
+      {
+//          std::cout << "s" << local_branches[iterator] << "->" << "s" << saddles[++iterator] << std::endl;
+          os << tab << "s" << local_branches[iterator] << " -> " << "s" << local_branches[iterator+1] << "[label=\"" << branch_weights[iterator] << "\"]" << std::endl;
+          //          if(saddles[iterator]
+      }
+
+
+      std::cout << std::endl;
+      os << tab << "}" << std::endl;
+  }
+
+} // PrintBranchDecomposition()
+
+
+
+
 
 // OLD FORMAT
 //void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_type indent) const

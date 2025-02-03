@@ -1216,6 +1216,13 @@ int main(int argc, char* argv[])
       /// DEBUG PRINT
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
+      std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n";
+      std::vector<vtkm::Id> saddle_rootingFullBD = std::vector<vtkm::Id>();
+      std::vector<vtkm::Id> local_branchesFullBD = std::vector<vtkm::Id>();
+      std::vector<float>    branch_weightsFullBD = std::vector<float>();
+      std::ofstream filegvbdfullBD("ContourTreeGraph--NastyW-16-triang--branch-decomposition-fullCT.gv");
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD, branch_weightsFullBD);
+
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph-56M-branch-decomposition-fullCT.txt");
@@ -1233,11 +1240,18 @@ int main(int argc, char* argv[])
 //      branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       std::cout << std::endl;
       std::cout << "(ContourTreeApp) APPLYING BRANCH SIMPLIFICATION (BrS):\n";
+
+      std::vector<vtkm::Id> saddle_rooting = std::vector<vtkm::Id>();
+      std::vector<vtkm::Id> local_branches = std::vector<vtkm::Id>();
+      std::vector<float>    branch_weights = std::vector<float>();
+
       usePersistenceSorter = false;
       branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
       /// DEBUG PRINT
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
+      std::ofstream filegvbdsimplified("ContourTreeGraph--NastyW-16-triang--branch-decomposition-simplifiedCT.gv");
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting, local_branches, branch_weights);
 
       // Compute the relevant iso-values
       std::vector<ValueType> isoValues;
@@ -1280,6 +1294,9 @@ int main(int argc, char* argv[])
         isoStream << val << " ";
       }
       VTKM_LOG_S(vtkm::cont::LogLevel::Info, isoStream.str());
+
+
+      std::cout << isoStream.str() << std::endl << std::endl << std::endl << std::endl;
 
       // 2024-05-28
 //      std::ofstream filebdgv("ContourTreeGraph-29K-branch-decomposition-CT.gv");

@@ -412,6 +412,9 @@ inline std::string ContourTree::DebugPrint(const char* message,
 inline void ContourTree::PrintDotSuperStructure(std::ostream& outStream) const
 { // PrintDotSuperStructure()
   // print the header information
+
+  std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) " << std::endl;
+
   outStream << "digraph G\n\t{\n";
   outStream << "\tsize=\"6.5, 9\"\n\tratio=\"fill\"\n";
 
@@ -521,6 +524,9 @@ inline void ContourTree::PrintDotSuperStructure(std::ostream& outStream) const
 
   // print the footer information
   outStream << "\t}\n";
+
+  std::cout << "[END-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
+
 } // PrintDotSuperStructure()
 
 
