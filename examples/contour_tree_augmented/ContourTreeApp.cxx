@@ -851,21 +851,21 @@ int main(int argc, char* argv[])
     vtkm::cont::Timer branchDecompTimer;
     branchDecompTimer.Start();
     // compute the volume for each hyperarc and superarc
-    ctaug_ns::IdArrayType superarcIntrinsicWeight;
-    ctaug_ns::IdArrayType superarcDependentWeight;
-    ctaug_ns::IdArrayType supernodeTransferWeight;
-    ctaug_ns::IdArrayType hyperarcDependentWeight;
+//    ctaug_ns::IdArrayType superarcIntrinsicWeight;
+//    ctaug_ns::IdArrayType superarcDependentWeight;
+//    ctaug_ns::IdArrayType supernodeTransferWeight;
+//    ctaug_ns::IdArrayType hyperarcDependentWeight;
 
     std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerial in 'ContourTreeApp.cxx rank == 0'" << std::endl;
 
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 1 Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial START ..." << std::endl;
 
-    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerial(filter.GetContourTree(),
-                                                             filter.GetNumIterations(),
-                                                             superarcIntrinsicWeight,  // (output)
-                                                             superarcDependentWeight,  // (output)
-                                                             supernodeTransferWeight,  // (output)
-                                                             hyperarcDependentWeight); // (output)
+//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerial(filter.GetContourTree(),
+//                                                             filter.GetNumIterations(),
+//                                                             superarcIntrinsicWeight,  // (output)
+//                                                             superarcDependentWeight,  // (output)
+//                                                             supernodeTransferWeight,  // (output)
+//                                                             hyperarcDependentWeight); // (output)
 
     std::cout << "[STAGE 1 End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
 
@@ -878,7 +878,8 @@ int main(int argc, char* argv[])
     FloatArrayType supernodeTransferWeightNEW;
     FloatArrayType hyperarcDependentWeightNEW;
 
-    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerialFloat in 'ContourTreeApp.cxx rank == 0'" << std::endl;
+    // 2025-02-28 NO LONGER DO SERIAL BASIC STUFF
+//    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerialFloat in 'ContourTreeApp.cxx rank == 0'" << std::endl;
 
 //    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloat(filter.GetContourTree(),
 //                                                                  filter.GetNumIterations(),
@@ -887,23 +888,23 @@ int main(int argc, char* argv[])
 //                                                                  supernodeTransferWeightNEW,  // (output)
 //                                                                  hyperarcDependentWeightNEW); // (output)
 
-    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 1f Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
+//    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 1f Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
 
-    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloatCoefficients(filter.GetContourTree(),
-                                                                              filter.GetNumIterations(),
-                                                                              superarcIntrinsicWeightNEW,  // (output)
-                                                                              superarcDependentWeightNEW,  // (output)
-                                                                              supernodeTransferWeightNEW,  // (output)
-                                                                              hyperarcDependentWeightNEW); // (output)
+//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloatCoefficients(filter.GetContourTree(),
+//                                                                              filter.GetNumIterations(),
+//                                                                              superarcIntrinsicWeightNEW,  // (output)
+//                                                                              superarcDependentWeightNEW,  // (output)
+//                                                                              supernodeTransferWeightNEW,  // (output)
+//                                                                              hyperarcDependentWeightNEW); // (output)
 
-    std::cout << "[STAGE 1f End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
+//    std::cout << "[STAGE 1f End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
 
     std::cout << "==================================================================" << std::endl;
     std::cout << "==================================================================" << std::endl;
     std::cout << "==================================================================" << std::endl;
     std::cout << "==================================================================" << std::endl;
     std::cout << "=============================COMPARE==============================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
+    std::cout << "==============NO LONGER DO THE FLOAT BASED COEFFS=================" << std::endl;
     std::cout << "==================================================================" << std::endl;
     std::cout << "==================================================================" << std::endl;
     std::cout << "==================================================================" << std::endl;
@@ -916,13 +917,28 @@ int main(int argc, char* argv[])
 
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 1c Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
 
+//    auto hypernodesPortal = filter.GetContourTree().Hypernodes.ReadPortal();
+    std::cout << "number of arcs:"      << filter.GetContourTree().Arcs.GetNumberOfValues() << std::endl;
+    std::cout << "number of superarcs:" << filter.GetContourTree().Superarcs.GetNumberOfValues() << std::endl;
+    std::cout << "number of hyperarcs:" << filter.GetContourTree().Hyperarcs.GetNumberOfValues() << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
     ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(filter.GetContourTree(),
                                                                               filter.GetNumIterations(),
+                                                                              // The following four outputs are the coefficient tuples
+                                                                              // (such as h1, h2, h3, h4 pairs)
                                                                               superarcIntrinsicWeightCoeffs,  // (output)
                                                                               superarcDependentWeightCoeffs,  // (output)
                                                                               supernodeTransferWeightCoeffs,  // (output)
                                                                               hyperarcDependentWeightCoeffs,
-                                                                              // 2025-01-30
+                                                                              // 2025-01-30 added additional output ...
+                                                                              // ... to have access to "collapsed" TODO termdefine
+                                                                              // ("collapsed" = computed single value weight, ...
+                                                                              //  ... instead of N-length coefficient tuples)
+                                                                              // These "collapsed" weights are used for ...
+                                                                              // ... computing branch weights without relying on ...
+                                                                              // ... the node count on the branches
                                                                               superarcIntrinsicWeightNEW,  // (output)
                                                                               superarcDependentWeightNEW,  // (output)
                                                                               supernodeTransferWeightNEW,  // (output)
@@ -950,64 +966,65 @@ int main(int argc, char* argv[])
     ctaug_ns::IdArrayType branchSaddle;
     ctaug_ns::IdArrayType branchParent;
 
-    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 2 Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() START ..." << std::endl;
+// 2025-02-28 NO LONGER DO SERIAL BASIC STUFF
+//    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 2 Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() START ..." << std::endl;
 
-    ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerial(filter.GetContourTree(),
-                                                                         superarcDependentWeight,
-                                                                         superarcIntrinsicWeight,
-                                                                         whichBranch,   // (output)
-                                                                         branchMinimum, // (output)
-                                                                         branchMaximum, // (output)
-                                                                         branchSaddle,  // (output)
-                                                                         branchParent); // (output)
+//    ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerial(filter.GetContourTree(),
+//                                                                         superarcDependentWeight,
+//                                                                         superarcIntrinsicWeight,
+//                                                                         whichBranch,   // (output)
+//                                                                         branchMinimum, // (output)
+//                                                                         branchMaximum, // (output)
+//                                                                         branchSaddle,  // (output)
+//                                                                         branchParent); // (output)
 
-    std::cout << "[STAGE 2 End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
-
-
-
-
-    auto whichBranchPortal   = whichBranch.ReadPortal();
-    auto branchMinimumPortal = branchMinimum.ReadPortal();
-    auto branchMaximumPortal = branchMaximum.ReadPortal();
-    auto branchSaddlePortal  = branchSaddle.ReadPortal();
-    auto branchParentPortal  = branchParent.ReadPortal();
+//    std::cout << "[STAGE 2 End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
 
 
-    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
-    std::cout << "whichBranch:";
-    for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
-    {
-        std::cout << whichBranchPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
 
-    std::cout << "branchMinimum:";
-    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchMinimumPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
 
-    std::cout << "branchMaximum:";
-    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchMaximumPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
+//    auto whichBranchPortal   = whichBranch.ReadPortal();
+//    auto branchMinimumPortal = branchMinimum.ReadPortal();
+//    auto branchMaximumPortal = branchMaximum.ReadPortal();
+//    auto branchSaddlePortal  = branchSaddle.ReadPortal();
+//    auto branchParentPortal  = branchParent.ReadPortal();
 
-    std::cout << "branchSaddlePortal:";
-    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchSaddlePortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
 
-    std::cout << "branchParentPortal:";
-    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchParentPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
+//    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
+//    std::cout << "whichBranch:";
+//    for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+//    {
+//        std::cout << whichBranchPortal.Get(branchID) << " ";
+//    }
+//    std::cout << std::endl;
+
+//    std::cout << "branchMinimum:";
+//    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
+//    {
+//        std::cout << branchMinimumPortal.Get(branchID) << " ";
+//    }
+//    std::cout << std::endl;
+
+//    std::cout << "branchMaximum:";
+//    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
+//    {
+//        std::cout << branchMaximumPortal.Get(branchID) << " ";
+//    }
+//    std::cout << std::endl;
+
+//    std::cout << "branchSaddlePortal:";
+//    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
+//    {
+//        std::cout << branchSaddlePortal.Get(branchID) << " ";
+//    }
+//    std::cout << std::endl;
+
+//    std::cout << "branchParentPortal:";
+//    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
+//    {
+//        std::cout << branchParentPortal.Get(branchID) << " ";
+//    }
+//    std::cout << std::endl;
 
 
 
@@ -1026,11 +1043,11 @@ int main(int argc, char* argv[])
 
     std::cout << "[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
 
-//    auto whichBranchPortal   = whichBranch.ReadPortal();
-//    auto branchMinimumPortal = branchMinimum.ReadPortal();
-//    auto branchMaximumPortal = branchMaximum.ReadPortal();
-//    auto branchSaddlePortal  = branchSaddle.ReadPortal();
-//    auto branchParentPortal  = branchParent.ReadPortal();
+    auto whichBranchPortal   = whichBranch.ReadPortal();
+    auto branchMinimumPortal = branchMinimum.ReadPortal();
+    auto branchMaximumPortal = branchMaximum.ReadPortal();
+    auto branchSaddlePortal  = branchSaddle.ReadPortal();
+    auto branchParentPortal  = branchParent.ReadPortal();
 
 
 
@@ -1097,9 +1114,13 @@ int main(int argc, char* argv[])
       bool dataFieldIsSorted = true;
 
       std::vector<float> std_nodes_sorted;
+      // PACTBD-EDIT
 //      for(float i = 0.f; i < 29791.f; i += 1.f)
 //      for(float i = 0.f; i < 16.f; i += 1.f)
-      for(float i = 0.f; i < 9.f; i += 1.f)
+//      for(float i = 0.f; i < 9.f; i += 1.f)
+      for(float i = 0.f; i < 102.f; i += 1.f)
+//      for(float i = 0.f; i < 10002.f; i += 1.f)
+//      for(float i = 0.f; i < 1002.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
@@ -1147,48 +1168,48 @@ int main(int argc, char* argv[])
 //          dataField,
 //          dataFieldIsSorted);
 
-      // CHANGE: because at the moment the dependent and intrinsic weights have some errors ...
-      // ... I write the arrays with the correct values for each to see how the BT should work.
-      FloatArrayType superarcDependentWeightCorrect; //= superarcDependentWeight.ReadPortal();
-      FloatArrayType superarcIntrinsicWeightCorrect; //= superarcIntrinsicWeight.ReadPortal();
+//      // CHANGE: because at the moment the dependent and intrinsic weights have some errors ...
+//      // ... I write the arrays with the correct values for each to see how the BT should work.
+//      FloatArrayType superarcDependentWeightCorrect; //= superarcDependentWeight.ReadPortal();
+//      FloatArrayType superarcIntrinsicWeightCorrect; //= superarcIntrinsicWeight.ReadPortal();
 
-      superarcDependentWeightCorrect.Allocate(superarcDependentWeightNEWPortal.GetNumberOfValues());
-      superarcIntrinsicWeightCorrect.Allocate(superarcIntrinsicWeightNEWPortal.GetNumberOfValues());
+//      superarcDependentWeightCorrect.Allocate(superarcDependentWeightNEWPortal.GetNumberOfValues());
+//      superarcIntrinsicWeightCorrect.Allocate(superarcIntrinsicWeightNEWPortal.GetNumberOfValues());
 
-      // The following is taken from ProcessContourTree.h and hardcoded here for testing
-      std::string indent = "\t";
-      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  1.636111,                   2.0}; // 0.0
-      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.1}; // 1.0
+//      // The following is taken from ProcessContourTree.h and hardcoded here for testing
+//      std::string indent = "\t";
+//      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  1.636111,                   2.0}; // 0.0
+//      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.1}; // 1.0
 
-      auto superarcDependentWeightCorrectReadPortal = superarcDependentWeightCorrect.ReadPortal();
-      auto superarcIntrinsicWeightCorrectReadPortal = superarcIntrinsicWeightCorrect.ReadPortal();
+//      auto superarcDependentWeightCorrectReadPortal = superarcDependentWeightCorrect.ReadPortal();
+//      auto superarcIntrinsicWeightCorrectReadPortal = superarcIntrinsicWeightCorrect.ReadPortal();
 
-      auto superarcDependentWeightCorrectWritePortal = superarcDependentWeightCorrect.WritePortal();
-      auto superarcIntrinsicWeightCorrectWritePortal = superarcIntrinsicWeightCorrect.WritePortal();
-
-
-      std::cout << std::endl << "(ContourTreeApp) Superarc Intrinsic Weight Portal (vs Correct):" << std::endl;
-      for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
-      {
-          std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
-
-          superarcIntrinsicWeightCorrectWritePortal.Set(i, realIntrinsic[i]);
-
-          std::cout << indent << i << " -> " << superarcIntrinsicWeightCorrectReadPortal.Get(i) << std::endl;
+//      auto superarcDependentWeightCorrectWritePortal = superarcDependentWeightCorrect.WritePortal();
+//      auto superarcIntrinsicWeightCorrectWritePortal = superarcIntrinsicWeightCorrect.WritePortal();
 
 
-      }
-      std::cout << std::endl;
+//      std::cout << std::endl << "(ContourTreeApp) Superarc Intrinsic Weight Portal (vs Correct):" << std::endl;
+//      for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
+//      {
+//          std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
 
-      std::cout << std::endl << "(ContourTreeApp) Superarc Dependent Weight Portal:" << std::endl;
-      for(int i = 0; i < superarcDependentWeightNEWPortal.GetNumberOfValues(); i++)
-      {
-          std::cout << i << " -> " << superarcDependentWeightNEWPortal.Get(i) << std::endl;
+//          superarcIntrinsicWeightCorrectWritePortal.Set(i, realIntrinsic[i]);
 
-          superarcDependentWeightCorrectWritePortal.Set(i, realDependent[i]);
+//          std::cout << indent << i << " -> " << superarcIntrinsicWeightCorrectReadPortal.Get(i) << std::endl;
 
-          std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
-      }
+
+//      }
+//      std::cout << std::endl;
+
+//      std::cout << std::endl << "(ContourTreeApp) Superarc Dependent Weight Portal:" << std::endl;
+//      for(int i = 0; i < superarcDependentWeightNEWPortal.GetNumberOfValues(); i++)
+//      {
+//          std::cout << i << " -> " << superarcDependentWeightNEWPortal.Get(i) << std::endl;
+
+//          superarcDependentWeightCorrectWritePortal.Set(i, realDependent[i]);
+
+//          std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
+//      }
 
 
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
@@ -1219,16 +1240,17 @@ int main(int argc, char* argv[])
       std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n";
       std::vector<vtkm::Id> saddle_rootingFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branchesFullBD = std::vector<vtkm::Id>();
+      std::vector<vtkm::Id> depth_FullBD = std::vector<vtkm::Id>();
       std::vector<float>    branch_weightsFullBD = std::vector<float>();
-      std::ofstream filegvbdfullBD("ContourTreeGraph--NastyW-16-triang--branch-decomposition-fullCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD, branch_weightsFullBD);
+      std::ofstream filegvbdfullBD("ContourTreeGraph--branch-decomposition-fullCT.gv");
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD, depth_FullBD, branch_weightsFullBD, 0, 0);
 
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph-56M-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph--1024--branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16--branch-decomposition-fullCT.txt");
-      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16-triang--branch-decomposition-fullCT.txt");
+      std::ofstream filegvbdfull("ContourTreeGraph--branch-decomposition-fullCT.txt");
 
       branchDecompostionRoot->PrintBranchDecomposition(filegvbdfull);
 
@@ -1243,15 +1265,17 @@ int main(int argc, char* argv[])
 
       std::vector<vtkm::Id> saddle_rooting = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branches = std::vector<vtkm::Id>();
+      std::vector<vtkm::Id> depth = std::vector<vtkm::Id>();
       std::vector<float>    branch_weights = std::vector<float>();
 
       usePersistenceSorter = false;
       branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
       /// DEBUG PRINT
+      std::cout << "(REFACTOR VERSION)\n";
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
-      std::ofstream filegvbdsimplified("ContourTreeGraph--NastyW-16-triang--branch-decomposition-simplifiedCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting, local_branches, branch_weights);
+      std::ofstream filegvbdsimplified("ContourTreeGraph--branch-decomposition-simplifiedCT.gv");
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting, local_branches, depth, branch_weights, 0, 0);
 
       // Compute the relevant iso-values
       std::vector<ValueType> isoValues;
@@ -1304,7 +1328,7 @@ int main(int argc, char* argv[])
 //      std::ofstream filebdgv("ContourTreeGraph-56M-branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--1024--branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--NastyW-16--branch-decomposition-prunedCT.txt");
-      std::ofstream filebdgv("ContourTreeGraph--NastyW-16-triang--branch-decomposition-prunedCT.txt");
+      std::ofstream filebdgv("ContourTreeGraph--branch-decomposition-simplifiedCT.txt");
 
       branchDecompostionRoot->PrintBranchDecomposition(filebdgv);
 
@@ -1347,7 +1371,7 @@ int main(int argc, char* argv[])
 //      std::ofstream file("ContourTreeGraph-56M-original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--1024--original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--NastyW-16--original-fullCT-ColumnFormat.txt");
-    std::ofstream file("ContourTreeGraph--NastyW-16-triang--original-fullCT-ColumnFormat.txt");
+    std::ofstream file("ContourTreeGraph--original-fullCT-ColumnFormat.txt");
 
 
     if (file.is_open()) {
@@ -1373,10 +1397,11 @@ int main(int argc, char* argv[])
 //    std::ofstream filegv("ContourTreeGraph-56M-original-fullCT.gv");
 //    std::ofstream filegv("ContourTreeGraph--1024--original-fullCT.gv");
 //    std::ofstream filegv("ContourTreeGraph--NastyW-16--original-fullCT.gv");
-    std::ofstream filegv("ContourTreeGraph--NastyW-16-triang--original-fullCT.gv");
+    std::ofstream filegv("ContourTreeGraph--original-fullCT.gv");
 
 
     filter.GetContourTree().PrintDotSuperStructure(filegv);
+    std::cout << " Finished PrintDotSuperStructure " << std::endl;
 
 //    std::ofstream filegv("ContourTreeGraph-branch-decomposition-LT2M-PACT.gv");
 //    branchDecompostionRoot->PrintBranchDecomposition(std::cout);

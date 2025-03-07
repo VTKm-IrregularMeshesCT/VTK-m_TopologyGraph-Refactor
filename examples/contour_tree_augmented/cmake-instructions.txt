@@ -1,4 +1,4 @@
-cmake -DVTKm_DIR=/home/sc17dd/local-installs/vtk-m-git-working-version/lib/cmake/vtkm-2.1 -DCMAKE_INSTALL_PREFIX=/home/sc17dd/local-installs/vtk-m-git-working-version ../
+cmake -DVTKm_DIR=/home/sc17dd/local-installs/vtk-m-git-refactoring/lib/cmake/vtkm-2.1 -DCMAKE_INSTALL_PREFIX=/home/sc17dd/local-installs/vtk-m-git-refactoring ../
 
 make -j12
 make -j12 install

@@ -1329,7 +1329,9 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //       int num_datapoints = 16;
 
 //       int num_datapoints = 9; // 3x3 2D Branch tet Volume dataset
-       int num_datapoints = 8; // 2x2x2 3D Branch tet Volume dataset
+//       int num_datapoints = 8; // 2x2x2 3D Branch tet Volume dataset
+
+//       int num_datapoints = 270001; // 270k-jittered-cheat-sorted-sequential-values
 
 //       const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
 //       const std::string filename = "/home/user/HCTC/VTK-m-topology/vtkm-build-4/BPECT-NastyW-16-connections.txt";
@@ -1339,7 +1341,20 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // 3x3 2D Branch tet Volume dataset
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Square-9-3x3.txt";
     // 2x2x2 3D Branch tet Volume dataset
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-2x2x2.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/Cube-8-2x2x2.txt";
+
+    //    270k-jittered-cheat-sorted-sequential-values
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/270k-jittered-cheat-sorted-sequential-values-CONNECTIVITY.txt";
+    // The above didn't work (Process 'Killed', probably because of excessive memory usage
+    // Trying to scale up from 8 data points upwards, see where the memory limit it and measure peak memory usage etc.
+    // ... to see if possible to run it on a supercomputer
+
+    // PACTBD-EDIT
+    int num_datapoints = 101;
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    // PACTBD-EDIT
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";

@@ -125,7 +125,14 @@ public:
   // Print the branch decomposition
   void PrintBranchDecomposition(std::ostream& os, std::string::size_type indent = 0) const;
   //  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
-  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::vector<vtkm::Id>& local_branches, std::vector<float>& branch_weights, std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
+  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles,
+                                   std::vector<vtkm::Id>& local_branches,
+                                   std::vector<vtkm::Id>& depth,
+                                   std::vector<float>& branch_weights,
+                                   vtkm::Id parent_saddle,
+                                   vtkm::Id parent_extremum,
+                                   int iteration = 0,
+                                   std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
 
   // Persistence of branch
   T Persistence() { return std::fabs(ExtremumVal - SaddleVal); }
@@ -561,42 +568,43 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
     }
   }
 
-  // FIXME: This is a somewhat hackish way to compute the Volume, but it works
-  // It would probably be better to compute this from the already computed Volume information
-  std::cout << "Computing Integer Volumes" << std::endl;
+//  // FIXME: This is a somewhat hackish way to compute the Volume, but it works
+//  // It would probably be better to compute this from the already computed Volume information
+//  // (already replaced, 2025-03-06 commented out until floats)
+//  std::cout << "Computing Integer Volumes" << std::endl;
   auto whichBranchPortal = whichBranch.ReadPortal();
   auto superparentsPortal = contourTreeSuperparents.ReadPortal();
-  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
-  {
-    branches[static_cast<size_t>(
-               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
-      ->Volume++; // Increment Volume
+//  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+//  {
+//    branches[static_cast<size_t>(
+//               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
+//      ->Volume++; // Increment Volume
 
-    std::cout << "branch[" << static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))
-              << "]" << branches[static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]->Volume
-              << std::endl;
-  }
+//    std::cout << "branch[" << static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))
+//              << "]" << branches[static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]->Volume
+//              << std::endl;
+//  }
 
-  std::cout << std::endl;
+//  std::cout << std::endl;
 
-  // 2025-01-13
-  std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
+//  // 2025-01-13
+//  std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
 
-  // loop through all the regular nodes, ...
-  // ... then counting how many regular nodes are on each branch
-  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
-  {
-    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
-    //      vtkm::Id sortID = supernodesPortal.Get(i);
-    //    std::cout << i << " [sortID=" << sortID << "]" << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
-    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
-              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
-              << branches[branchID]->Volume
-              << std::endl;
-  }
-  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
+//  // loop through all the regular nodes, ...
+//  // ... then counting how many regular nodes are on each branch
+//  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+//  {
+//    size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
+//    //      vtkm::Id sortID = supernodesPortal.Get(i);
+//    //    std::cout << i << " [sortID=" << sortID << "]" << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+//    std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+//              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
+//              << branches[branchID]->Volume
+//              << std::endl;
+//  }
+//  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
 
-  std::cout << std::endl;
+//  std::cout << std::endl;
 
   std::cout << "------- vvv Branch VALUE TYPE INITIAL weights vvv --------" << std::endl;
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
@@ -955,28 +963,43 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
 
 template <typename T>
 // print the graph in dot (.gv) format
-void Branch<T>::PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::vector<vtkm::Id>& local_branches, std::vector<float>& branch_weights, std::string::size_type indent)
+void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
+                                            std::vector<vtkm::Id>& saddles,
+                                            std::vector<vtkm::Id>& local_branches,
+                                            std::vector<vtkm::Id>& depth,
+                                            std::vector<float>& branch_weights,
+                                            vtkm::Id parent_saddle,
+                                            vtkm::Id parent_extremum,
+                                            int iteration,
+                                            std::string::size_type indent)
 { // PrintBranchDecomposition()
 
   std::string tab = "\t";
   bool write_triggerGV = false;
 
-  std::cout << "Entered PrintDot BD" << std::endl;
-  for(vtkm::Id nodeID : saddles)
-  {
-      std::cout << nodeID << "->";
-  }
-  std::cout << std::endl;
+//  std::cout << "Entered PrintDot BD ITERATION: " << iteration << std::endl;
+//  std::cout << "saddles: " << saddles.size() << std::endl;
+//  for(vtkm::Id nodeID : saddles)
+//  {
+//      std::cout << nodeID << "->";
+//  }
+//  std::cout << std::endl;
 
-  // deal with leaf nodes in graphviz format (s#)
-  if (!saddles.empty())
-  {
-     os << tab << "s" << ExtremumVal << "[style=filled,fillcolor=green]" << std::endl;
-  }
+//  // deal with leaf nodes in graphviz format (s#)
+//  if (!saddles.empty())
+//  {
+//     os << tab << "s" << ExtremumVal << "[style=filled,fillcolor=green]" << std::endl;
+//  }
 
-  if (saddles.empty())
-  {// if we are in the root call of recursion
-    saddles.push_back(ExtremumVal);
+//  if (saddles.empty())
+  if(iteration == 0)
+  {// if we are in the root call of recursion ...
+   // ... write
+//      if (std::find(saddles.begin(), saddles.end(), ExtremumVal) == saddles.end())
+//      {// if saddle value not already in saddles
+//        saddles.push_back(ExtremumVal);
+//      }
+
     write_triggerGV = true;
 
     os << "digraph G" << std::endl;
@@ -989,79 +1012,141 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::
   std::vector<vtkm::Id> saddles_local; // saddle array (nodes on the main branch)
   std::vector<vtkm::Id> nodes;
 
-  std::cout << std::string(indent, ' ') << "{" << std::endl;
-  std::cout << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
-     << std::endl;
-  std::cout << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
-     << std::endl;
-  std::cout << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
-  std::cout << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
+// FILE std::cout << std::string(indent, ' ') << "{" << std::endl;
+// FILE std::cout << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
+// FILE     << std::endl;
+// FILE  std::cout << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
+// FILE    << std::endl;
+////  FILE std::cout << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
+////  FILE std::cout << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
 
-  saddles.push_back(SaddleVal);
-//  saddles.push_back(ExtremumVal);
+//  saddles.push_back(SaddleVal);
+////  saddles.push_back(ExtremumVal);
 
+//  if (std::find(saddles.begin(), saddles.end(), SaddleVal) == saddles.end())
+//  {// if saddle value not already in saddles
+//    saddles.push_back(SaddleVal);
+//  }
 
 
   if (!Children.empty())
-  {
-    std::cout << std::string(indent, ' ') << "  'Children' : [" << std::endl;
+  {// HAS children (a or b cases)
+//  FILE  std::cout << std::string(indent, ' ') << "  'Children' : [" << std::endl;
+
+    local_branches.push_back(SaddleVal);
+    depth.push_back(iteration);
+    branch_weights.push_back(VolumeFloat);
+
+
     for (Branch<T>* c : Children)
     {
-      c->PrintDotBranchDecomposition(os, saddles, local_branches, branch_weights, indent + 4);
+      c->PrintDotBranchDecomposition(os, saddles, local_branches, depth, branch_weights, SaddleVal, ExtremumVal, iteration+1, indent + 4);
     }
-    std::cout << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
+
+    std::cout << "Finished branch segment: " << SaddleVal << " " << ExtremumVal << " " << local_branches.size() << " it: " << iteration+1 << std::endl;
+
+    std::vector<vtkm::Id> local_iteration_branches;
+    for(int i = 0; i < local_branches.size(); i++)
+    {
+        std::cout << depth[i] << " ";
+        if(depth[i] == iteration+1)
+        { // only copy branches from the same depth
+           local_iteration_branches.push_back(local_branches[i]);
+        }
+    }
+
+    std::cout << std::endl << "local: " << local_iteration_branches.size() << std::endl;
+
+    std::sort(local_iteration_branches.begin(), local_iteration_branches.end());
+//    std::cout << "sorted child saddles:" << std::endl;
+    int for_iterator = 0;
+    for (auto c : local_iteration_branches)
+    {
+        if(for_iterator)
+        {
+            std::cout << c << "->" << parent_saddle << "[" << iteration+1 << "a" << for_iterator << "] (ORANGE)" << std::endl;
+            saddles.push_back(c);
+            saddles.push_back(parent_saddle);
+        }
+        else
+        {// if it's the first iteration then the parent_saddle is the original
+            std::cout << c << "->" << SaddleVal << "[" << iteration+1 << "a" << for_iterator << "] (ORANGE)" << std::endl;
+            saddles.push_back(c);
+            saddles.push_back(SaddleVal);
+        }
+
+//        if(c < parent_saddle)
+//        {
+            parent_saddle = c;
+//        }
+        for_iterator++;
+//      std::cout << c << " ";
+    }
+
+//    std::cout << parent_extremum << "->" << local_iteration_branches[for_iterator-1] << "[" << iteration+1 << "b] (RED)" << std::endl;
+    std::cout << ExtremumVal << "->" << local_iteration_branches[for_iterator-1] << "[" << iteration+1 << "b] (RED)" << std::endl;
+    saddles.push_back(ExtremumVal);
+    saddles.push_back(local_iteration_branches[for_iterator-1]);
+
+
+
+// FILE   std::cout << std::endl;
+// FILE   std::cout << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
   }
   else
-  {
-      std::cout << ExtremumVal << "->" << SaddleVal << std::endl;
+  {// HAS NO children (pure cases Extremum -> Saddle)
+      std::cout << ExtremumVal << "->" << SaddleVal << "[" << iteration << "] (GREEN)" << std::endl;
 //      os << tab << ExtremumVal << "->" << SaddleVal << std::endl;
+      saddles.push_back(ExtremumVal);
+      saddles.push_back(SaddleVal);
 
-      local_branches.push_back(ExtremumVal);
+//      local_branches.push_back(ExtremumVal);
       local_branches.push_back(SaddleVal);
+      depth.push_back(iteration);
 
-      // hack - push the weights for both nodes rempresenting a branch
+      // hack - push the weights for both nodes representing a branch
       branch_weights.push_back(VolumeFloat);
-      branch_weights.push_back(VolumeFloat);
-
-//      for(vtkm::Id nodeID : saddles)
-//      {
-//          std::cout << nodeID << "->";
-//      }
-//      std::cout << std::endl;
+//      branch_weights.push_back(VolumeFloat);
   }
-  std::cout << std::string(indent, ' ') << "}," << std::endl;
+//  FILE std::cout << std::string(indent, ' ') << "}," << std::endl;
 
-  std::sort(saddles.begin(), saddles.end());
+//  std::sort(saddles.begin(), saddles.end());
 
   if (write_triggerGV)
   { // write from the root recursion call (main branch)
       std::cout << "Gathered saddle-nodes" << std::endl;
 
+      std::vector<vtkm::Id> nodes;
+
       for(vtkm::Id nodeID : saddles)
+      {
+
+          if (std::find(nodes.begin(), nodes.end(), nodeID) == nodes.end())
+          {// if saddle value not already in saddles
+            nodes.push_back(nodeID);
+          }
+
+      }
+
+      for(vtkm::Id nodeID : nodes)
       {
           std::cout << "s" << nodeID << std::endl;
           os << tab << "s" << nodeID << "[style=filled,fillcolor=red]" << std::endl;
       }
       std::cout << std::endl;
-
       int iterator = 0;
 //      for(vtkm::Id nodeID : saddles)
-      for(vtkm::Id iterator = 0; iterator < saddles.size()-1; iterator++)
+      for(vtkm::Id iterator = 0; iterator < saddles.size()-1; iterator+=2)
       {
-//          std::cout << "s" << saddles[iterator] << "->" << "s" << saddles[++iterator] << std::endl;
           std::cout << "s" << saddles[iterator] << "->" << "s" << saddles[iterator+1] << std::endl;
           os << tab << "s" << saddles[iterator] << " -> " << "s" << saddles[iterator+1] << "[label=\"(main) " << VolumeFloat << "\"]" << std::endl;
-          //          if(saddles[iterator]
       }
 
-      iterator = 0;
-//      for(vtkm::Id nodeID : local_branches)
-      for(vtkm::Id iterator = 0; iterator < local_branches.size(); iterator+=2)
-      {
-//          std::cout << "s" << local_branches[iterator] << "->" << "s" << saddles[++iterator] << std::endl;
-          os << tab << "s" << local_branches[iterator] << " -> " << "s" << local_branches[iterator+1] << "[label=\"" << branch_weights[iterator] << "\"]" << std::endl;
-          //          if(saddles[iterator]
-      }
+//      iterator = 0;
+//      for(vtkm::Id iterator = 0; iterator < local_branches.size(); iterator+=2)
+//      {
+//          os << tab << "s" << local_branches[iterator] << " -> " << "s" << local_branches[iterator+1] << "[label=\"" << branch_weights[iterator] << "\"]" << std::endl;
+//      }
 
 
       std::cout << std::endl;
