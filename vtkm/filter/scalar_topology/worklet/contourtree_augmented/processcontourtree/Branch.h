@@ -1128,10 +1128,13 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
       }
 
+      int depth_iter = 0;
       for(vtkm::Id nodeID : nodes)
       {
           std::cout << "s" << nodeID << std::endl;
+//          os << tab << "s" << nodeID << "[style=filled,fillcolor=red" << depth[depth_iter] << "]" << std::endl;
           os << tab << "s" << nodeID << "[style=filled,fillcolor=red]" << std::endl;
+          depth_iter++;
       }
       std::cout << std::endl;
       int iterator = 0;
