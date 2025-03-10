@@ -1118,9 +1118,9 @@ int main(int argc, char* argv[])
 //      for(float i = 0.f; i < 29791.f; i += 1.f)
 //      for(float i = 0.f; i < 16.f; i += 1.f)
 //      for(float i = 0.f; i < 9.f; i += 1.f)
-//      for(float i = 0.f; i < 102.f; i += 1.f)
+      for(float i = 0.f; i < 102.f; i += 1.f)
 //      for(float i = 0.f; i < 10002.f; i += 1.f)
-      for(float i = 0.f; i < 1002.f; i += 1.f)
+//      for(float i = 0.f; i < 1002.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
@@ -1242,8 +1242,13 @@ int main(int argc, char* argv[])
       std::vector<vtkm::Id> local_branchesFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> depth_FullBD = std::vector<vtkm::Id>();
       std::vector<float>    branch_weightsFullBD = std::vector<float>();
+      std::vector<float>    branch_weights_write_FullBD = std::vector<float>();
+      std::vector<bool>     main_branch_flags_FullBD = std::vector<bool>();
+      std::vector<vtkm::Id> depth_write_FullBD = std::vector<vtkm::Id>();
       std::ofstream filegvbdfullBD("ContourTreeGraph--branch-decomposition-fullCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD, depth_FullBD, branch_weightsFullBD, 0, 0);
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD,
+                                                          depth_FullBD, branch_weightsFullBD, branch_weights_write_FullBD,
+                                                          main_branch_flags_FullBD, depth_write_FullBD, 0, 0);
 
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
@@ -1267,6 +1272,9 @@ int main(int argc, char* argv[])
       std::vector<vtkm::Id> local_branches = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> depth = std::vector<vtkm::Id>();
       std::vector<float>    branch_weights = std::vector<float>();
+      std::vector<float>    branch_weights_write = std::vector<float>();
+      std::vector<bool>     main_branch_flags = std::vector<bool>();
+      std::vector<vtkm::Id> depth_write = std::vector<vtkm::Id>();
 
       usePersistenceSorter = false;
       branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
@@ -1275,7 +1283,9 @@ int main(int argc, char* argv[])
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
       std::ofstream filegvbdsimplified("ContourTreeGraph--branch-decomposition-simplifiedCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting, local_branches, depth, branch_weights, 0, 0);
+      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting,
+                                                          local_branches, depth, branch_weights, branch_weights_write,
+                                                          main_branch_flags, depth_write, 0, 0);
 
       // Compute the relevant iso-values
       std::vector<ValueType> isoValues;

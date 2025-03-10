@@ -3571,11 +3571,11 @@ public:
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-TETS.txt";
 
         // PACTBD-EDIT
-//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
         // PACTBD-EDIT
-//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
-        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1k-from-2M-sampled-excel-sorted.1-TETS.txt";
+        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
+//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-TETS.txt";
 
 
         // get the total number of values to be swept ...
@@ -4657,25 +4657,28 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_coeffs_h1:" << std::endl;
             print2Darray(tet_coeffs_h1);
-
+#endif
             std::vector<std::vector<double>> tet_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_coeffs_h2:" << std::endl;
             print2Darray(tet_coeffs_h2);
-
+#endif
             std::vector<std::vector<double>> tet_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_coeffs_h3:" << std::endl;
             print2Darray(tet_coeffs_h3);
-
+#endif
             std::vector<std::vector<double>> tet_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_coeffs_h4:" << std::endl;
             print2Darray(tet_coeffs_h4);
-
+#endif
 
 
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4711,7 +4714,7 @@ public:
                     tet_coeffs_h4[h][i] = full_tet_volumes[i];
                 }
             }
-
+#if DEBUG_PRINT
             std::cout << "\nh1 UP coefficients written to table:" << std::endl;
             print2Darray(tet_coeffs_h1);
             std::cout << "\nh2 UP coefficients written to table:" << std::endl;
@@ -4720,7 +4723,7 @@ public:
             print2Darray(tet_coeffs_h3);
             std::cout << "\nh4 UP coefficients written to table:" << std::endl;
             print2Darray(tet_coeffs_h4);
-
+#endif
 
 
             // ============================  /\ Step 10: Compute UP coefficients table  /\ ============================  //
@@ -4740,25 +4743,28 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_deltas_h1:" << std::endl;
             print2Darray(tet_deltas_h1);
-
+#endif
             std::vector<std::vector<double>> tet_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_deltas_h2:" << std::endl;
             print2Darray(tet_deltas_h2);
-
+#endif
             std::vector<std::vector<double>> tet_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_deltas_h3:" << std::endl;
             print2Darray(tet_deltas_h3);
-
+#endif
             std::vector<std::vector<double>> tet_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_deltas_h4:" << std::endl;
             print2Darray(tet_deltas_h4 );
-
+#endif
 
 
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4795,6 +4801,7 @@ public:
 //                }
             }
 
+#if DEBUG_PRINT
             std::cout << "\nh1 UP coefficient deltas written to table:" << std::endl;
             print2Darray(tet_deltas_h1);
             std::cout << "\nh2 UP coefficient deltas written to table:" << std::endl;
@@ -4803,7 +4810,7 @@ public:
             print2Darray(tet_deltas_h3);
             std::cout << "\nh4 UP coefficient deltas written to table:" << std::endl;
             print2Darray(tet_deltas_h4);
-
+#endif
 
 
             // =========================  /\ Step 11: Compute UP coefficient deltas table  /\ =========================  //
@@ -4839,25 +4846,30 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_coeffs_h1:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
+#endif
 
             std::vector<std::vector<double>> tet_down_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_coeffs_h2:" << std::endl;
             print2Darray(tet_down_coeffs_h2);
+#endif
 
             std::vector<std::vector<double>> tet_down_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_coeffs_h3:" << std::endl;
             print2Darray(tet_down_coeffs_h3);
-
+#endif
             std::vector<std::vector<double>> tet_down_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_coeffs_h4:" << std::endl;
             print2Darray(tet_down_coeffs_h4);
-
+#endif
 
 
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4902,7 +4914,7 @@ public:
                     tet_down_coeffs_h4[h][i] = 0.0;
                 }
             }
-
+#if DEBUG_PRINT
             std::cout << "\nh1 DOWN coefficients written to table:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
             std::cout << "\nh2 DOWN coefficients written to table:" << std::endl;
@@ -4911,7 +4923,7 @@ public:
             print2Darray(tet_down_coeffs_h3);
             std::cout << "\nh4 DOWN coefficients written to table:" << std::endl;
             print2Darray(tet_down_coeffs_h4);
-
+#endif
 
 
             // ============================ /\ Step 12: Compute DOWN coefficient tables  /\ ==========================  //
@@ -4930,25 +4942,28 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_deltas_h1:" << std::endl;
             print2Darray(tet_down_deltas_h1);
-
+#endif
             std::vector<std::vector<double>> tet_down_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_deltas_h2:" << std::endl;
             print2Darray(tet_down_deltas_h2);
-
+#endif
             std::vector<std::vector<double>> tet_down_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_deltas_h3:" << std::endl;
             print2Darray(tet_down_deltas_h3);
-
+#endif
             std::vector<std::vector<double>> tet_down_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
+#if DEBUG_PRINT
             std::cout << "\nInitialised tet_down_deltas_h4:" << std::endl;
             print2Darray(tet_down_deltas_h4 );
-
+#endif
 
 
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4985,6 +5000,7 @@ public:
 //                }
             }
 
+#if DEBUG_PRINT
             std::cout << "\nh1 DOWN coefficient deltas written to table:" << std::endl;
             print2Darray(tet_down_deltas_h1);
             std::cout << "\nh2 DOWN coefficient deltas written to table:" << std::endl;
@@ -4993,6 +5009,7 @@ public:
             print2Darray(tet_down_deltas_h3);
             std::cout << "\nh4 DOWN coefficient deltas written to table:" << std::endl;
             print2Darray(tet_down_deltas_h4);
+#endif
 
 
             // ======================== /\ Step 13: Compute DOWN coefficient delta tables  /\ =======================  //
@@ -5050,12 +5067,13 @@ public:
                 tet_down_deltas_pfix[i][3] =  d_coeff_sum;
 
             }
-
+#if DEBUG_PRINT
             std::cout << "tet_up_deltas_pfix:" << std::endl;
             print2Darray(tet_up_deltas_pfix);
 
             std::cout << "tet_down_deltas_pfix:" << std::endl;
             print2Darray(tet_down_deltas_pfix);
+#endif
 
             // ======================= /\ Step 14: Compute delta table up/down prefix sums /\ =======================  //
 
@@ -8309,7 +8327,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
           // because this is an ascending superarc, the dependent weight refers to the weight at the upper end
           // so, we set the up weight based on the dependent weight
-          upWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
+//          upWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
           upWeightFloatPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
           upWeightFloatCorrectPortal.Set(superarc, superarcDependentWeightCorrectReadPortal.Get(superarc));
 
@@ -8335,7 +8353,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
                                    (totalVolumeFloat - superarcDependentWeightCorrectReadPortal.Get(superarc)) +
                                      (superarcIntrinsicWeightCorrectReadPortal.Get(superarc) - 1));
 
-          std::cout << indent << "upWeightPortal             = " << upWeightPortal.Get(superarc) << std::endl;
+//          std::cout << indent << "upWeightPortal             = " << upWeightPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatPortal        = " << upWeightFloatPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatCorrectPortal = " << upWeightFloatCorrectPortal.Get(superarc) << std::endl;
           std::cout << std::endl;
@@ -8368,9 +8386,9 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
           // ... including the supernode at the outer end
           // So, to get the "dependent" weight in the other direction, ...
           // ... we start with totalVolume - dependent, then subtract (intrinsic - 1)
-          upWeightPortal.Set(superarc,
-                             (totalVolume - superarcDependentWeightPortal.Get(superarc)) +
-                               (superarcIntrinsicWeightPortal.Get(superarc) - 1));
+//          upWeightPortal.Set(superarc,
+//                             (totalVolume - superarcDependentWeightPortal.Get(superarc)) +
+//                               (superarcIntrinsicWeightPortal.Get(superarc) - 1));
 
           upWeightFloatPortal.Set(superarc,
                              (totalVolumeFloat - superarcDependentWeightPortal.Get(superarc)) +
@@ -8381,7 +8399,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
                                    (totalVolumeFloat - superarcDependentWeightCorrectReadPortal.Get(superarc)) +
                                      (superarcIntrinsicWeightCorrectReadPortal.Get(superarc) - 1));
 
-          std::cout << indent << "upWeightPortal      = " << upWeightPortal.Get(superarc) << std::endl;
+//          std::cout << indent << "upWeightPortal      = " << upWeightPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatPortal = " << upWeightFloatPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatCorrectPortal = " << upWeightFloatCorrectPortal.Get(superarc) << std::endl;
           std::cout << std::endl;
@@ -8415,13 +8433,13 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     }
 
     std::cout << std::endl;
-    std::cout << "Up Weights (int)" << std::endl;
-    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
-    {
-        vtkm::Id superNode = supernodesPortal.Get(superarc);
+//    std::cout << "Up Weights (int)" << std::endl;
+//    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
+//    {
+//        vtkm::Id superNode = supernodesPortal.Get(superarc);
 
-        std::cout << superarc << "(" << superNode  << ") = " << upWeightPortal.Get(superarc) << std::endl;
-    }
+//        std::cout << superarc << "(" << superNode  << ") = " << upWeightPortal.Get(superarc) << std::endl;
+//    }
 //    std::cout << "Down Weights (int)" << std::endl;
 //    for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
 //    {
@@ -8432,12 +8450,12 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
     #ifdef DEBUG_PRINT
       std::cout << "II A. Weights Computed" << std::endl;
-      PrintHeader(upWeight.GetNumberOfValues());
-      //PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
-      //PrintIndices("Dependent Weight", superarcDependentWeight);
-      PrintIndices("Upwards Weight",           upWeight);
+      PrintHeader(upWeightFloatCorrect.GetNumberOfValues());
+      PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
+      PrintIndices("Dependent Weight", superarcDependentWeight);
+//      PrintIndices("Upwards Weight",           upWeight);
       PrintValues("Upwards Weight (float)",   upWeightFloatCorrect);
-      PrintIndices("Downwards Weight",         downWeight);
+//      PrintIndices("Downwards Weight",         downWeight);
       PrintValues("Downwards Weight (float)", downWeightFloatCorrect);
       std::cout << std::endl;
     #endif
@@ -8453,7 +8471,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
       {
         superarcSorterPortal.Set(superarc, superarc);
-        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
+        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
       }
 
 //      // OLD: Vertex count sort
@@ -8474,7 +8492,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       std::cout << "Sorted arcs (by float upweight):" << std::endl;
       for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
       {
-        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
+        std::cout << superarc << ") " << superarcSorterPortal.Get(superarc) << " - " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc)) << " = " << upWeightFloatCorrectPortal.Get(superarcSorterPortal.Get(superarc))  << std::endl;
       }
 
 

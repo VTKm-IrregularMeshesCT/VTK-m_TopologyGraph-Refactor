@@ -55,6 +55,9 @@
 
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/Types.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
+// Adding the new TopologyGraph Class (CANNOT FIND IT)
+//#include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/TopologyGraph.h>
+
 
 #include <vtkm/Types.h>
 #include <vtkm/cont/BoundsCompute.h>

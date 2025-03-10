@@ -104,6 +104,9 @@
 //#include <vtkm/filter/scalar_topology/worklet/contourtree/PrintVectors.h>
 
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
+// Adding the new TopologyGraph Class
+#include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/TopologyGraph.h>
+
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/mesh_boundary/MeshBoundaryContourTreeMesh.h>
 
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/DataSetMeshTriangulation3DFreudenthal.h>
