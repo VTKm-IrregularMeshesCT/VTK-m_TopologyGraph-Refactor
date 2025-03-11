@@ -1136,9 +1136,9 @@ int main(int argc, char* argv[])
 //      for(float i = 0.f; i < 29791.f; i += 1.f)
 //      for(float i = 0.f; i < 16.f; i += 1.f)
 //      for(float i = 0.f; i < 9.f; i += 1.f)
-      for(float i = 0.f; i < 102.f; i += 1.f)
+//      for(float i = 0.f; i < 102.f; i += 1.f)
 //      for(float i = 0.f; i < 10002.f; i += 1.f)
-//      for(float i = 0.f; i < 1002.f; i += 1.f)
+      for(float i = 0.f; i < 1002.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
