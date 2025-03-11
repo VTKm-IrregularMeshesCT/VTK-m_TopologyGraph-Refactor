@@ -70,7 +70,7 @@
 namespace mesh_extrema_inc_ns = vtkm::worklet::contourtree_augmented::mesh_extrema_inc;
 
 
-#define PACT_DEBUG 0
+#define DEBUG_PRINT_PACTBD 0
 
 namespace vtkm
 {
@@ -177,12 +177,12 @@ inline void MeshExtrema::SetStarts(MeshType& mesh, bool isMaximal)
 // debug routine
 inline void MeshExtrema::DebugPrint(const char* message, const char* fileName, long lineNum)
 { // DebugPrint()
-    #if PACT_DEBUG
+    #if DEBUG_PRINT_PACTBD
         PrintHeader(Peaks.GetNumberOfValues());
         PrintIndices("MeshExtrema.h:MeshExtremaPeaks", Peaks);
         PrintIndices("MeshExtrema.h:MeshExtremaPits", Pits);
     #endif
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   std::cout << "---------------------------" << std::endl;
   std::cout << std::setw(30) << std::left << fileName << ":" << std::right << std::setw(4)
             << lineNum << std::endl;

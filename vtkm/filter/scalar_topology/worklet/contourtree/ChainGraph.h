@@ -92,6 +92,8 @@
 //#define DEBUG_PRINT 1
 //#define DEBUG_FUNCTION_ENTRY 1
 //#define DEBUG_TIMING 1
+#define DEBUG_PRINT
+#define SLEEP_ON
 
 namespace vtkm
 {

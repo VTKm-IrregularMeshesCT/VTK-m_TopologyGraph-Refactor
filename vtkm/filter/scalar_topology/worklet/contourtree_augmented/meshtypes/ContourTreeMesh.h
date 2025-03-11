@@ -117,7 +117,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 namespace contourtree_mesh_inc_ns =
   vtkm::worklet::contourtree_augmented::mesh_dem_contourtree_mesh_inc;
 
-// #define DEBUG_PRINT
+#define DEBUG_PRINT_PACTBD 0
 
 namespace vtkm
 {
@@ -366,7 +366,7 @@ ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& arcs,
   // TODO check if we actually need to make this copy here. we could just store the permutedValues array to save memory
   vtkm::cont::Algorithm::Copy(permutedValues, this->SortedValues);
   this->InitializeNeighborConnectivityFromArcs(arcs);
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
@@ -417,7 +417,7 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   this->ComputeMaxNeighbors();
 
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
@@ -451,7 +451,7 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->SortOrder = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->InitializeNeighborConnectivityFromArcs(arcs);
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
@@ -472,7 +472,7 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& arcs,
   this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->SortOrder = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->InitializeNeighborConnectivityFromArcs(arcs);
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
@@ -500,7 +500,7 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   this->SortIndices = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->SortOrder = vtkm::cont::ArrayHandleIndex(this->NumVertices);
   this->InitializeNeighborConnectivityFromArcs(arcs);
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
@@ -638,7 +638,7 @@ inline void ContourTreeMesh<FieldType>::InitializeNeighborConnectivityFromArcs(
   // Compute maximum number of neighbors
   this->ComputeMaxNeighbors();
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   std::cout << std::setw(30) << std::left << __FILE__ << ":" << std::right << std::setw(4)
             << __LINE__ << std::endl;
   auto neighborOffsetPortal = this->NeighborOffsets.ReadPortal();
@@ -704,7 +704,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
                                                   vtkm::cont::LogLevel timingsLogLevel,
                                                   std::string timingsMessage)
 { // Merge With
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   this->DebugPrint("THIS ContourTreeMesh", __FILE__, __LINE__);
   other.DebugPrint("OTHER ContourTreeMesh", __FILE__, __LINE__);
 #endif
@@ -747,7 +747,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
                 << ": " << timer.GetElapsedTime() << " seconds" << std::endl;
   timer.Start();
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   std::cout << "OverallSortOrder.size  " << overallSortOrder.GetNumberOfValues() << std::endl;
   PrintIndices("overallSortOrder", overallSortOrder);
   std::cout << std::endl;
@@ -771,7 +771,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
   vtkm::Id numVerticesCombined =
     ArrayGetValue(overallSortIndex.GetNumberOfValues() - 1, overallSortIndex) + 1;
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   std::cout << "OverallSortIndex.size  " << overallSortIndex.GetNumberOfValues() << std::endl;
   PrintIndices("overallSortIndex", overallSortIndex);
   std::cout << "numVerticesCombined: " << numVerticesCombined << std::endl;
@@ -794,7 +794,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
                thisToCombinedSortOrder,
                otherToCombinedSortOrder);
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   PrintIndices("thisToCombinedSortOrder", thisToCombinedSortOrder);
   PrintIndices("otherToCombinedSortOrder", otherToCombinedSortOrder);
 #endif
@@ -837,7 +837,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
                thisToCombinedSortOrderIsDuplicate,
                otherToCombinedSortOrderIsDuplicate);
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   PrintIndices("thisToCombinedSortOrderIsDuplicate", thisToCombinedSortOrderIsDuplicate);
   PrintIndices("otherToCombinedSortOrderIsDuplicate", otherToCombinedSortOrderIsDuplicate);
 #endif
@@ -851,7 +851,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
   vtkm::cont::Algorithm::CopyIf(
     indicesThis, thisToCombinedSortOrderIsDuplicate, indicesThisDuplicate);
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   PrintIndices("indicesThisUnique", indicesThisUnique);
   PrintIndices("indicesThisDuplicate", indicesThisDuplicate);
 #endif
@@ -862,7 +862,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
   vtkm::cont::Algorithm::CopyIf(
     indicesOther, otherToCombinedSortOrderIsDuplicate, indicesOtherDuplicate);
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   PrintIndices("indicesOtherUnique", indicesOtherUnique);
   PrintIndices("indicesOtherDuplicate", indicesOtherDuplicate);
 #endif
@@ -1052,7 +1052,7 @@ inline void ContourTreeMesh<FieldType>::MergeWith(ContourTreeMesh<FieldType>& ot
   (void)timingsLogLevel;
   (void)timingsMessage;
 
-#ifdef DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMeshes merged", __FILE__, __LINE__);
 #endif
@@ -1176,6 +1176,6 @@ inline void ContourTreeMesh<FieldType>::GetBoundaryVertices(
 } // worklet
 } // vtkm
 
-//#undef DEBUG_PRINT
+//#undef DEBUG_PRINT_PACTBD
 
 #endif

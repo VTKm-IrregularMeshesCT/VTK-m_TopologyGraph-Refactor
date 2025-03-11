@@ -61,6 +61,9 @@
 #include <cmath>
 #include <algorithm>
 
+#define DEBUG_PRINT_PACTBD 0
+#define SLEEP_ON 0
+
 namespace vtkm
 {
 namespace worklet
@@ -613,7 +616,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   std::vector<std::vector<vtkm::Id>> branch_SP_map(nBranches);
 
 // 2025-03-10 Commented out the branch initialisation, replaced with a branch-parent-array
+#if DEBUG_PRINT_PACTBD
   std::cout << "------- vvv Branch VALUE TYPE INITIAL weights vvv --------" << std::endl;
+#endif
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
   {
     current_superparent = MaskedIndex(superparentsPortal.Get(i));
@@ -624,38 +629,47 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 //              << branches[branchID]->VolumeFloat
 //              << std::endl;
 
+#if DEBUG_PRINT_PACTBD
     std::cout << i << "[" << branchID << "] " << " (" << current_superparent << ") "
               << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
               << branches[branchID]->VolumeFloat
               << std::endl;
-
+#endif
     if (std::find(branch_SP_map[branchID].begin(), branch_SP_map[branchID].end(), current_superparent) == branch_SP_map[branchID].end())
     {
+#if DEBUG_PRINT_PACTBD
+      // 2025-03-10
       std::cout << "-> ADDED BRANCH CHAIN SP: " << current_superparent << std::endl;
+#endif
       branch_SP_map[branchID].push_back(current_superparent);
     }
 
 
   }
+#if DEBUG_PRINT_PACTBD
   std::cout << "------- ^^^ Branch VALUE TYPE INITIAL weights ^^^ --------" << std::endl << std::endl;
-
+#endif
 
   for(int i = 0; i < nBranches; i++)
   {
+#if DEBUG_PRINT_PACTBD
     std::cout << i << " -> "
               << branches[i]->Extremum << "->" << branches[i]->Saddle << " = "
               << branches[i]->VolumeFloat << std::endl << "\t";
-
+#endif
     for(int j = 0; j < branch_SP_map[i].size(); j++)
     {
+#if DEBUG_PRINT_PACTBD
         std::cout << branch_SP_map[i][j] << " ";
+#endif
         branches[i]->VolumeFloat += superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
     }
+#if DEBUG_PRINT_PACTBD
     std::cout << std::endl;
-
     std::cout << i << " -> "
               << branches[i]->Extremum << "->" << branches[i]->Saddle << " = "
               << branches[i]->VolumeFloat << std::endl;
+#endif
 
   }
 

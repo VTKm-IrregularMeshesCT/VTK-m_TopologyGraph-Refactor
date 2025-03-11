@@ -70,6 +70,9 @@
 #include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/ArrayHandleConstant.h>
 
+#define DEBUG_PRINT_PACTBD 0
+#define SLEEP_ON 0
+
 // ContourTree.h
 
 namespace vtkm
@@ -413,7 +416,10 @@ inline void ContourTree::PrintDotSuperStructure(std::ostream& outStream) const
 { // PrintDotSuperStructure()
   // print the header information
 
-  std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) " << std::endl;
+#if DEBUG_PRINT_PACTBD
+  std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; //[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) " << std::endl;
+#endif
+  std::cout << std::endl << "[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) " << std::endl;
 
   outStream << "digraph G\n\t{\n";
   outStream << "\tsize=\"6.5, 9\"\n\tratio=\"fill\"\n";
@@ -525,7 +531,11 @@ inline void ContourTree::PrintDotSuperStructure(std::ostream& outStream) const
   // print the footer information
   outStream << "\t}\n";
 
-  std::cout << "[END-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
+  std::cout << "[END-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream)\n" << std::endl;
+
+#if DEBUG_PRINT_PACTBD
+  std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; //[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) " << std::endl;
+#endif
 
 } // PrintDotSuperStructure()
 

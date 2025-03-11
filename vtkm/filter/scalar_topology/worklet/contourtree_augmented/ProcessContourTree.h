@@ -92,7 +92,8 @@
 #include <chrono>
 #include <thread>
 
-#define DEBUG_PRINT 0
+#define DEBUG_PRINT_PACTBD 0
+#define SLEEP_ON 0
 
 
 namespace process_contourtree_inc_ns =
@@ -199,7 +200,7 @@ std::vector<Coordinates> ReadCoordinatesFromFile(const std::string& filename) {
         return coordinatesMap; // Return an empty map if file opening fails.
     }
 
-    std::cout << "READING ... \n";
+    std::cout << "READING Coordinates: " << filename << std::endl;
 
     while (getline(file, line)) {
         std::istringstream iss(line);
@@ -211,8 +212,9 @@ std::vector<Coordinates> ReadCoordinatesFromFile(const std::string& filename) {
             std::cerr << "Error parsing line: " << line << std::endl;
             continue; // Skip to the next line if parsing fails.
         }
-
+#if DEBUG_PRINT_PACTBD
         std::cout << coords.x << " " << coords.y << " " << coords.z << std::endl;
+#endif
 
         // Store the extracted data in the map.
         coordinatesMap.push_back(coords);
@@ -233,7 +235,7 @@ std::vector<Triangle> ReadTrianglesFromFile(const std::string& filename) {
         return triangleMap; // Return an empty map if file opening fails.
     }
 
-    std::cout << "READING ... \n";
+    std::cout << "READING Triangles:" << filename << std::endl;
 
     while (getline(file, line)) {
         std::istringstream iss(line);
@@ -245,9 +247,9 @@ std::vector<Triangle> ReadTrianglesFromFile(const std::string& filename) {
             std::cerr << "Error parsing line: " << line << std::endl;
             continue; // Skip to the next line if parsing fails.
         }
-
+#if DEBUG_PRINT_PACTBD
         std::cout << triang.p1 << " " << triang.p2 << " " << triang.p3 << std::endl;
-
+#endif
         // Store the extracted data in the map.
         triangleMap.push_back(triang);
     }
@@ -269,7 +271,7 @@ std::vector<Tetrahedron> ReadTetsFromFile(const std::string& filename) {
         return tetMap; // Return an empty map if file opening fails.
     }
 
-    std::cout << "READING ... \n";
+    std::cout << "READING Tets: " << filename << std::endl;
 
     while (getline(file, line))
     {
@@ -283,8 +285,9 @@ std::vector<Tetrahedron> ReadTetsFromFile(const std::string& filename) {
             std::cerr << "Error parsing line: " << line << std::endl;
             continue; // Skip to the next line if parsing fails.
         }
-
+#if DEBUG_PRINT_PACTBD
         std::cout << tet.p1 << " " << tet.p2 << " " << tet.p3 << " " << tet.p4 << std::endl;
+#endif
 
         // Store the extracted data in the map.
         tetMap.push_back(tet);
@@ -1245,7 +1248,7 @@ public:
         // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "CALL FROM THE COEFFICIENT-BASED FLOAT FUNCTION" << std::endl;
 #endif
 
@@ -1293,7 +1296,7 @@ public:
         std::vector<double> weightList;
 
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
 #endif
 
@@ -1306,7 +1309,7 @@ public:
         }
 
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
         std::cout << "num. of triangles: " << trianglelist.size() << std::endl;
 #endif
@@ -1314,7 +1317,7 @@ public:
         for (int i = 0; i < trianglelist.size(); i++)
         {
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3;
 #endif
             double area = ComputeTriangleArea(
@@ -1328,12 +1331,12 @@ public:
             weightList[trianglelist[i].p2] += wt;
             weightList[trianglelist[i].p3] += wt;
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << " = " << area << std::endl;
 #endif
         }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE WEIGHTS SO FAR: \n";
         for (int i = 0; i < weightList.size(); i++)
         {
@@ -1353,7 +1356,7 @@ public:
 
         // Now move on to set up 3D tetrahedral variables
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE ARRAYS OF TETS: \n";
         std::cout << "num. of tets: " << tetlist.size() << std::endl;
 #endif
@@ -1403,7 +1406,7 @@ public:
         for (int i = 0; i < tetlist.size(); i++)
         {
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << i << ": " << tetlist[i].p1 << ", " << tetlist[i].p2 << ", " << tetlist[i].p3 << ", " << tetlist[i].p4; //<< std::endl;
             double volume = 0.1666666666667; // HARDCODED TODO CHANGE
             std::cout << " = " << volume << std::endl;
@@ -1416,7 +1419,7 @@ public:
         }
 
 //        std::sort()
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT TETS UNSORTED:" << std::endl;
 #endif
         print2DarrayInt(tetlistSorted);
@@ -1426,7 +1429,7 @@ public:
             std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
         }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT TETS SORTED:" << std::endl;
         print2DarrayInt(tetlistSorted);
 
@@ -1758,7 +1761,7 @@ public:
 
             // process one tet at a time ...
             // ... starting with they local coordinates and individual volumes
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for(int i = 0; i < tetlist.size(); i++)
             {
                 std::cout << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
@@ -1787,7 +1790,7 @@ public:
                 teth4s.emplace_back(tetlistSorted[i][3]);
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "===" << std::endl;
@@ -1818,7 +1821,7 @@ public:
 
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Vectors AB for each tet:" << std::endl;
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
@@ -1850,7 +1853,7 @@ public:
 
                 double lerpACh2_h1_h3 = double(teth2s[i] - teth1s[i]) / double(teth3s[i] - teth1s[i]);
                 verticesF.push_back(vectorsAC[i].lerp2point(lerpACh2_h1_h3));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "lerpADh2_h1_h4: " << lerpADh2_h1_h4 << " E = " << verticesE[i] << std::endl;
                 std::cout << "lerpACh2_h1_h3: " << lerpACh2_h1_h3 << " F = " << verticesF[i] << std::endl;
 #endif
@@ -1873,13 +1876,13 @@ public:
 
                 double lerpBDh2_h2_h4 = double(teth3s[i] - teth2s[i]) / double(teth4s[i] - teth2s[i]);
                 verticesH.push_back(vectorsBD[i].lerp2point(lerpBDh2_h2_h4));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "lerpADh3_h1_h4: " << lerpADh3_h1_h4 << " G = " << verticesG[i] << std::endl;
                 std::cout << "lerpBDh2_h2_h4: " << lerpBDh2_h2_h4 << " H = " << verticesH[i] << std::endl;
 #endif
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "===" << std::endl;
@@ -1927,7 +1930,7 @@ public:
             // ============== \/ Step 4: Compute the first slab volume (defined from isovalues h1-h2) \/ =============== //
 
             std::vector<double> slab1_h1h2_tet_volumes;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB1 VOLUMES:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -1957,7 +1960,7 @@ public:
 
                 slab1_h1h2_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference, b_h1h2_vol.difference),
                                                                            c_h1h2_vol.difference) ) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << slab1_h1h2_tet_volumes[i] << "(" << alpha_h2 << ", " << beta_h2 << ", " << gamma_h2 << ")" << std::endl;
 #endif
             }
@@ -1972,7 +1975,7 @@ public:
             std::vector<double> c_h1h2;
             std::vector<double> d_h1h2;
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB1 h1h2 coefficients:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -1983,7 +1986,7 @@ public:
                 c_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
                 d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << "a = " << a_h1h2[i]<< ", b = " << b_h1h2[i]<< ", c = " << c_h1h2[i] << ", d = " << d_h1h2[i] << std::endl;
 #endif
             }
@@ -2003,7 +2006,7 @@ public:
             std::vector<double> slab3_h3h4_tet_volumes; // only the slab volume
             std::vector<double> slab3_h3h4_tet_volumes_sweeping_up; // (total volume) - (slab)
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB3 VOLUMES:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -2034,7 +2037,7 @@ public:
 
                 slab3_h3h4_tet_volumes_sweeping_up.push_back(full_tet_volumes[i] - slab3_h3h4_tet_volumes[i]);
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << slab3_h3h4_tet_volumes[i] << "(" << alpha_h3 << ", " << beta_h3 << ", " << gamma_h3 << ")" << std::endl;
 #endif
             }
@@ -2053,7 +2056,7 @@ public:
             // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
             // ... and 'slab3_h3h4_tet_volumes' as v_volumeh3moveup
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB3 h3h4 coefficients:" << std::endl;
 #endif
 //            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
@@ -2063,7 +2066,7 @@ public:
 
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << slab3_h3h4_tet_volumes_sweeping_up[i] << " " << full_tet_volumes[i] << std::endl;
 #endif
                 a_h3h4.push_back((slab3_h3h4_tet_volumes_sweeping_up[i] - full_tet_volumes[i])                                                              / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
@@ -2081,7 +2084,7 @@ public:
                 // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
                 d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << "a = " << a_h3h4[i]<< ", b = " << b_h3h4[i]<< ", c = " << c_h3h4[i] << ", d = " << d_h3h4_up[i] << std::endl;
 #endif
             }
@@ -2107,14 +2110,14 @@ public:
                 vectorsGH.emplace_back(verticesG[i], verticesH[i]);
                 vectorsCH.emplace_back(verticesC[i], verticesH[i]);
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Areas CGH:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 areas_CGH.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsGH[i].difference, vectorsCH[i].difference )) );
                 sin_theta_1s.push_back(2.0 * areas_CGH[i]/ (vectorsGH[i].mag() * vectorsCH[i].mag()) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "Area of " << i << " = " << areas_CGH[i] << std::endl;
                 std::cout << "sin(theta1) of " << i << " = " << sin_theta_1s[i] << std::endl;
 #endif
@@ -2135,14 +2138,14 @@ public:
                 vectorsFB.emplace_back(verticesF[i], verticesB[i]);
                 vectorsFE.emplace_back(verticesF[i], verticesE[i]);
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Areas BEF:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 areas_BEF.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsFB[i].difference, vectorsFE[i].difference )) );
                 sin_theta_2s.push_back(2.0 * areas_BEF[i]/ (vectorsFB[i].mag() * vectorsFE[i].mag()) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "Area of " << i << " = " << areas_BEF[i] << std::endl;
                 std::cout << "sin(theta1) of " << i << " = " << sin_theta_2s[i] << std::endl;
 #endif
@@ -2184,7 +2187,7 @@ public:
             double n2;
             double n3;
             double n4;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Mid slab pre-coefficients" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -2205,7 +2208,7 @@ public:
                 a_s1.push_back( n1 * n2 );
                 b_s1.push_back( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
                 c_s1.push_back( n3 * teth2s[i] - n4 * teth2s[i] );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "[a_s1] " << i << " == " << a_s1[i] << std::endl;
                 std::cout << "[b_s1] " << i << " == " << b_s1[i] << std::endl;
                 std::cout << "[c_s1] " << i << " == " << c_s1[i] << std::endl;
@@ -2231,7 +2234,7 @@ public:
             double m2;
             double m3;
             double m4;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Mid slab pre-coefficients" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -2246,7 +2249,7 @@ public:
                 a_s2.push_back( m1 * m2 );
                 b_s2.push_back( m1 * -m2 * teth3s[i] - m3 -m4);
                 c_s2.push_back( m3 * teth3s[i] + m4 * teth3s[i] );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "[a_s2] " << i << " == " << a_s2[i] << std::endl;
                 std::cout << "[b_s2] " << i << " == " << b_s2[i] << std::endl;
                 std::cout << "[c_s2] " << i << " == " << c_s2[i] << std::endl;
@@ -2263,7 +2266,7 @@ public:
                 a_mid.push_back(sin_theta_1s[i] / 2.0 * a_s1[i] + sin_theta_2s[i] / 2.0 * a_s2[i]);
                 b_mid.push_back(sin_theta_1s[i] / 2.0 * b_s1[i] + sin_theta_2s[i] / 2.0 * b_s2[i]);
                 c_mid.push_back(sin_theta_1s[i] / 2.0 * c_s1[i] + sin_theta_2s[i] / 2.0 * c_s2[i]);
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "comb " << i << " " << a_mid[i] << " " << b_mid[i] << " " << c_mid[i] << std::endl;
 #endif
             }
@@ -2287,7 +2290,7 @@ public:
 
 
                 correction_factor_nominators.push_back(plane_distances[i] * tetk2s[i]);
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "corr: " << i << " " << correction_factor_nominators[i] << std::endl;
 #endif
             }
@@ -2322,8 +2325,8 @@ public:
 
 
             }
-#if DEBUG_PRINT
-            std::cout << "DEBUG: " << DEBUG_PRINT << std::endl;
+#if DEBUG_PRINT_PACTBD
+            std::cout << "DEBUG: " << DEBUG_PRINT_PACTBD << std::endl;
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "mid coeffs " << i << " : " << a_h2h3[i] << " " << b_h2h3[i] << " " << c_h2h3[i] << " " << d_h2h3[i] << std::endl;
@@ -2344,25 +2347,25 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h1:" << std::endl;
             print2Darray(tet_coeffs_h1);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h2:" << std::endl;
             print2Darray(tet_coeffs_h2);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h3:" << std::endl;
             print2Darray(tet_coeffs_h3);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h4:" << std::endl;
             print2Darray(tet_coeffs_h4);
 #endif
@@ -2401,7 +2404,7 @@ public:
                     tet_coeffs_h4[h][i] = full_tet_volumes[i];
                 }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 UP coefficients written to table:" << std::endl;
             print2Darray(tet_coeffs_h1);
             std::cout << "\nh2 UP coefficients written to table:" << std::endl;
@@ -2431,28 +2434,28 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h1:" << std::endl;
             print2Darray(tet_deltas_h1);
 #endif
 
             std::vector<std::vector<double>> tet_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h2:" << std::endl;
             print2Darray(tet_deltas_h2);
 #endif
 
             std::vector<std::vector<double>> tet_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h3:" << std::endl;
             print2Darray(tet_deltas_h3);
 #endif
 
             std::vector<std::vector<double>> tet_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h4:" << std::endl;
             print2Darray(tet_deltas_h4 );
 #endif
@@ -2491,7 +2494,7 @@ public:
                     tet_deltas_h4[teth4s[i]+1][i] = full_tet_volumes[i] - d_h3h4_up[i];
 //                }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 UP coefficient deltas written to table:" << std::endl;
             print2Darray(tet_deltas_h1);
             std::cout << "\nh2 UP coefficient deltas written to table:" << std::endl;
@@ -2536,26 +2539,26 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h1:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
 #endif
 
             std::vector<std::vector<double>> tet_down_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h2:" << std::endl;
             print2Darray(tet_down_coeffs_h2);
 #endif
             std::vector<std::vector<double>> tet_down_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h3:" << std::endl;
             print2Darray(tet_down_coeffs_h3);
 #endif
             std::vector<std::vector<double>> tet_down_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h4:" << std::endl;
             print2Darray(tet_down_coeffs_h4);
 #endif
@@ -2603,7 +2606,7 @@ public:
                     tet_down_coeffs_h4[h][i] = 0.0;
                 }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 DOWN coefficients written to table:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
             std::cout << "\nh2 DOWN coefficients written to table:" << std::endl;
@@ -2631,25 +2634,25 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h1:" << std::endl;
             print2Darray(tet_down_deltas_h1);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h2:" << std::endl;
             print2Darray(tet_down_deltas_h2);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h3:" << std::endl;
             print2Darray(tet_down_deltas_h3);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h4:" << std::endl;
             print2Darray(tet_down_deltas_h4 );
 #endif
@@ -2688,7 +2691,7 @@ public:
                     tet_down_deltas_h4[teth4s[i]][i] = -d_h3h4[i];
 //                }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 DOWN coefficient deltas written to table:" << std::endl;
             print2Darray(tet_down_deltas_h1);
             std::cout << "\nh2 DOWN coefficient deltas written to table:" << std::endl;
@@ -2754,7 +2757,7 @@ public:
                 tet_down_deltas_pfix[i][3] =  d_coeff_sum;
 
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "tet_up_deltas_pfix:" << std::endl;
             print2Darray(tet_up_deltas_pfix);
 
@@ -3571,12 +3574,14 @@ public:
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-TETS.txt";
 
         // PACTBD-EDIT
-        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
         // PACTBD-EDIT
-        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
+//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-TETS.txt";
-
+        // ARCHER
+        const std::string filename3D1 = "/work/e710/e710/ddilys/PACTBD/data/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+        const std::string filename3D2 = "/work/e710/e710/ddilys/PACTBD/data/101-from-2M-sampled-excel-sorted.1-TETS.txt";
 
         // get the total number of values to be swept ...
         // ... this will be one more than the total number of datapoints ...
@@ -3603,7 +3608,7 @@ public:
         // ... where the weight of each vertex of the triangle is area/3 (area div by 3)
         std::vector<double> weightList;
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE ARRAYS OF COORDINATES: \n";
 #endif
 
@@ -3614,13 +3619,13 @@ public:
             // initialise the weight list array while at it
             weightList.push_back(0.0);
         }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE ARRAYS OF TRIANGLES: \n";
         std::cout << "num. of triangles: " << trianglelist.size() << std::endl;
 #endif
         for (int i = 0; i < trianglelist.size(); i++)
         {
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << i << ": " << trianglelist[i].p1 << ", " << trianglelist[i].p2 << ", " << trianglelist[i].p3;
 #endif
             double area = ComputeTriangleArea(
@@ -3633,11 +3638,11 @@ public:
             weightList[trianglelist[i].p1] += wt;
             weightList[trianglelist[i].p2] += wt;
             weightList[trianglelist[i].p3] += wt;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << " = " << area << std::endl;
 #endif
         }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT THE WEIGHTS SO FAR: \n";
         for (int i = 0; i < weightList.size(); i++)
         {
@@ -3705,7 +3710,7 @@ public:
 
         for (int i = 0; i < tetlist.size(); i++)
         {
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << i << ": " << tetlist[i].p1 << ", " << tetlist[i].p2 << ", " << tetlist[i].p3 << ", " << tetlist[i].p4; //<< std::endl;
             double volume = 0.1666666666667; // HARDCODED TODO CHANGE
             std::cout << " = " << volume << std::endl;
@@ -3717,7 +3722,7 @@ public:
         }
 
 //        std::sort()
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT TETS UNSORTED:" << std::endl;
         print2DarrayInt(tetlistSorted);
 #endif
@@ -3726,7 +3731,7 @@ public:
             std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
         }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
         std::cout << "PRINT TETS SORTED:" << std::endl;
         print2DarrayInt(tetlistSorted);
 #endif
@@ -3774,20 +3779,20 @@ public:
             // TODO: replace this with actual area of each triangle!
             double fake_area = sqrt(2.0) / 2.0;
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "PREPROCESSING STEP:" << std::endl;
 #endif
             // Initializing the 2-D vector
             std::vector<std::vector<double>> vxtch1(contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (trianglelist.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised vxtch1:" << std::endl;
             print2Darray(vxtch1);
 #endif
 
             std::vector<std::vector<double>> vxtch2(contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (trianglelist.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised vxtch2:" << std::endl;
             print2Darray(vxtch2);
 #endif
@@ -3840,7 +3845,7 @@ public:
 
     //            std::cout << " " << i << ") " << delta_h1 << ", " << delta_h2 << std::endl;
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "vxtch1" << std::endl;
             print2Darray(vxtch1);
             std::cout << "vxtch2" << std::endl;
@@ -3851,7 +3856,7 @@ public:
 
             delta_h1_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
             delta_h2_pfixsum.resize(contourTree.Arcs.GetNumberOfValues());
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "deltas:" << std::endl;
 #endif
             for (vtkm::Id i = 0; i < contourTree.Arcs.GetNumberOfValues(); i++)
@@ -3864,7 +3869,7 @@ public:
                     vx_delta_h1_sum[i] += vxtch1[i][j];
                     vx_delta_h2_sum[i] += vxtch2[i][j];
                 }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " ~ "; //<< std::endl;
 #endif
                 if (i == 0)
@@ -3879,7 +3884,7 @@ public:
                     delta_h1_pfixsum[i] += delta_h1_pfixsum[i-1] + vx_delta_h1_sum[i];
                     delta_h2_pfixsum[i] += delta_h2_pfixsum[i-1] + vx_delta_h2_sum[i];
                 }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << ") pfix(h1)= (" << i << ")" << delta_h1_pfixsum[i] << " pfix(h2)=" << delta_h2_pfixsum[i] << std::endl;
 #endif
             }
@@ -4062,7 +4067,7 @@ public:
 
             // process one tet at a time ...
             // ... starting with they local coordinates and individual volumes
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for(int i = 0; i < tetlist.size(); i++)
             {
                 std::cout << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
@@ -4090,7 +4095,7 @@ public:
                 teth3s.emplace_back(tetlistSorted[i][2]);
                 teth4s.emplace_back(tetlistSorted[i][3]);
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "===" << std::endl;
@@ -4119,7 +4124,7 @@ public:
                 vectorsBD.emplace_back(verticesB[i], verticesD[i]);
 
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Vectors AB for each tet:" << std::endl;
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
@@ -4150,7 +4155,7 @@ public:
 
                 double lerpACh2_h1_h3 = double(teth2s[i] - teth1s[i]) / double(teth3s[i] - teth1s[i]);
                 verticesF.push_back(vectorsAC[i].lerp2point(lerpACh2_h1_h3));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "lerpADh2_h1_h4: " << lerpADh2_h1_h4 << " E = " << verticesE[i] << std::endl;
                 std::cout << "lerpACh2_h1_h3: " << lerpACh2_h1_h3 << " F = " << verticesF[i] << std::endl;
 #endif
@@ -4173,13 +4178,13 @@ public:
 
                 double lerpBDh2_h2_h4 = double(teth3s[i] - teth2s[i]) / double(teth4s[i] - teth2s[i]);
                 verticesH.push_back(vectorsBD[i].lerp2point(lerpBDh2_h2_h4));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "lerpADh3_h1_h4: " << lerpADh3_h1_h4 << " G = " << verticesG[i] << std::endl;
                 std::cout << "lerpBDh2_h2_h4: " << lerpBDh2_h2_h4 << " H = " << verticesH[i] << std::endl;
 #endif
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "===" << std::endl;
@@ -4215,8 +4220,10 @@ public:
                 PositionVector c_vol(verticesA[i], verticesB[i]);
 
                 full_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
-                std::cout << i << " = " << full_tet_volumes[i] << std::endl;
 
+#if DEBUG_PRINT_PACTBD
+                std::cout << i << " = " << full_tet_volumes[i] << std::endl;
+#endif
                 if(full_tet_volumes[i] < min_volume)
                 {
                     min_volume = full_tet_volumes[i];
@@ -4228,8 +4235,9 @@ public:
             }
 
             std::cout << "volume range: " << min_volume << " to " << max_volume << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(3));
-
+#if SLEEP_ON
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+#endif
 
 
 
@@ -4244,7 +4252,7 @@ public:
             // ============== \/ Step 4: Compute the first slab volume (defined from isovalues h1-h2) \/ =============== //
 
             std::vector<double> slab1_h1h2_tet_volumes;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB1 VOLUMES:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4274,7 +4282,7 @@ public:
 
                 slab1_h1h2_tet_volumes.push_back((1.0/6.0) * abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference, b_h1h2_vol.difference),
                                                                            c_h1h2_vol.difference) ) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << slab1_h1h2_tet_volumes[i] << "(" << alpha_h2 << ", " << beta_h2 << ", " << gamma_h2 << ")" << std::endl;
 #endif
             }
@@ -4289,7 +4297,7 @@ public:
             std::vector<double> c_h1h2;
             std::vector<double> d_h1h2;
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB1 h1h2 coefficients:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4300,7 +4308,7 @@ public:
                 c_h1h2.push_back((3.0 * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
                 d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / double( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << "a = " << a_h1h2[i]<< ", b = " << b_h1h2[i]<< ", c = " << c_h1h2[i] << ", d = " << d_h1h2[i] << std::endl;
 #endif
             }
@@ -4319,7 +4327,7 @@ public:
 
             std::vector<double> slab3_h3h4_tet_volumes; // only the slab volume
             std::vector<double> slab3_h3h4_tet_volumes_sweeping_up; // (total volume) - (slab)
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB3 VOLUMES:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4349,7 +4357,7 @@ public:
                                                                            c_h3h4_vol.difference) ) );
 
                 slab3_h3h4_tet_volumes_sweeping_up.push_back(full_tet_volumes[i] - slab3_h3h4_tet_volumes[i]);
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << slab3_h3h4_tet_volumes[i] << "(" << alpha_h3 << ", " << beta_h3 << ", " << gamma_h3 << ")" << std::endl;
 #endif
             }
@@ -4368,7 +4376,7 @@ public:
             // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
             // ... and 'slab3_h3h4_tet_volumes' as v_volumeh3moveup
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "SLAB3 h3h4 coefficients:" << std::endl;
 #endif
 //            double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
@@ -4378,7 +4386,7 @@ public:
 
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << slab3_h3h4_tet_volumes_sweeping_up[i] << " " << full_tet_volumes[i] << std::endl;
 #endif
                 a_h3h4.push_back((slab3_h3h4_tet_volumes_sweeping_up[i] - full_tet_volumes[i])                                                              / double( std::pow((teth3s[i] - teth4s[i]), 3) ) );
@@ -4396,7 +4404,7 @@ public:
                 // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
                 d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << i << " = " << "a = " << a_h3h4[i]<< ", b = " << b_h3h4[i]<< ", c = " << c_h3h4[i] << ", d = " << d_h3h4_up[i] << std::endl;
 #endif
             }
@@ -4422,14 +4430,14 @@ public:
                 vectorsGH.emplace_back(verticesG[i], verticesH[i]);
                 vectorsCH.emplace_back(verticesC[i], verticesH[i]);
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Areas CGH:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 areas_CGH.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsGH[i].difference, vectorsCH[i].difference )) );
                 sin_theta_1s.push_back(2.0 * areas_CGH[i]/ (vectorsGH[i].mag() * vectorsCH[i].mag()) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "Area of " << i << " = " << areas_CGH[i] << std::endl;
                 std::cout << "sin(theta1) of " << i << " = " << sin_theta_1s[i] << std::endl;
 #endif
@@ -4450,14 +4458,14 @@ public:
                 vectorsFB.emplace_back(verticesF[i], verticesB[i]);
                 vectorsFE.emplace_back(verticesF[i], verticesE[i]);
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Areas BEF:" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 areas_BEF.push_back(1.0/2.0 * vtkm::Magnitude(vtkm::Cross( vectorsFB[i].difference, vectorsFE[i].difference )) );
                 sin_theta_2s.push_back(2.0 * areas_BEF[i]/ (vectorsFB[i].mag() * vectorsFE[i].mag()) );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "Area of " << i << " = " << areas_BEF[i] << std::endl;
                 std::cout << "sin(theta1) of " << i << " = " << sin_theta_2s[i] << std::endl;
 #endif
@@ -4499,7 +4507,7 @@ public:
             double n2;
             double n3;
             double n4;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Mid slab pre-coefficients" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4520,7 +4528,7 @@ public:
                 a_s1.push_back( n1 * n2 );
                 b_s1.push_back( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
                 c_s1.push_back( n3 * teth2s[i] - n4 * teth2s[i] );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "[a_s1] " << i << " == " << a_s1[i] << std::endl;
                 std::cout << "[b_s1] " << i << " == " << b_s1[i] << std::endl;
                 std::cout << "[c_s1] " << i << " == " << c_s1[i] << std::endl;
@@ -4546,7 +4554,7 @@ public:
             double m2;
             double m3;
             double m4;
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "Mid slab pre-coefficients" << std::endl;
 #endif
             for (int i = 0; i < tetlistSorted.size(); i++)
@@ -4561,7 +4569,7 @@ public:
                 a_s2.push_back( m1 * m2 );
                 b_s2.push_back( m1 * -m2 * teth3s[i] - m3 -m4);
                 c_s2.push_back( m3 * teth3s[i] + m4 * teth3s[i] );
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "[a_s2] " << i << " == " << a_s2[i] << std::endl;
                 std::cout << "[b_s2] " << i << " == " << b_s2[i] << std::endl;
                 std::cout << "[c_s2] " << i << " == " << c_s2[i] << std::endl;
@@ -4578,7 +4586,7 @@ public:
                 a_mid.push_back(sin_theta_1s[i] / 2.0 * a_s1[i] + sin_theta_2s[i] / 2.0 * a_s2[i]);
                 b_mid.push_back(sin_theta_1s[i] / 2.0 * b_s1[i] + sin_theta_2s[i] / 2.0 * b_s2[i]);
                 c_mid.push_back(sin_theta_1s[i] / 2.0 * c_s1[i] + sin_theta_2s[i] / 2.0 * c_s2[i]);
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "comb " << i << " " << a_mid[i] << " " << b_mid[i] << " " << c_mid[i] << std::endl;
 #endif
             }
@@ -4602,7 +4610,7 @@ public:
 
 
                 correction_factor_nominators.push_back(plane_distances[i] * tetk2s[i]);
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
                 std::cout << "corr: " << i << " " << correction_factor_nominators[i] << std::endl;
 #endif
             }
@@ -4637,7 +4645,7 @@ public:
 
 
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             for (int i = 0; i < tetlistSorted.size(); i++)
             {
                 std::cout << "mid coeffs " << i << " : " << a_h2h3[i] << " " << b_h2h3[i] << " " << c_h2h3[i] << " " << d_h2h3[i] << std::endl;
@@ -4657,25 +4665,25 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h1:" << std::endl;
             print2Darray(tet_coeffs_h1);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h2:" << std::endl;
             print2Darray(tet_coeffs_h2);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h3:" << std::endl;
             print2Darray(tet_coeffs_h3);
 #endif
             std::vector<std::vector<double>> tet_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_coeffs_h4:" << std::endl;
             print2Darray(tet_coeffs_h4);
 #endif
@@ -4714,7 +4722,7 @@ public:
                     tet_coeffs_h4[h][i] = full_tet_volumes[i];
                 }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 UP coefficients written to table:" << std::endl;
             print2Darray(tet_coeffs_h1);
             std::cout << "\nh2 UP coefficients written to table:" << std::endl;
@@ -4743,25 +4751,25 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h1:" << std::endl;
             print2Darray(tet_deltas_h1);
 #endif
             std::vector<std::vector<double>> tet_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h2:" << std::endl;
             print2Darray(tet_deltas_h2);
 #endif
             std::vector<std::vector<double>> tet_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h3:" << std::endl;
             print2Darray(tet_deltas_h3);
 #endif
             std::vector<std::vector<double>> tet_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_deltas_h4:" << std::endl;
             print2Darray(tet_deltas_h4 );
 #endif
@@ -4801,7 +4809,7 @@ public:
 //                }
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 UP coefficient deltas written to table:" << std::endl;
             print2Darray(tet_deltas_h1);
             std::cout << "\nh2 UP coefficient deltas written to table:" << std::endl;
@@ -4846,27 +4854,27 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_coeffs_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h1:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
 #endif
 
             std::vector<std::vector<double>> tet_down_coeffs_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h2:" << std::endl;
             print2Darray(tet_down_coeffs_h2);
 #endif
 
             std::vector<std::vector<double>> tet_down_coeffs_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h3:" << std::endl;
             print2Darray(tet_down_coeffs_h3);
 #endif
             std::vector<std::vector<double>> tet_down_coeffs_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_coeffs_h4:" << std::endl;
             print2Darray(tet_down_coeffs_h4);
 #endif
@@ -4914,7 +4922,7 @@ public:
                     tet_down_coeffs_h4[h][i] = 0.0;
                 }
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 DOWN coefficients written to table:" << std::endl;
             print2Darray(tet_down_coeffs_h1);
             std::cout << "\nh2 DOWN coefficients written to table:" << std::endl;
@@ -4942,25 +4950,25 @@ public:
             // Initializing the 2-D vector
             std::vector<std::vector<double>> tet_down_deltas_h1(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h1:" << std::endl;
             print2Darray(tet_down_deltas_h1);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h2(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h2:" << std::endl;
             print2Darray(tet_down_deltas_h2);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h3(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h3:" << std::endl;
             print2Darray(tet_down_deltas_h3);
 #endif
             std::vector<std::vector<double>> tet_down_deltas_h4(num_sweep_values, // 2024-11-18 updated sweep value contourTree.Arcs.GetNumberOfValues(),
                                                   std::vector<double> (tetlistSorted.size(), 0.0));
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nInitialised tet_down_deltas_h4:" << std::endl;
             print2Darray(tet_down_deltas_h4 );
 #endif
@@ -5000,7 +5008,7 @@ public:
 //                }
             }
 
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "\nh1 DOWN coefficient deltas written to table:" << std::endl;
             print2Darray(tet_down_deltas_h1);
             std::cout << "\nh2 DOWN coefficient deltas written to table:" << std::endl;
@@ -5067,7 +5075,7 @@ public:
                 tet_down_deltas_pfix[i][3] =  d_coeff_sum;
 
             }
-#if DEBUG_PRINT
+#if DEBUG_PRINT_PACTBD
             std::cout << "tet_up_deltas_pfix:" << std::endl;
             print2Darray(tet_up_deltas_pfix);
 
@@ -5097,9 +5105,8 @@ public:
                 vx_down_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
                 vx_down_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
             }
-
+#if DEBUG_PRINT_PACTBD
             std::cout << "up delta totals:" << std::endl;
-
             for (vtkm::Id i = 0; i < num_sweep_values; i++)
             {
                 std::cout << i << ") del(h1)=" << vx_delta_h1_sum[i] << " del(h2)=" << vx_delta_h2_sum[i] << " del(h3)=" << vx_delta_h3_sum[i] << " del(h4)=" << vx_delta_h4_sum[i] << std::endl;
@@ -5111,6 +5118,7 @@ public:
             {
                 std::cout << i << ") del(h1)=" << vx_down_delta_h1_sum[i] << " del(h2)=" << vx_down_delta_h2_sum[i] << " del(h3)=" << vx_down_delta_h3_sum[i] << " del(h4)=" << vx_down_delta_h4_sum[i] << std::endl;
             }
+#endif
 
 
 
@@ -5194,9 +5202,9 @@ public:
         for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
         {
             vtkm::Id superNode = supernodesPortal.Get(supernode);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << supernode << " - " << superNode << "->" << supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))) << std::endl;
-
+#endif
             tailends.insert(std::make_pair(superNode, supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))));
         }
 
@@ -5400,8 +5408,9 @@ public:
                   superNodeID = sortID;
               }
 
+#if DEBUG_PRINT_PACTBD
               std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
-
+#endif
 
               if (sortedNode == 0)
                 firstVertexForSuperparentPortal.Set(superparent, sortedNode);
@@ -5431,13 +5440,13 @@ public:
                                                    delta_h2_partial_pfixsum[superparent] * (sortID*sortID) +\
                                                    delta_h3_partial_pfixsum[superparent] * sortID + \
                                                    delta_h4_partial_pfixsum[superparent];
-
+#if DEBUG_PRINT_PACTBD
               std::cout << "\t\t" << sortID << " - " << superparent << "\t"
                         << delta_h1_partial_pfixsum[superparent] << " * " << sortID << "^3 + "
                         << delta_h2_partial_pfixsum[superparent] << " * " << sortID << "^2 + "
                         << delta_h3_partial_pfixsum[superparent] << " * " << sortID << " + "
                         << delta_h4_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
-
+#endif
 
               if(sortedNode != contourTree.Arcs.GetNumberOfValues()-1)
               {
@@ -5452,8 +5461,9 @@ public:
                       delta_h2_partial_pfixsum[superparent] += vx_delta_h2_sum[tailends[superNodeID]];
                       delta_h3_partial_pfixsum[superparent] += vx_delta_h3_sum[tailends[superNodeID]];
                       delta_h4_partial_pfixsum[superparent] += vx_delta_h4_sum[tailends[superNodeID]];
+#if DEBUG_PRINT_PACTBD
                       std::cout << sortID << " - " << superparent << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
-
+#endif
                       // 2/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
 //                      coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * (tailends[superNodeID]*tailends[superNodeID]) - delta_h2_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h3_partial_pfixsum[superparent];
                               //delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
@@ -5465,12 +5475,13 @@ public:
 //                      std::cout << "\t\t" << tailends[superNodeID]  << " -h " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
 //                                << tailends[superNodeID]  << "^2 - " << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID]  << " + " << delta_h3_partial_pfixsum[superparent]  << " = " << coefficientweightList[superparent] << std::endl;
 
+#if DEBUG_PRINT_PACTBD
                       std::cout << "\t\t" << sortID << " -h " << superparent << "\t"
                                 << delta_h1_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << "^3 + "
                                 << delta_h2_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << "^2 + "
                                 << delta_h3_partial_pfixsum[superparent] << " * " << tailends[superNodeID] << " + "
                                 << delta_h4_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << std::endl;
-
+#endif
 
                   }
 
@@ -5478,14 +5489,15 @@ public:
               else
               {
                 // std::cout << "COMPUTE " << superparent << "->" << tailends[superNodeID] << std::endl;
+#if DEBUG_PRINT_PACTBD
                 std::cout << tailends[superNodeID] << " - " << superparent << "->" << tailends[superNodeID] << "\n";
+#endif
                 // 3/3 2024-11-17 FIX: replace '+=' with '=' as the delta_h1_partial_pfixsum already prefixes the volumes
                 coefficientweightList[superparent] = delta_h1_partial_pfixsum[superparent] * tailends[superNodeID] + delta_h2_partial_pfixsum[superparent];
-
+#if DEBUG_PRINT_PACTBD
                 std::cout << "\t\t" << sortID << " -g " << superparent << " (" << delta_h1_partial_pfixsum[superparent] << " * "
                           << tailends[superNodeID] << " + " << delta_h2_partial_pfixsum[superparent] << " = " << coefficientweightList[superparent] << "\n" << std::endl;
-
-
+#endif
               }
 
               superarcIntrinsicWeightPortal.Set(superparent,
@@ -5509,7 +5521,7 @@ public:
 
 
 
-
+#if DEBUG_PRINT_PACTBD
         std::cout << std::endl << "SWEEP STARTING WITH THE FOLLOWING INTRINSIC WEIGHTS:" << std::endl;
         for(int i = 0; i < superarcIntrinsicWeightCoeffPortal.GetNumberOfValues(); i++)
         {
@@ -5518,9 +5530,11 @@ public:
 //            std::cout << indent << i << " -> " << superarcIntrinsicWeightPortal.Get(i) << std::endl;
         }
         std::cout << std::endl;
+#endif
 
+#if SLEEP_ON
         std::this_thread::sleep_for(std::chrono::seconds(10));
-
+#endif
 
 
 
@@ -5530,8 +5544,6 @@ public:
 
 
         // -------------------------------------- SWEEP  ------------------------------------- //
-
-        std::cout << std::endl;
 
     //      std::cout << "target transfer weights:\n";
     //      // step 4: transfer the dependent weight to the hyperarc's target supernode
@@ -5674,19 +5686,22 @@ public:
             hyperarcDependentWeightCoeffPortal.Set(sortedNode, HAlocalDependent);
         }
 
-
+#if DEBUG_PRINT_PACTBD
         std::cout << "SuperARC check: " << std::endl;
+#endif
+
 //        for(vtkm::Id nodeID = 0; nodeID < contourTree.Hyperarcs.GetNumberOfValues(); nodeID++)
         for (vtkm::Id hypernode = 0; hypernode < contourTree.Hypernodes.GetNumberOfValues(); hypernode++)
         {
             vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
 //            std::cout << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << hypernode << ") " << hyperarcTarget << std::endl;
+#endif
         }
-
+#if SLEEP_ON
         std::this_thread::sleep_for(std::chrono::seconds(3));
-
+#endif
         vtkm::Id previousParent = -1;
         vtkm::Id nextParent = -1;
 
@@ -5709,6 +5724,7 @@ public:
 
         std::cout << "----------------------------------------------------------------------" << std::endl;
 
+#if DEBUG_PRINT_PACTBD
         std::cout << "'Node -> Superarc' relationships" << std::endl;
 
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
@@ -5777,6 +5793,8 @@ public:
 
         std::cout << "----------------------------------------------------------------------" << std::endl;
 
+#endif
+
         // TODO: Assumption - for now, treat hyperarcs same as superarcs
         // NOTE: 2025-03-03 ran into the above assumption that breaks the code
 
@@ -5791,11 +5809,15 @@ public:
             vtkm::Id nextSuperparent = superparentsPortal.Get(nextSortID);
 //            vtkm::Id nextHyperparent = hyperparentsPortal.Get(nextSuperparent); // uncommented 2025-03-03
 
+#if DEBUG_PRINT_PACTBD
             std::cout << "SP: " << superparent << " ~ HP: " << hyperparent << std::endl;
+#endif
 
             if(superparent != previousParent )
             {
+#if DEBUG_PRINT_PACTBD
                 std::cout << "----------------------------------------------------------------------" << std::endl;
+#endif
                 previousParent = superparent;
             }
 
@@ -5816,13 +5838,15 @@ public:
             // try to use the hyperparent instead of superparent (2025-03-03)
 //            superparent = hyperparent; // uncomment for a hack
 
+#if DEBUG_PRINT_PACTBD
             std::cout << "SP: " << superparent << " - " << sortID << " (HA Target: " << hyperarcTarget
                       << " | SA Target: " << supertarget << "), next=" << nextSuperparent << "\n";
 
             std::cout << "Intrinsic: " << vx_delta_h1_sum[sortID] << " " << vx_delta_h2_sum[sortID] << " " << vx_delta_h3_sum[sortID] << " " << vx_delta_h4_sum[sortID] << std::endl;
             std::cout << "\tIntrinsic Total: " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h1 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h2 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h3 << " " << superarcIntrinsicWeightCoeffPortal.Get(superparent).h4 << std::endl << std::endl;
+#endif
 
-//            if (!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget))
+            //            if (!vtkm::worklet::contourtree_augmented::NoSuchElement(supertarget))
 //            {
 //                SNlocalTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + vx_delta_h1_sum[sortID];
 //                SNlocalTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + vx_delta_h2_sum[sortID];
@@ -5848,10 +5872,10 @@ public:
             // TODO: Assumption - for now, treat hyperarcs same as superarcs
             // NOTE: 2025-03-03 ran into the above assumption that breaks the code
             hyperarcDependentWeightCoeffPortal.Set(superparent, SAlocalDependent);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << "Dependent: " << supernodeTransferWeightCoeffPortal.Get(superparent).h1 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h2 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h3 << " " << supernodeTransferWeightCoeffPortal.Get(superparent).h4 << " to target: " << superparent << std::endl;
             std::cout << "\tDependent Total: " << SAlocalDependent.h1 << " " << SAlocalDependent.h2 << " " << SAlocalDependent.h3 << " " << SAlocalDependent.h4 << " of target: " << superparent << std::endl << std::endl;
-
+#endif
 
 //            if(superparent != previousParent )
 //            {
@@ -5871,19 +5895,22 @@ public:
                 SNlocalTransfer.h4 = 0.0; // supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h4 + SAlocalDependent.h4;
 
                 supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, SNlocalTransfer);
-
+#if DEBUG_PRINT_PACTBD
                 std::cout << "Transfer: " << SAlocalDependent.h1 << " " << SAlocalDependent.h2 << " " << SAlocalDependent.h3 << " " << SAlocalDependent.h4 << " to target: " << hyperarcTarget << std::endl;
                 std::cout << "\tTarget (" << hyperarcTarget << ") Total: " << SNlocalTransfer.h1 << " " << SNlocalTransfer.h2 << " " << SNlocalTransfer.h3 << " " << SNlocalTransfer.h4 << " to target: " << hyperarcTarget << std::endl << std::endl;
+#endif
             }
 
 
 //             std::cout << "SP: " << superparentsPortal.Get(sortedNode) << " - " << nodesPortal.Get(sortedNode) << "\n";
+#if DEBUG_PRINT_PACTBD
              std::cout << std::endl;
+#endif
 //             std::cout << "SP: " << superparent << " - " << sortID << "(" << sortedNode << ")\n";
         }
-
+#if DEBUG_PRINT_PACTBD
         std::cout << "------------ setting SAlocalIntrinsic ------------" << std::endl;
-
+#endif
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
         { // per node in sorted order
 
@@ -5896,8 +5923,10 @@ public:
 //            SAlocalIntrinsic.h4 = vx_delta_h4_sum[sortedNode];
 
 //            superarcIntrinsicWeightCoeffPortal.Set(sortedNode, SAlocalIntrinsic);
+#if DEBUG_PRINT_PACTBD
             std::cout << "SP: " << superparent << " - "; //superparentsPortal.Get(sortedNode) << " - ";
             std::cout << "SA: " << sortedNode << std::setw(10) << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << "\t";
+#endif
             std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << "\t";
             std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h3 << "\t";
             std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h4 << "\t"; //std::endl;
@@ -5955,7 +5984,7 @@ public:
 //}
 //std::cout << std::endl;
 
-
+#if DEBUG_PRINT_PACTBD
 std::cout << "// ===================== ITERATIVE WEIGHT PROPAGATION INWARDS ===================== //" << std::endl;
 
         // ===================== ITERATIVE WEIGHT PROPAGATION INWARDS ===================== //
@@ -6006,7 +6035,7 @@ for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues();
     }
 }
 
-
+#endif
 
 std::cout << "// ================================= ITERATIONS =================================== //" << std::endl;
 
@@ -6058,7 +6087,7 @@ std::cout << "// ================================= ITERATIONS ==================
 
           std::string indent = "\t";
 
-          std::cout << "Iteration: " << iteration << "\n{\n" << std::endl;
+          std::cout << "Iteration: " << iteration << std::endl; // "\n{\n" << std::endl;
 
           // pull the array bounds into register
           vtkm::Id firstSupernode = firstSupernodePerIterationPortal.Get(iteration);
@@ -6086,8 +6115,8 @@ std::cout << "// ================================= ITERATIONS ==================
           //      sum(xfer + intrinsic)                 1   3   3   6   4   9   2   1
           //  prefix sum (xfer + int)                   1   4   7  13  17  26  28  29
           //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  16
-
-
+#if DEBUG_PRINT_PACTBD
+          std::cout << "{\n" << std::endl;
           std::cout << indent << "SUPERARCS:\n" << indent << "{\n";
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
@@ -6131,7 +6160,7 @@ std::cout << "// ================================= ITERATIONS ==================
                         << superarcIntrinsicWeightCoeffPortal.Get(supernode).h4 << std::endl;
           }
           std::cout << indent << "}\n" << std::endl;
-
+#endif
 
           Coefficients step1Dependent;
           Coefficients step2Dependent;
@@ -6140,67 +6169,75 @@ std::cout << "// ================================= ITERATIONS ==================
           Coefficients step4SupernodeTransfer;
 
           std::map<vtkm::Id, vtkm::Id> tailends;
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "tailends:\n" << indent << "{\n";
+#endif
           for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
           {
               vtkm::Id superNode = supernodesPortal.Get(supernode);
-
+#if DEBUG_PRINT_PACTBD
               std::cout << indent << indent << supernode << " - " << superNode << "->" << supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode))) << std::endl;
-
+#endif
               tailends.insert(std::make_pair(superNode, supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(supernode)))));
           }
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "}\n" << std::endl;
-
           std::cout << indent <<  "// step 1: Calculate DEPENDENT weight, which is INTRINSIC + TRANSFER" << std::endl;
           std::cout << indent << "step 1 (simple):\n" << indent << "{\n";
+#endif
           // so, step 1: add xfer + int & store in dependent weight
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
             vtkm::Id superNode = supernodesPortal.Get(supernode);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentSA[" << supernode << "] = TransferSN[" << supernode << "] + " << "IntrinsicSA[" << supernode << "]\n" << std::endl;
-
+#endif
             superarcDependentWeightPortal.Set(supernode,
                                               supernodeTransferWeightPortal.Get(supernode) +
                                                 superarcIntrinsicWeightPortal.Get(supernode));
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << " = " << supernodeTransferWeightPortal.Get(supernode) << " + " << superarcIntrinsicWeightPortal.Get(supernode) << " = " << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << "\n" << std::endl;
+#endif
             double a_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h1 * std::pow(tailends[superNode], 3);
             double b_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h2 * std::pow(tailends[superNode], 2);
             double c_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
             double d_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h4;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << " = " << a_coeff + b_coeff + c_coeff + d_coeff << " [ACTUAL SD, written later]" << std::endl;
+#endif
           }
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << indent << "(SIMPL.) - DEPENDENT = TRANSFER + INTRINSIC\n" << indent << "}\n" << std::endl;
+#endif
 
 
-
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "step 1 (coeff):\n" << indent << "{\n";
+#endif
           // so, step 1: add xfer + int & store in dependent weight
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentSA[" << supernode << "] = TransferSN[" << supernode << "] + " << "IntrinsicSA[" << supernode << "]\n" << std::endl;
-
+#endif
             step1Dependent.h1 = supernodeTransferWeightCoeffPortal.Get(supernode).h1 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h1;
             step1Dependent.h2 = supernodeTransferWeightCoeffPortal.Get(supernode).h2 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h2;
             step1Dependent.h3 = supernodeTransferWeightCoeffPortal.Get(supernode).h3 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h3;
             step1Dependent.h4 = supernodeTransferWeightCoeffPortal.Get(supernode).h4 + superarcIntrinsicWeightCoeffPortal.Get(supernode).h4;
 
             superarcDependentWeightCoeffPortal.Set(supernode, step1Dependent);
-
+#if DEBUG_PRINT_PACTBD
 //            std::cout << supernodeTransferWeightPortal.Get(supernode) + superarcIntrinsicWeightPortal.Get(supernode) << " ";
             std::cout << indent << indent << supernode << " = " << step1Dependent.h1 << " " \
                               << step1Dependent.h2 << " " \
                               << step1Dependent.h3 << " " \
                               << step1Dependent.h4 << "\n" << std::endl;
+#endif
           }
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << indent << "(COEFF.) - DEPENDENT = TRANSFER + INTRINSIC\n" << indent << "}\n" << std::endl;
-
-
-              std::cout << std::endl;
+          std::cout << std::endl;
+#endif
 
 //  std::cout << indent << "RECOMPUTE THE INTRINSIC ...\n";
 //  for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
@@ -6216,26 +6253,27 @@ std::cout << "// ================================= ITERATIONS ==================
 //  }
 //  std::cout << std::endl << std::endl;
 
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "// step 2: Calculate DEPENDENT weight, which is INTRINSIC + TRANSFER" << std::endl;
-
           std::cout << indent << "step 2 (simple):\n" << indent << "{\n" << indent << indent;
           std::cout << "from: " << firstSupernode+1 << " to " << lastSupernode << std::endl;
+#endif
           //          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
           // step 2: perform prefix sum on the dependent weight range
           for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
           {
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentSA[" << supernode << "] = DependentSA[" << supernode << "] + " << "DependentSA[" << supernode - 1 << "]\n" << std::endl;
-
+#endif
             superarcDependentWeightPortal.Set(supernode,
                                               superarcDependentWeightPortal.Get(supernode) +
                                                 superarcDependentWeightPortal.Get(supernode - 1));
             //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << " = " << superarcDependentWeightPortal.Get(supernode) << std::endl;
-
+#endif
           }
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << indent << "(SIMPL.) - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]\n" << indent << "}\n" << std::endl;
 
           std::cout << std::endl;
@@ -6245,26 +6283,29 @@ std::cout << "// ================================= ITERATIONS ==================
           std::cout << indent << "step 2 (coeff):\n" << indent << "{\n" << indent << indent;
           //          std::cout << firstSupernode << " - " << superarcDependentWeightPortal.Get(firstSupernode) << std::endl;
           std::cout << "from: " << firstSupernode+1 << " to " << lastSupernode << std::endl;
+#endif
           // step 2: perform prefix sum on the dependent weight range
           for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
           {
+#if DEBUG_PRINT_PACTBD
               std::cout << indent << indent << "DependentSA[" << supernode << "] = DependentSA[" << supernode << "] + " << "DependentSA[" << supernode - 1 << "]\n" << std::endl;
-
+#endif
               step2Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 + superarcDependentWeightCoeffPortal.Get(supernode-1).h1;
               step2Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 + superarcDependentWeightCoeffPortal.Get(supernode-1).h2;
               step2Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 + superarcDependentWeightCoeffPortal.Get(supernode-1).h3;
               step2Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 + superarcDependentWeightCoeffPortal.Get(supernode-1).h4;
 
               superarcDependentWeightCoeffPortal.Set(supernode, step2Dependent);
-
+#if DEBUG_PRINT_PACTBD
               std::cout << indent << indent << supernode << " = " << step2Dependent.h1 << " " \
                                 << step2Dependent.h2 << " " \
                                 << step2Dependent.h3 << " " \
                                 << step2Dependent.h4 << std::endl;
+#endif
           }
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << indent << "(COEFF.) - DEPENDENT = DEPENDENT[CURRENT] + DEPENDENT[PREVIOUS]\n" << indent << "}\n" << std::endl;
-
+#endif
 
 
 
@@ -6278,13 +6319,14 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
     double b_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h2 * std::pow(tailends[superNode], 2);
     double c_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
     double d_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h4;
-
+#if DEBUG_PRINT_PACTBD
     std::cout << a_coeff + b_coeff + c_coeff + d_coeff << " [Write to SADWP]" << std::endl;
-
+#endif
     // NEW: 2025-01-24 actually save the value to the dependent array SADWP:
     superarcDependentWeightPortal.Set(supernode, a_coeff + b_coeff + c_coeff + d_coeff);
-
+#if DEBUG_PRINT_PACTBD
     std::cout << "DependentSA[" << supernode << "] = " << superarcDependentWeightPortal.Get(supernode) << std::endl << std::endl;
+#endif
 }
 
 
@@ -6296,8 +6338,10 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
           // to show it in serial. NB: Loops backwards so that computation uses the correct value
           // As a bonus, note that we test > firstsupernode, not >=.  This is because we've got unsigned integers, & otherwise it will not terminate
           // But the first is always correct anyway (same reason as the short-cut termination on hyperparent), so we're fine
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "// step 3: Subtract the last SA dependent weight of the iteration from the total" << std::endl;
           std::cout << indent << "step 3 (simple) - subtract:\n" << indent << "{\n";
+#endif
           for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
           { // per supernode
             // retrieve the hyperparent & convert to a supernode ID
@@ -6307,26 +6351,27 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
             // if the hyperparent is the first in the sequence, dependent weight is already correct
             if (hyperparent == firstHypernode)
               continue;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentSA[" << supernode << "] = DependentSA[" << supernode << "] - " << "DependentSA[" << hyperparentSuperID - 1 << "]\n";
             std::cout << indent << indent << "[" << superarcDependentWeightPortal.Get(supernode) - superarcDependentWeightPortal.Get(hyperparentSuperID - 1)
                       << "] = [" << superarcDependentWeightPortal.Get(supernode) << "] - " << "[" << superarcDependentWeightPortal.Get(hyperparentSuperID - 1) << "]\n" << std::endl;
-
+#endif
             // otherwise, subtract out the dependent weight *immediately* before the hyperparent's supernode
             superarcDependentWeightPortal.Set(
               supernode,
               superarcDependentWeightPortal.Get(supernode) -
                 superarcDependentWeightPortal.Get(hyperparentSuperID - 1));
-
+#if DEBUG_PRINT_PACTBD
             //std::cout << indent << indent << supernode << "(" << hyperparentSuperID << ")" << " - " << superarcDependentWeightPortal.Get(hyperparentSuperID - 1) << std::endl;
             std::cout << indent << indent << supernode << "(" << hyperparentSuperID << ")" << " - " << superarcDependentWeightPortal.Get(hyperparentSuperID - 1) << std::endl;
-
+#endif
           } // per supernode
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << "}\n" << std::endl;
 
 
           std::cout << indent << "step 3 (coeff) - subtract:\n" << indent << "{\n";
+#endif
           for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
           { // per supernode
             // retrieve the hyperparent & convert to a supernode ID
@@ -6336,9 +6381,9 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
             // if the hyperparent is the first in the sequence, dependent weight is already correct
             if (hyperparent == firstHypernode)
               continue;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentSA[" << supernode << "] = DependentSA[" << supernode << "] + " << "DependentSA[" << supernode - 1 << "]\n" << std::endl;
-
+#endif
             step3Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h1;
             step3Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h2;
             step3Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h3;
@@ -6346,16 +6391,16 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
 
             // otherwise, subtract out the dependent weight *immediately* before the hyperparent's supernode
             superarcDependentWeightCoeffPortal.Set(supernode, step3Dependent);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << " = " << step3Dependent.h1 << " " \
                               << step3Dependent.h2 << " " \
                               << step3Dependent.h3 << " " \
                               << step3Dependent.h4 << std::endl;
-
+#endif
           } // per supernode
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << "}\n" << std::endl;
-
+#endif
 // 2025-03-08 Moved recomputing to the end after final (since intrinsic float doesn't matter here)
 //std::cout << "RECOMPUTE THE INTRINSIC ...\n";
 //for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
@@ -6375,8 +6420,9 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
 //}
 //std::cout << std::endl << std::endl;
 
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "step 4 (simple) - target transfer weights:\n" << indent << "{\n";
+#endif
           // step 4: transfer the dependent weight to the hyperarc's target supernode
           for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
           { // per hypernode
@@ -6391,34 +6437,38 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
               lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
 
             // now, given the last superarc for the hyperarc, transfer the dependent weight
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentHA[" << hypernode << "] = DependentSA[" << lastSuperarc << "]\n";
             std::cout << indent << indent << "[" << hyperarcDependentWeightPortal.Get(hypernode) << "] = [" << superarcDependentWeightPortal.Get(lastSuperarc) << "]\n";
+#endif
             hyperarcDependentWeightPortal.Set(hypernode,
                                               superarcDependentWeightPortal.Get(lastSuperarc));
 
             // note that in parallel, this will have to be split out as a sort & partial sum in another array
             vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "TransferSN[" << hyperarcTarget << "] = TransferSN[" << hyperarcTarget << "] + DependentHA[" << hypernode << "]\n";
             std::cout << indent << indent << "[" << supernodeTransferWeightPortal.Get(hyperarcTarget) + hyperarcDependentWeightPortal.Get(hypernode)
                       << "] = [" << supernodeTransferWeightPortal.Get(hyperarcTarget)  << "] + [" << hyperarcDependentWeightPortal.Get(hypernode) << "]\n" << std::endl;
+#endif
             supernodeTransferWeightPortal.Set(hyperarcTarget,
                                               supernodeTransferWeightPortal.Get(hyperarcTarget) +
                                                 hyperarcDependentWeightPortal.Get(hypernode));
 
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "hyperarcDependentWeightPortal:" << std::endl << indent << indent;
             std::cout << indent << indent << hypernode << " - " << hyperarcDependentWeightPortal.Get(hypernode) << std::endl;
 
             std::cout << indent << indent << "supernodeTransferWeightPortal:" << std::endl << indent << indent;
             std::cout << indent << indent << hyperarcTarget << " - " << supernodeTransferWeightPortal.Get(hyperarcTarget) << std::endl;
-
+#endif
           } // per hypernode
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << "}\n" << std::endl;
 
 
-
           std::cout << indent << "step 4 (coeff) - target transfer weights:\n" << indent << "{\n";
+#endif
           // step 4: transfer the dependent weight to the hyperarc's target supernode
           for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
           { // per hypernode
@@ -6431,8 +6481,9 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
             else
               // otherwise, take the next hypernode's ID and subtract 1
               lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "DependentHA[" << hypernode << "] = DependentSA[" << lastSuperarc << "]\n";
+#endif
             step4HyperarcDependent.h1 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h1;
             step4HyperarcDependent.h2 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h2;
             step4HyperarcDependent.h3 = superarcDependentWeightCoeffPortal.Get(lastSuperarc).h3;
@@ -6443,7 +6494,9 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
 
             // note that in parallel, this will have to be split out as a sort & partial sum in another array
             vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "TransferSN[" << hyperarcTarget << "] = TransferSN[" << hyperarcTarget << "] + DependentHA[" << hypernode << "]\n" << std::endl;
+#endif
             step4SupernodeTransfer.h1 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h1 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h1;
             step4SupernodeTransfer.h2 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h2 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h2;
             step4SupernodeTransfer.h3 = supernodeTransferWeightCoeffPortal.Get(hyperarcTarget).h3 + hyperarcDependentWeightCoeffPortal.Get(hypernode).h3;
@@ -6453,7 +6506,7 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
 //            hyperarcDependentWeightCoeffPortal.Set(hypernode, step4HyperarcDependent);
 
             supernodeTransferWeightCoeffPortal.Set(hyperarcTarget, step4SupernodeTransfer);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << "hyperarcDependentWeightCoeffPortal:" << std::endl << indent << indent;
             std::cout << hypernode << " = " << step4HyperarcDependent.h1 << " " \
                               << step4HyperarcDependent.h2 << " " \
@@ -6465,29 +6518,32 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
                               << step4SupernodeTransfer.h2 << " " \
                               << step4SupernodeTransfer.h3 << " " \
                               << step4SupernodeTransfer.h4 << std::endl << std::endl;
-
+#endif
           } // per hypernode
-
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << "}\n" << std::endl;
 
 
           std::cout << std::endl;
           std::cout << indent << "final (simple):\n" << indent << "{\n";
+#endif
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
     //        superarcDependentWeightPortal.Set(supernode,
     //                                          superarcDependentWeightPortal.Get(supernode) +
     //                                            superarcDependentWeightPortal.Get(supernode - 1));
             //std::cout << superarcDependentWeightPortal.Get(supernode) << " "; // + superarcDependentWeightPortal.Get(supernode - 1) << " ";
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << " = " << superarcDependentWeightPortal.Get(supernode) << "\tINCORRECT FROM BEFORE" << std::endl;
-
+#endif
           }
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << indent << "}\n" << std::endl;
-
+#endif
 //          for (vtkm::Id nodeID = firstSupernode; nodeID < lastSupernode; nodeID++)
 
           //JUMP
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "sorted nodes:\n" << indent << "{\n";
           for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues(); supernode++)
           {
@@ -6499,35 +6555,36 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
           std::cout << std::endl << indent << "}\n" << std::endl;
 
           std::cout << indent << "final (coeff):\n" << indent << "{\n";
+#endif
           for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
           {
 
             vtkm::Id superNode = supernodesPortal.Get(supernode);
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << "(" << superNode << "->" << tailends[superNode] << ") = " << superarcDependentWeightCoeffPortal.Get(supernode).h1 << " " \
                               << superarcDependentWeightCoeffPortal.Get(supernode).h2 << " " \
                               << superarcDependentWeightCoeffPortal.Get(supernode).h3 << " " \
                               << superarcDependentWeightCoeffPortal.Get(supernode).h4 << " = "; // std::endl;
-
+#endif
             double a_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h1 * std::pow(tailends[superNode], 3);
             double b_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h2 * std::pow(tailends[superNode], 2);
             double c_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
             double d_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h4;
-
+#if DEBUG_PRINT_PACTBD
             std::cout << a_coeff + b_coeff + c_coeff + d_coeff << " [Write to SADWP]" << std::endl;
-
+#endif
             // NEW: 2025-01-24 actually save the value to the dependent array SADWP:
             superarcDependentWeightPortal.Set(supernode, a_coeff + b_coeff + c_coeff + d_coeff);
 
 
 
-
+#if DEBUG_PRINT_PACTBD
             std::cout << indent << indent << supernode << "(" << superNode << "->" << tailends[superNode] << ") = "
                               << supernodeTransferWeightCoeffPortal.Get(supernode).h1 << " " \
                               << supernodeTransferWeightCoeffPortal.Get(supernode).h2 << " " \
                               << supernodeTransferWeightCoeffPortal.Get(supernode).h3 << " " \
                               << supernodeTransferWeightCoeffPortal.Get(supernode).h4 << " = "; // std::endl;
-
+#endif
 
 
             a_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h1 * std::pow(tailends[superNode], 3);
@@ -6535,18 +6592,21 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
             c_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
             d_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h4;
 
+#if DEBUG_PRINT_PACTBD
             std::cout << a_coeff + b_coeff + c_coeff + d_coeff << " [Write to s4ST]" << std::endl;
-
+#endif
 
             // NEW: 2025-03-08 actually save the value to the dependent array SATWP:
             supernodeTransferWeightPortal.Set(supernode, a_coeff + b_coeff + c_coeff + d_coeff);
 
           }
-
+#if DEBUG_PRINT_PACTBD
 // 2025-03-08
 std::cout << "RECOMPUTE THE INTRINSIC ...\n";
+#endif
 for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
 {
+#if DEBUG_PRINT_PACTBD
   std::cout << "DEPENDENT-TRANSFER" << std::endl;
   std::cout << supernode << "=" << superarcDependentWeightPortal.Get(supernode)
             << "-(" << supernodeTransferWeightPortal.Get(supernode) << ") = "
@@ -6554,26 +6614,29 @@ for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++
 
   std::cout << "INTRINSIC BEFORE:" << std::endl;
   std::cout << supernode << "=" << superarcIntrinsicWeightPortal.Get(supernode) << std::endl;
+#endif
   superarcIntrinsicWeightPortal.Set(supernode,
                                     superarcDependentWeightPortal.Get(supernode)-supernodeTransferWeightPortal.Get(supernode));
+#if DEBUG_PRINT_PACTBD
   std::cout << "INTRINSIC AFTER:" << std::endl;
   std::cout << supernode << "=" << superarcIntrinsicWeightPortal.Get(supernode) << std::endl;
-
+#endif
 }
+#if DEBUG_PRINT_PACTBD
 std::cout << std::endl << std::endl;
 
           std::cout << std::endl << indent << "}\n" << std::endl;
 
           std::cout << std::endl << "}\n" << std::endl;
+#endif
 
 
-
+#if DEBUG_PRINT_PACTBD
           for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Supernodes.GetNumberOfValues(); sortedNode++)
           { // per node in sorted
 
               vtkm::Id sortID = nodesPortal.Get(sortedNode);
               vtkm::Id superparent = superparentsPortal.Get(sortID);
-
               std::cout << "SP: " << superparent << " - "; //superparentsPortal.Get(sortedNode) << " - ";
               std::cout << "SA: " << sortedNode << std::setw(10) << " " << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h1 << "\t";
               std::cout << std::setw(10) << superarcIntrinsicWeightCoeffPortal.Get(sortedNode).h2 << "\t";
@@ -6589,10 +6652,10 @@ std::cout << std::endl << std::endl;
               std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h2 << "\t";
               std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h3 << "\t";
               std::cout << std::setw(10) << supernodeTransferWeightCoeffPortal.Get(sortedNode).h4 << std::endl;
-
           }
+#endif
 
-
+#if DEBUG_PRINT_PACTBD
           std::cout << "-------------------------------- vvv INCORRECT PLACE TO RECOMPUTE INTRINSIC vvv --------------------------------------" << std::endl;
             // INCORRECT PLACE TO RECOMPUTE INTRINSIC:
 //          std::cout << std::endl;
@@ -6612,7 +6675,8 @@ std::cout << std::endl << std::endl;
 
 
           std::cout << "-------------------------------- ^^^ INCORRECT PLACE TO RECOMPUTE INTRINSIC ^^^ --------------------------------------" << std::endl;
-
+#endif
+#if DEBUG_PRINT_PACTBD
           std::cout << std::endl << std::endl << "Superarc Intrinsic Weight Portal:" << std::endl;
           for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
           {
@@ -6644,7 +6708,7 @@ std::cout << std::endl << std::endl;
           std::cout << "----------------------------------------------------------------------" << std::endl;
 
           std::cout << std::endl;
-
+#endif
         }   // per iteration
 
 
@@ -6656,7 +6720,9 @@ for(int i = 0; i < supernodeTransferWeightPortal.GetNumberOfValues(); i++)
 std::cout << std::endl;
 
 // 2025-03-09 RECOMPUTE THE INTRINSIC (FLOATING POINT) FROM THE CORRECT DEPENDENT AND TRANSFER CONNECTIONS:
+#if DEBUG_PRINT_PACTBD
 std::cout << "RECOMPUTING TRANSFER" << std::endl;
+#endif
 for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
 {
     vtkm::Id sortID = nodesPortal.Get(sortedNode);
@@ -6672,10 +6738,11 @@ for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues();
 
     if(superparent != previousParent )
     {
+#if DEBUG_PRINT_PACTBD
         //        std::cout << "----------------------------------------------------------------------" << std::endl;
         std::cout << "SP: " << superparent << " - " << sortID << " ~ HP: " << hyperparent << " (HA Target: " << hyperarcTarget
                   << " | SA Target: " << supertarget << "), next=" << nextSuperparent << "\n";
-
+#endif
         if(supertarget)
         {
             supernodeTransferWeightPortal.Set(supertarget,
@@ -6691,7 +6758,9 @@ for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues();
 }
 
 // 2025-03-09 RECOMPUTE THE INTRINSIC (FLOATING POINT) FROM THE CORRECT DEPENDENT AND TRANSFER CONNECTIONS:
+#if DEBUG_PRINT_PACTBD
 std::cout << "RECOMPUTING INTRINSIC" << std::endl;
+#endif
 for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 {
     superarcIntrinsicWeightPortal.Set(i, superarcDependentWeightPortal.Get(i) - supernodeTransferWeightPortal.Get(i));
@@ -6720,7 +6789,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 ////    }
 //}
 
-
+#if DEBUG_PRINT_PACTBD
         std::cout << std::endl << "Superarc Intrinsic Weight Portal:" << std::endl;
         for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
         {
@@ -6749,7 +6818,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
             std::cout << i << " -> " << hyperarcDependentWeightPortal.Get(i) << std::endl;
         }
         std::cout << std::endl;
-
+#endif
         std::cout << "END ComputeVolumeWeightsSerialStructCoefficients" << std::endl;
 
     }  // END ComputeVolumeWeightsSerialStructCoefficients
@@ -8290,11 +8359,11 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       std::cout << "totalVolume = " << totalVolume << std::endl;
       std::cout << "totalVolumeFloat = " << totalVolumeFloat << std::endl;
 
+#if DEBUG_PRINT_PACTBD
       std::cout << "\n" << "----------------- Computing Up/Down Weights -----------------" << std::endl;
 
-    #ifdef DEBUG_PRINT
       std::cout << "Total Volume: " << totalVolume << std::endl;
-    #endif
+#endif
       // superarcs array stores the destination (supernode ID) of each superarc
       // the origin (source) of the superarc is always the supernode ID as the superarc ID
       auto superarcsPortal = contourTree.Superarcs.ReadPortal();
@@ -8308,23 +8377,23 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       // i.e we loop to N superarcs, not to N supernodes since N superarcs = supernodes-1
       for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++) //  for (vtkm::Id supernode = 0; supernode < nsupernodes-1; supernode++) vtkm::Id supernode = superarc (temporary variable)
       { // per superarc
-
+#if DEBUG_PRINT_PACTBD
         std::cout << "Processing superarc: " << superarc << std::endl << "{" << std::endl;
-
+#endif
         if (IsAscending(superarcsPortal.Get(superarc))) // flag on the ID of superarc
         { // ascending superarc
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "ASCENDING\n";
-
+#endif
             // put the lower-end first
           superarcListWritePortal.Set(superarc, // each superarc starts at the supernode at the same ID and goes to the supernode whose ID is stored in the superarc's array
                                       // pair the origin and the destination of that superarc. We store them in an edge pair and write it to the array
                                       EdgePair(superarc, MaskedIndex(superarcsPortal.Get(superarc))));
 
           vtkm::Id superNode = supernodesPortal.Get(superarc);
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << superarc << " = " << superNode << " -> " << MaskedIndex(superarcsPortal.Get(superarc)) << std::endl << std::endl;
-
+#endif
           // because this is an ascending superarc, the dependent weight refers to the weight at the upper end
           // so, we set the up weight based on the dependent weight
 //          upWeightPortal.Set(superarc, superarcDependentWeightPortal.Get(superarc));
@@ -8352,7 +8421,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
                                    // below is the invert operator for node count!
                                    (totalVolumeFloat - superarcDependentWeightCorrectReadPortal.Get(superarc)) +
                                      (superarcIntrinsicWeightCorrectReadPortal.Get(superarc) - 1));
-
+#if DEBUG_PRINT_PACTBD
 //          std::cout << indent << "upWeightPortal             = " << upWeightPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatPortal        = " << upWeightFloatPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatCorrectPortal = " << upWeightFloatCorrectPortal.Get(superarc) << std::endl;
@@ -8362,13 +8431,13 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
           std::cout << indent << "downWeightFloatCorrectPortal = " << downWeightFloatCorrectPortal.Get(superarc) << std::endl;
 
           std::cout << "\n}\n";
-
+#endif
         } // ascending superarc
         else
         { // descending superarc
-
+#if DEBUG_PRINT_PACTBD
           std::cout << indent << "DESCENDING\n";
-
+#endif
           // lower-end is also first, but in the reverse order compared to IsAscending
           superarcListWritePortal.Set(superarc,
                                       EdgePair(MaskedIndex(superarcsPortal.Get(superarc)), superarc));
@@ -8398,7 +8467,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
                                    // below is the invert operator for node count!
                                    (totalVolumeFloat - superarcDependentWeightCorrectReadPortal.Get(superarc)) +
                                      (superarcIntrinsicWeightCorrectReadPortal.Get(superarc) - 1));
-
+#if DEBUG_PRINT_PACTBD
 //          std::cout << indent << "upWeightPortal      = " << upWeightPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatPortal = " << upWeightFloatPortal.Get(superarc) << std::endl;
           std::cout << indent << "upWeightFloatCorrectPortal = " << upWeightFloatCorrectPortal.Get(superarc) << std::endl;
@@ -8408,7 +8477,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
           std::cout << indent << "downWeightFloatCorrectPortal = " << downWeightFloatCorrectPortal.Get(superarc) << std::endl;
 
           std::cout << "\n}\n";
-
+#endif
 
         } // descending superarc
       }   // per superarc
@@ -8416,7 +8485,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     std::cout << std::endl;
 
     //JUMP
-
+#if DEBUG_PRINT_PACTBD
     std::cout << "Up Weights (float)" << std::endl;
     for (vtkm::Id superarc = 0; superarc < nSuperarcs; superarc++)
     {
@@ -8447,8 +8516,8 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
 //        std::cout << superarc << "(" << superNode  << ") = " << downWeightPortal.Get(superarc) << std::endl;
 //    }
-
-    #ifdef DEBUG_PRINT
+#endif
+    #ifdef DEBUG_PRINT_PACTBD
       std::cout << "II A. Weights Computed" << std::endl;
       PrintHeader(upWeightFloatCorrect.GetNumberOfValues());
       PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
@@ -8561,7 +8630,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
         } // not the last one
       }   // per superarc
 
-    #ifdef DEBUG_PRINT
+    #ifdef DEBUG_PRINT_PACTBD
       std::cout << "II. Best Edges Selected" << std::endl;
       PrintHeader(bestUpward.GetNumberOfValues());
       PrintIndices("Best Upwards", bestUpward);
@@ -8719,7 +8788,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     // TODO: take the sum over the - total volume of the mesh
     vtkm::Id totalVolume = contourTree.Nodes.GetNumberOfValues();
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout << "Total Volume: " << totalVolume << std::endl;
 #endif
     // superarcs array stores the destination (supernode ID) of each superarc
@@ -8763,7 +8832,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       } // descending superarc
     }   // per superarc
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout << "II A. Weights Computed" << std::endl;
     PrintHeader(upWeight.GetNumberOfValues());
     //PrintIndices("Intrinsic Weight", superarcIntrinsicWeight);
@@ -8835,7 +8904,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       } // not the last one
     }   // per superarc
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout << "II. Best Edges Selected" << std::endl;
     PrintHeader(bestUpward.GetNumberOfValues());
     PrintIndices("Best Upwards", bestUpward);
@@ -8900,7 +8969,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       propagateBestUpDownWorklet;
     invoke(propagateBestUpDownWorklet, bestUpward, bestDownward, whichBranch);
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "III. Branch Neighbours Identified" << std::endl;
     PrintHeader(whichBranch.GetNumberOfValues());
     PrintIndices("Which Branch", whichBranch);
@@ -8927,7 +8996,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
     // --------------------------------------------------- POINTER DOUBLING END --------------------------------------------------- //
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "IV. Branch Chains Propagated" << std::endl;
     PrintHeader(whichBranch.GetNumberOfValues());
     PrintIndices("Which Branch", whichBranch);
@@ -8958,7 +9027,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     vtkm::cont::ArrayCopy(noSuchElementArrayNBranches, branchSaddle);
     vtkm::cont::ArrayCopy(noSuchElementArrayNBranches, branchParent);
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "V. Branch Arrays Created" << std::endl;
     PrintHeader(chainToBranch.GetNumberOfValues());
     PrintIndices("Chain To Branch", chainToBranch);
@@ -8984,7 +9053,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     permutedRegularID.Allocate(nSupernodes);
     PermuteArray<vtkm::Id>(contourTree.Supernodes, supernodeSorter, permutedRegularID);
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "VI A. Sorted into Branches" << std::endl;
     PrintHeader(nSupernodes);
     PrintIndices("Supernode IDs", supernodeSorter);
@@ -9010,7 +9079,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 //    PrintIndices("Branch Parent", branchParent);
 
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "VI. Branches Set" << std::endl;
     PrintHeader(nBranches);
     PrintIndices("Branch Maximum", branchMaximum);
@@ -9030,7 +9099,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
            branchSaddle,
            branchParent);
 
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_PRINT_PACTBD
     std::cout <<  std::endl << std::endl << "VII. Branches Constructed" << std::endl;
     PrintHeader(nBranches);
     PrintIndices("Branch Maximum", branchMaximum);

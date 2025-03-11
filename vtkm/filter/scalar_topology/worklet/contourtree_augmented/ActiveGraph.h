@@ -116,7 +116,7 @@
 
 namespace active_graph_inc_ns = vtkm::worklet::contourtree_augmented::active_graph_inc;
 
-#define PACT_DEBUG 0
+#define DEBUG_PRINT_PACTBD 0
 
 
 namespace vtkm
@@ -343,7 +343,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
   // reference to the correct array in the extrema
   /// DEBUG PRINT std::cout << "--------------- ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::ContourTreeMesh --------------- \n";
   /// DEBUG PRINT std::cout << "C++ Partial Template Specialization\n";
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       PrintHeader(meshExtrema.Peaks.GetNumberOfValues());
       PrintIndices("MeshExtremaPeaks", meshExtrema.Peaks);
       PrintIndices("MeshExtremaPits", meshExtrema.Pits);
@@ -359,7 +359,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
   // ... the number of edge end-points higher (up) or lower (down) than itself
   bool up_or_down = this->IsJoinGraph ? true : false;
 
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       for(unsigned i = 0; i < mesh.NumVertices; i++)
       {
           PrintIndices("mesh.NeighborConnectivity", mesh.NeighborConnectivity);
@@ -414,14 +414,14 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
 
 //  PrintIndices("FOR_INIT:sortIndexArray",    sortIndexArray);
 //  PrintIndices("FOR_INIT:outDegrees",        outDegrees);
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       PrintIndices("FOR_INIT:inverseIndex",      inverseIndex);
       PrintIndices("FOR_INIT:extrema",           extrema);
       PrintIndices("FOR_INIT:activeIndices",     activeIndices);
   #endif
 
   /// DEBUG PRINT std::cout << "A10\n";
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       PrintIndices("INIT:activeIndices",     activeIndices);
       PrintIndices("INIT:GlobalIndex",    this->GlobalIndex);
       PrintIndices("INIT:Outdegree",      this->Outdegree);
@@ -514,7 +514,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
   }
 
 
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       PrintIndices("VX:ActiveIndices",  activeIndices);
       PrintIndices("VX:GlobalIndex",    this->GlobalIndex);
       PrintIndices("VX:Outdegree",      this->Outdegree);
@@ -541,7 +541,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
 //  active_graph_inc_ns::InitializeActiveEdges<Mesh> initActiveEdgesWorklet;
   active_graph_inc_ns::InitializeActiveEdges<vtkm::worklet::contourtree_augmented::ContourTreeMesh<int>> initActiveEdgesWorklet;
 
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
       std::cout << "vvv ALL ACTIVE EDGES INITIALIZED! vvv\n";
       PrintIndices("ACTIVE EDGES", this->ActiveEdges);
       PrintIndices("NEAR", this->EdgeNear);
@@ -624,7 +624,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
   /// DEBUG PRINT std::cout << "DOWN\n";
   }
 
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
         printf("INVOKER() on: %s\n", __PRETTY_FUNCTION__);
         std::cout << "Invoker3\n";
       std::cout << "vvv ALL ACTIVE EDGES GATHERED! vvv\n";
@@ -653,7 +653,7 @@ inline void ActiveGraph::Initialise(vtkm::worklet::contourtree_augmented::Contou
   /// DEBUG PRINT std::cout << "A14\n";
   vtkm::cont::Algorithm::Copy(this->ActiveEdges, this->EdgeSorter);
 
-  #if PACT_DEBUG
+  #if DEBUG_PRINT_PACTBD
         printf("INVOKER() on: %s\n", __PRETTY_FUNCTION__);
         std::cout << "Invoker3\n";
   std::cout << "ActiveGraph - finished\n";
@@ -1530,7 +1530,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 //  std::cout << "--------------- extrema.DebugPrint(message, message, 100); --------------- \n";
 //  std::cout << "C++ Partial Template Specialization\n";
 ////  meshExtrema.DebugPrint(message, message, workaround);
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      PrintHeader(meshExtrema.Peaks.GetNumberOfValues());
 //      PrintIndices("MeshExtremaPeaks", meshExtrema.Peaks);
 //      PrintIndices("MeshExtremaPits", meshExtrema.Pits);
@@ -1542,7 +1542,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 //  const IdArrayType& extrema = this->IsJoinGraph ? meshExtrema.Peaks : meshExtrema.Pits;
 //  bool up_or_down = this->IsJoinGraph ? true : false; //meshExtrema.Peaks : meshExtrema.Pits;
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      for(unsigned i = 0; i < mesh.NumVertices; i++)
 //      {
 //          PrintIndices("mesh.NeighborConnectivity", mesh.NeighborConnectivity);
@@ -1580,7 +1580,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 ////               neighbourhoodMasks, // output
 ////               outDegrees);        // output
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      std::cout << "------------------------------- fine until here -------------------------------\n";
 //      std::cout << "(Just initialised sort indices and outdegs up there...)\n";
 //      std::cout << "------------------------------- fine until here -------------------------------\n";
@@ -1632,7 +1632,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 
 ////  PrintIndices("FOR_INIT:sortIndexArray",    sortIndexArray);
 ////  PrintIndices("FOR_INIT:outDegrees",        outDegrees);
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      PrintIndices("FOR_INIT:inverseIndex",      inverseIndex);
 //      PrintIndices("FOR_INIT:extrema",           extrema);
 //      PrintIndices("FOR_INIT:activeIndices",     activeIndices);
@@ -1651,7 +1651,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 ////               this->Hyperarcs,
 ////               this->ActiveVertices);
 //  std::cout << "A10\n";
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      PrintIndices("INIT:activeIndices",     activeIndices);
 //      PrintIndices("INIT:GlobalIndex",    this->GlobalIndex);
 //      PrintIndices("INIT:Outdegree",      this->Outdegree);
@@ -1814,7 +1814,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 ////      }
 ////  }
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      PrintIndices("VX:ActiveIndices",  activeIndices);
 //      PrintIndices("VX:GlobalIndex",    this->GlobalIndex);
 //      PrintIndices("VX:Outdegree",      this->Outdegree);
@@ -1851,7 +1851,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 ////  active_graph_inc_ns::InitializeActiveEdges<Mesh> initActiveEdgesWorklet;
 //  active_graph_inc_ns::InitializeActiveEdges<vtkm::worklet::contourtree_augmented::ContourTreeMesh<int>> initActiveEdgesWorklet;
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //      std::cout << "vvv ALL ACTIVE EDGES INITIALIZED! vvv\n";
 //      PrintIndices("ACTIVE EDGES", this->ActiveEdges);
 //      PrintIndices("NEAR", this->EdgeNear);
@@ -2011,7 +2011,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 //    std::cout << "DOWN\n";
 //  }
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //        printf("INVOKER() on: %s\n", __PRETTY_FUNCTION__);
 //        std::cout << "Invoker3\n";
 //      std::cout << "vvv ALL ACTIVE EDGES GATHERED! vvv\n";
@@ -2040,7 +2040,7 @@ inline void ActiveGraph::Initialise(Mesh& mesh, const MeshExtrema& meshExtrema)
 //  std::cout << "A14\n";
 //  vtkm::cont::Algorithm::Copy(this->ActiveEdges, this->EdgeSorter);
 
-//  #if PACT_DEBUG
+//  #if DEBUG_PRINT_PACTBD
 //        printf("INVOKER() on: %s\n", __PRETTY_FUNCTION__);
 //        std::cout << "Invoker3\n";
 //  std::cout << "ActiveGraph - finished\n";
@@ -4007,7 +4007,7 @@ inline void ActiveGraph::ReleaseTemporaryArrays()
 // prints the contents of the active graph in a standard format
 inline void ActiveGraph::DebugPrint(const char* message, const char* fileName, long lineNum)
 { // DebugPrint()
-#ifdef DEBUG_PRINT // WE WANT DEBUG PRINT ACTIVE GRAPH
+#if DEBUG_PRINT_PACTBD // WE WANT DEBUG PRINT ACTIVE GRAPH
   std::cout << "------------------------------------------------------" << std::endl;
   std::cout << std::setw(30) << std::left << fileName << ":" << std::right << std::setw(4)
             << lineNum << std::endl;
