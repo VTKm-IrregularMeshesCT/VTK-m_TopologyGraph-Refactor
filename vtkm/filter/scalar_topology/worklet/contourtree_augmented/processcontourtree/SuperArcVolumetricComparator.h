@@ -74,7 +74,8 @@ public:
   using IdPortalType = vtkm::cont::ArrayHandle<vtkm::Id>::ReadPortalType;
   using EdgePairArrayPortalType = EdgePairArray::ReadPortalType;
 
-    using ValueType = vtkm::Float32;
+//    using ValueType = vtkm::Float32;
+using ValueType = vtkm::Float64; //vtkm::FloatDefault;
     using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
     using FloatPortalType = vtkm::cont::ArrayHandle<ValueType>::ReadPortalType;
 
@@ -213,7 +214,8 @@ class SuperArcVolumetricComparator : public vtkm::cont::ExecutionObjectBase
 { // SuperArcVolumetricComparator
 
 
-    using ValueType = vtkm::Float32;
+//    using ValueType = vtkm::Float32;
+using ValueType = vtkm::Float64; //vtkm::FloatDefault;
     using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 
 public:

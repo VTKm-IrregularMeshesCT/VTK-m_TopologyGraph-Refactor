@@ -1352,13 +1352,17 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // PACTBD-EDIT
 //    int num_datapoints = 101;
 //    int num_datapoints = 1001;
-    int num_datapoints = 10001;
+//    int num_datapoints = 10001;
+//    int num_datapoints = 99972;
+//    int num_datapoints = 200001;
+    int num_datapoints = 985181;
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
     // PACTBD-EDIT
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
     // ARCHER2
-    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";

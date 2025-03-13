@@ -104,10 +104,15 @@ VTKM_THIRDPARTY_POST_INCLUDE
 #include <chrono>
 #include <thread>
 
+#include <valgrind/callgrind.h>
+
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
 
-using ValueType = vtkm::Float32;
+//using vtkm::FloatDefault = vtkm::Float64;
+
+//    using ValueType = vtkm::Float32;
+using ValueType = vtkm::Float64; //vtkm::FloatDefault;
 using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 using BranchType = vtkm::worklet::contourtree_augmented::process_contourtree_inc::Branch<ValueType>;
 
@@ -617,6 +622,30 @@ int main(int argc, char* argv[])
 
       // DEBUG SLEEP std::this_thread::sleep_for(std::chrono::seconds(10));
   }
+
+  else if (filename.compare(filename.length() - 3, 3, "foo") == 0)
+  {
+    std::cout << "Foo file: " << filename << "\n";
+
+    // build the input dataset
+    vtkm::cont::DataSetBuilderUniform dsb;
+
+    int dimsx = 2;
+    values.resize(dimsx*dimsx*dimsx);
+
+    vtkm::Id3 vdims;
+    vdims[0] = static_cast<vtkm::Id>(dimsx);
+    vdims[1] = static_cast<vtkm::Id>(dimsx);
+    vdims[2] = static_cast<vtkm::Id>(dimsx);
+
+    inDataSet = dsb.Create(vdims);
+
+    inDataSet.AddPointField("values", values);
+
+    /// DEBUG PRINT std::cout << "inDataSet ASCII summary\n";
+    inDataSet.PrintSummary(std::cout);
+  }
+
   else // Read ASCII data input
   {
     std::cout << "Reading file: " << filename << "\n";
@@ -935,6 +964,8 @@ int main(int argc, char* argv[])
 #if SLEEP_ON
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
+
+    CALLGRIND_START_INSTRUMENTATION;
     ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(filter.GetContourTree(),
                                                                               filter.GetNumIterations(),
                                                                               // The following four outputs are the coefficient tuples
@@ -955,6 +986,8 @@ int main(int argc, char* argv[])
                                                                               supernodeTransferWeightNEW,  // (output)
                                                                               hyperarcDependentWeightNEW); // (output)
 
+    CALLGRIND_STOP_INSTRUMENTATION;
+    CALLGRIND_DUMP_STATS;
 
     std::cout << "[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END" << std::endl;
 
@@ -1131,19 +1164,22 @@ int main(int argc, char* argv[])
 
       bool dataFieldIsSorted = true;
 
-      std::vector<float> std_nodes_sorted;
+      std::vector<vtkm::FloatDefault> std_nodes_sorted;
       // PACTBD-EDIT
-//      for(float i = 0.f; i < 29791.f; i += 1.f)
-//      for(float i = 0.f; i < 16.f; i += 1.f)
-//      for(float i = 0.f; i < 9.f; i += 1.f)
-//      for(float i = 0.f; i < 102.f; i += 1.f)
-      for(float i = 0.f; i < 10002.f; i += 1.f)
-//      for(float i = 0.f; i < 1002.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 29791.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
 
-      vtkm::cont::ArrayHandle<float> dataField =
+      vtkm::cont::ArrayHandle<vtkm::FloatDefault> dataField =
         vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
 #if DEBUG_PRINT_PACTBD
       for(unsigned i = 0; i < dataField.GetNumberOfValues(); i++)
@@ -1260,8 +1296,8 @@ int main(int argc, char* argv[])
       std::vector<vtkm::Id> saddle_rootingFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branchesFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> depth_FullBD = std::vector<vtkm::Id>();
-      std::vector<float>    branch_weightsFullBD = std::vector<float>();
-      std::vector<float>    branch_weights_write_FullBD = std::vector<float>();
+      std::vector<vtkm::FloatDefault>    branch_weightsFullBD = std::vector<vtkm::FloatDefault>();
+      std::vector<vtkm::FloatDefault>    branch_weights_write_FullBD = std::vector<vtkm::FloatDefault>();
       std::vector<bool>     main_branch_flags_FullBD = std::vector<bool>();
       std::vector<vtkm::Id> depth_write_FullBD = std::vector<vtkm::Id>();
       std::ofstream filegvbdfullBD("ContourTreeGraph--branch-decomposition-fullCT.gv");
@@ -1290,8 +1326,8 @@ int main(int argc, char* argv[])
       std::vector<vtkm::Id> saddle_rooting = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branches = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> depth = std::vector<vtkm::Id>();
-      std::vector<float>    branch_weights = std::vector<float>();
-      std::vector<float>    branch_weights_write = std::vector<float>();
+      std::vector<vtkm::FloatDefault>    branch_weights = std::vector<vtkm::FloatDefault>();
+      std::vector<vtkm::FloatDefault>    branch_weights_write = std::vector<vtkm::FloatDefault>();
       std::vector<bool>     main_branch_flags = std::vector<bool>();
       std::vector<vtkm::Id> depth_write = std::vector<vtkm::Id>();
 

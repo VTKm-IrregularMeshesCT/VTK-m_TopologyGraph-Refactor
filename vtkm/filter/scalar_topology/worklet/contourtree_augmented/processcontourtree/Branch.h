@@ -72,7 +72,8 @@ namespace contourtree_augmented
 {
 namespace process_contourtree_inc
 {
-using ValueType = vtkm::Float32;
+//    using ValueType = vtkm::Float32;
+using ValueType = vtkm::Float64; //vtkm::FloatDefault;
 using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 
 
@@ -131,8 +132,8 @@ public:
   void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles,
                                    std::vector<vtkm::Id>& local_branches,
                                    std::vector<vtkm::Id>& depth,
-                                   std::vector<float>& branch_weights,
-                                   std::vector<float>& branch_weights_write,
+                                   std::vector<vtkm::FloatDefault>& branch_weights,
+                                   std::vector<vtkm::FloatDefault>& branch_weights_write,
                                    std::vector<bool>& main_branch_flags,
                                    std::vector<vtkm::Id>& depths_write,
                                    vtkm::Id parent_saddle,
@@ -662,6 +663,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 #if DEBUG_PRINT_PACTBD
         std::cout << branch_SP_map[i][j] << " ";
 #endif
+//        if (!std::isnan(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j])))
         branches[i]->VolumeFloat += superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
     }
 #if DEBUG_PRINT_PACTBD
@@ -1016,8 +1018,8 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
                                             std::vector<vtkm::Id>& saddles,
                                             std::vector<vtkm::Id>& local_branches,
                                             std::vector<vtkm::Id>& depth,
-                                            std::vector<float>& branch_weights,
-                                            std::vector<float>& branch_weights_write,
+                                            std::vector<vtkm::FloatDefault>& branch_weights,
+                                            std::vector<vtkm::FloatDefault>& branch_weights_write,
                                             std::vector<bool>& main_branch_flags,
                                             std::vector<vtkm::Id>& depths_write,
                                             vtkm::Id parent_saddle,
