@@ -57,6 +57,10 @@
 using namespace std;
 using namespace vtkm;
 
+using Coefficients = vtkm::worklet::contourtree_augmented::Coefficients;
+using FloatArrayType = vtkm::cont::ArrayHandle<vtkm::Float64>;
+namespace ctaug_ns = vtkm::worklet::contourtree_augmented;
+
 vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(vtkm::cont::DataSet inputData,
                                                                                std::string fieldName,
                                                                                std::string inputCTFilename,
@@ -68,6 +72,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 {//computeMostSignificantContours
     // debug >= 1, print what is being currently computed with timings
     // debug >= 2, print contour tree arrays and isosurfac triangles
+
+    std::cout << "computeMostSignificantContours() " << std::endl;
+
     int debugLevel = 1;
 
     //
@@ -88,10 +95,12 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
     if (true == inputCTFilename.empty())
     {
+        std::cout << "No ContourTree input, generating it from scratch ..." << std::endl;
         tie(ct, ctSortOrder, ctSortIndices, ctNumIterations) = cv1k::ct::getContourTree(inputData, fieldName);
     }
     else
     {
+        std::cout << "Reading in the ContourTree from file: " << inputCTFilename << std::endl;
         tie(ct, ctSortOrder, ctNumIterations) = cv1k::ct::readContourTree(inputCTFilename);
     }
 
@@ -105,6 +114,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     //
     // Compute Branch Decomposition
     //
+
+    // ============================================== Traditional CT ============================================== //
+
     cont::ArrayHandle<vtkm::Id> whichBranch;
     cont::ArrayHandle<vtkm::Id> branchMinimum;
     cont::ArrayHandle<vtkm::Id> branchMaximum;
@@ -115,6 +127,22 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     cont::ArrayHandle<Id> superarcDependentWeight;
     cont::ArrayHandle<Id> supernodeTransferWeight;
     cont::ArrayHandle<Id> hyperarcDependentWeigh;
+
+    // ================================================= PACT-BD ================================================= //
+
+    // Floating point type weights are required for PACT-BD
+    FloatArrayType superarcIntrinsicWeightNEW;
+    FloatArrayType superarcDependentWeightNEW;
+    FloatArrayType supernodeTransferWeightNEW;
+    FloatArrayType hyperarcDependentWeightNEW;
+
+    // compute the branch decomposition by volume (these remain the same for PACT-BD)
+    // The following arrays are already defined
+    //        ctaug_ns::IdArrayType whichBranch;
+    //        ctaug_ns::IdArrayType branchMinimum;
+    //        ctaug_ns::IdArrayType branchMaximum;
+    //        ctaug_ns::IdArrayType branchSaddle;
+    //        ctaug_ns::IdArrayType branchParent;
 
     if ("volume" == decompositionType)
     {
@@ -140,6 +168,46 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 );
 
     }
+    else if ("pactbd" == decompositionType)
+    {
+        std::cout << "Branch Weights Chosen: PACTBD" << std::endl;
+
+        vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightCoeffs;
+        vtkm::cont::ArrayHandle<Coefficients> superarcDependentWeightCoeffs;
+        vtkm::cont::ArrayHandle<Coefficients> supernodeTransferWeightCoeffs;
+        vtkm::cont::ArrayHandle<Coefficients> hyperarcDependentWeightCoeffs;
+
+        ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(ct,
+                                                                                  ctNumIterations,
+                                                                                  // The following four outputs are the coefficient tuples
+                                                                                  // (such as h1, h2, h3, h4 pairs)
+                                                                                  superarcIntrinsicWeightCoeffs,  // (output)
+                                                                                  superarcDependentWeightCoeffs,  // (output)
+                                                                                  supernodeTransferWeightCoeffs,  // (output)
+                                                                                  hyperarcDependentWeightCoeffs,
+                                                                                  // 2025-01-30 added additional output ...
+                                                                                  // ... to have access to "collapsed" TODO termdefine
+                                                                                  // ("collapsed" = computed single value weight, ...
+                                                                                  //  ... instead of N-length coefficient tuples)
+                                                                                  // These "collapsed" weights are used for ...
+                                                                                  // ... computing branch weights without relying on ...
+                                                                                  // ... the node count on the branches
+                                                                                  superarcIntrinsicWeightNEW,  // (output)
+                                                                                  superarcDependentWeightNEW,  // (output)
+                                                                                  supernodeTransferWeightNEW,  // (output)
+                                                                                  hyperarcDependentWeightNEW); // (output)
+
+
+        ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(ct,
+                                                                                  superarcDependentWeightNEW,
+                                                                                  superarcIntrinsicWeightNEW,
+                                                                                  whichBranch,   // (output)
+                                                                                  branchMinimum, // (output)
+                                                                                  branchMaximum, // (output)
+                                                                                  branchSaddle,  // (output)
+                                                                                  branchParent); // (output)
+    }
+
     else if("height" == decompositionType)
     {
         std::cout << "Branch Weights Chosen: HEIGHT" << std::endl;
@@ -227,6 +295,30 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
             superarcDependentWeight,
             branchIsovalueFlag
             );
+
+    if ("pactbd" == decompositionType)
+    {
+        computeAdditionalBranchDataFloat(
+                inputData,
+                fieldName,
+                ct,
+                ctSortOrder,
+                whichBranch,
+                branchMinimum,
+                branchSaddle,
+                branchMaximum,
+                whichBranchRegular,
+                branchEndpointsRegular,
+                branchEndpoints,
+                branchHeightArray,
+                branchIsovalueHeightArray,
+                branchIsovalueArray,
+                branchPointVolumeArray,
+                superarcIntrinsicWeightNEW,
+                superarcDependentWeightNEW,
+                branchIsovalueFlag
+                );
+    }
 
     // Prevent getting more branches than we have available
     int numberOfBranches = min(static_cast<unsigned long long>(simplificationThreshold), static_cast<unsigned long long>(branchMaximum.GetNumberOfValues()));
@@ -569,6 +661,174 @@ void cv1k::interface::computeAdditionalBranchData(
         cont::ArrayHandle<Float64> &branchPointVolumeArray,
         const cont::ArrayHandle<Id> superarcIntrinsicWeight, 
         const cont::ArrayHandle<Id> superarcDependentWeight,
+        const std::string branchIsovalueFlag
+        )
+{
+    // Compute the volume of every branch.
+    for (int i = 0 ; i < branchPointVolumeArray.GetNumberOfValues() ; i++)
+    {
+        branchPointVolumeArray.WritePortal().Set(i, 1);
+    }
+
+    using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
+    // @TODO Should I use intrinsic of dependent weight?
+    std::cout << "SuperArc to Branch ID mappings (num. mappings: "
+              << superarcIntrinsicWeight.GetNumberOfValues() << "=num. of superarcs):" << std::endl;
+    for (int i = 0 ; i < superarcIntrinsicWeight.GetNumberOfValues() ; i++)
+    {
+        Id branchId = whichBranch.ReadPortal().Get(i);
+
+#ifdef DEBUG_PRINT
+        std::cout << "SA " << i << " -> BID: " << branchId << std::endl;
+#endif
+
+        if (branchId != NO_SUCH_ELEMENT)
+        {
+            branchPointVolumeArray.WritePortal().Set(branchId, 1);
+            Id currentWeight = branchPointVolumeArray.ReadPortal().Get(branchId);
+            //Id weight = superarcIntrinsicWeight.ReadPortal().Get(i);
+            Id weight = superarcDependentWeight.ReadPortal().Get(i);
+
+            branchPointVolumeArray.WritePortal().Set(branchId, currentWeight + weight);
+        }
+    }
+
+    std::vector<std::tuple<vtkm::Id, vtkm::Id, vtkm::Id, vtkm::Float64>> branchEndpointsStd;
+
+    // Converts the branches to mesh vertex endpoints and compute isovalue
+    std::cout << "Computing isovalues for each branch (total num. isovalues: "
+              << branchMinimum.GetNumberOfValues() << "=num. of branches):" << std::endl;
+
+    for (int i = 0 ; i < branchMinimum.GetNumberOfValues() ; i++)
+    {
+        using vtkm::worklet::contourtree_augmented::MaskedIndex;
+
+        Id branchHeight = 0;
+        Vec<Id, 2> endpoints;
+        Vec<Id, 2> regularEndpoints;
+
+        Id max = MaskedIndex(ct.Supernodes.ReadPortal().Get(MaskedIndex(branchMaximum.ReadPortal().Get(i))));
+        Id min = MaskedIndex(ct.Supernodes.ReadPortal().Get(MaskedIndex(branchMinimum.ReadPortal().Get(i))));
+        Id saddle = MaskedIndex(ct.Supernodes.ReadPortal().Get(MaskedIndex(branchSaddle.ReadPortal().Get(i))));
+
+        // 0 for descending, 1 for ascending, 2 for Master,
+        int branchType = -1;
+
+        // Determine the type of the branch and set its endpoints
+        using vtkm::worklet::contourtree_augmented::NoSuchElement;
+        if (false == NoSuchElement(branchSaddle.ReadPortal().Get(static_cast<vtkm::Id>(i))))
+        {
+            if (min < saddle)
+            {
+                endpoints = {ctSortOrder.ReadPortal().Get(min), ctSortOrder.ReadPortal().Get(saddle)};
+                regularEndpoints = {min, saddle};
+                branchHeight = saddle - min;
+                branchType = 0;
+            }
+            else if (saddle < max)
+            {
+                endpoints = {ctSortOrder.ReadPortal().Get(saddle), ctSortOrder.ReadPortal().Get(max)};
+                regularEndpoints = {saddle, max};
+                branchHeight = max - saddle;
+                branchType = 1;
+
+            }
+            else
+            {
+                assert(false);
+            }
+        }
+        else
+        {
+            endpoints = {ctSortOrder.ReadPortal().Get(min), ctSortOrder.ReadPortal().Get(max)};
+            regularEndpoints = {min, max};
+            branchHeight = max - min;
+            branchType = 2;
+        }
+
+        Float64 a = inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[0]);
+        Float64 b = inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[1]);
+
+        Float64 isovalue = 0.0;
+
+        if ("half" == branchIsovalueFlag)
+        {
+            isovalue = (a + b) / 2.0;
+#ifdef DEBUG_PRINT
+            std::cout << "Extracting at half the branch isovalue: " << isovalue
+                      << ", where its end values are: " << a << " and " << b << std::endl;
+#endif
+        }
+        else
+        {
+            vtkm::Float64 epsilon = 0.00000001f;
+            if (0 == branchType)
+            {
+                isovalue = b - epsilon;
+#ifdef DEBUG_PRINT
+                std::cout << "Extracting at branch isovalue - epsilon: " << isovalue
+                          << ", where its top end value is: " << b << std::endl;
+#endif
+            }
+            else if (1 == branchType)
+            {
+                isovalue = a + epsilon;
+#ifdef DEBUG_PRINT
+                std::cout << "Extracting at branch isovalue + epsilon: " << isovalue
+                          << ", where its bottom end value is: " << a << std::endl;
+#endif
+            }
+            else if (2 == branchType)
+            {
+                isovalue = a + (b - a) / 2.0;
+#ifdef DEBUG_PRINT
+                std::cout << "Extracting at branch isovalue + (b-a)/2: " << isovalue
+                          << ", where its end values are: " << a << " and " << b << std::endl;
+#endif
+            }
+            else
+            {   // Print even without debug mode because something weird is going on
+                std::cout << "Unexpected branch type encountered" << std::endl;
+                assert(false);
+            }
+
+        }
+
+#ifdef DEBUG_PRINT
+        std::cout << "BID " << i << "\t range = [" << std::setw(8) << std::fixed << std::setprecision(8) << a
+                  << " -> " << std::setw(8) << std::fixed <<std::setprecision(8) << b
+                  << "], isovalue = " << isovalue << " (volume = " << branchPointVolumeArray.ReadPortal().Get(i)
+                  << ")" << std::endl;
+#endif
+
+        branchIsovalueArray.WritePortal().Set(i, isovalue);
+        branchHeightArray.WritePortal().Set(i, branchHeight);
+        branchIsovalueHeightArray.WritePortal().Set(i, abs(a - b));
+
+        branchEndpoints.WritePortal().Set(i, {endpoints[0], endpoints[1]});
+        branchEndpointsRegular.WritePortal().Set(i, {regularEndpoints[0], regularEndpoints[1]});
+    }
+}
+
+
+void cv1k::interface::computeAdditionalBranchDataFloat(
+        const cont::DataSet inputData,
+        const string fieldName,
+        const worklet::contourtree_augmented::ContourTree ct,
+        const vtkm::cont::ArrayHandle<vtkm::Id> ctSortOrder,
+        const cont::ArrayHandle<Id> whichBranch,
+        const cont::ArrayHandle<Id> branchMinimum,
+        const cont::ArrayHandle<Id> branchSaddle,
+        const cont::ArrayHandle<Id> branchMaximum,
+        vector<Id> &whichBranchRegular,
+        cont::ArrayHandle<Vec<Id, 2>> &branchEndpointsRegular,
+        cont::ArrayHandle<Vec<Id, 2>> &branchEndpoints,
+        cont::ArrayHandle<Id> &branchHeightArray,
+        cont::ArrayHandle<Float64> &branchIsovalueHeightArray,
+        cont::ArrayHandle<Float64> &branchIsovalueArray,
+        cont::ArrayHandle<Float64> &branchPointVolumeArray,
+        const cont::ArrayHandle<Float64> superarcIntrinsicWeight,
+        const cont::ArrayHandle<Float64> superarcDependentWeight,
         const std::string branchIsovalueFlag
         )
 {

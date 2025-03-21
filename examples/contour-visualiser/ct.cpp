@@ -40,7 +40,7 @@
 // Now (in VTK-m 2.2) this file is in:
 #include <vtkm/filter/scalar_topology/ContourTreeUniformAugmented.h>
 
-#include <vtkm/filter/scalar_topology/ContourTreeUniformAugmented.h>
+//#include <vtkm/filter/scalar_topology/ContourTreeUniformAugmented.h>
 
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/MeshExtrema.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/DataSetMesh.h>
@@ -62,7 +62,9 @@ vtkm::Id> cv1k::ct::getContourTree(cont::DataSet inputData, string fieldName)
 
     // It's better to have the contour tree directly than to have the packaged output of the filter
     //cont::DataSet ctOutputData = ctFilter.Execute(inputData);
+    std::cout << "worklet/ContourTreeUniformAugmented::RunContourTree() ..." << std::endl;
     ctFilter.Execute(inputData);
+    std::cout << "... worklet/ContourTreeUniformAugmented::RunContourTree() finished." << std::endl;
 
     // These are permutation that map ct and mesh nodes to one another
     // sortOrder : ctNodeId   -> meshNodeId

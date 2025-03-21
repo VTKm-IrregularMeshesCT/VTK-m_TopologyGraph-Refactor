@@ -748,12 +748,14 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 //               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
 //      ->Volume++; // Increment Volume
 //  }
-
+#if DEBUG_PRINT_PACTBD
 std::cout << "Printing the supernode/branch mappings" << std::endl;
-
+#endif
   for(int i = 0; i < nBranches; i++)
   {
+#if DEBUG_PRINT_PACTBD
       std::cout << "branch[" << i << "] "  << "\t";
+#endif
 
 #if DEBUG_PRINT_PACTBD
     std::cout << i << " -> "

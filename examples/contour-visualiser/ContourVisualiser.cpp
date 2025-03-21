@@ -47,6 +47,8 @@
 // in VTK 2.2, both VTKDataSetWriter and VTKDataSetReader are under vtkm/io
 //#include <vtkm/io/reader/VTKDataSetReader.h> old version
 #include <vtkm/io/VTKDataSetReader.h>
+#include <vtkm/io/VTKUnstructuredGridReader.h>
+
 // same with BOVDataSetReader:
 //#include <vtkm/io/reader/BOVDataSetReader.h>
 #include <vtkm/io/BOVDataSetReader.h>
@@ -247,6 +249,68 @@ int main(int argc, char* argv[])
       inputData = reader.ReadDataSet();
       nDims = 3;
     }
+    else if (std::string::npos != fileName.find(".vtk"))
+    {
+        std::cout << "VTK file: " << fileName << "\n";
+        try
+        {
+//            vtkm::io::VTKDataSetReader reader(fileName);
+            vtkm::io::VTKUnstructuredGridReader reader(fileName);
+            reader.PrintSummary(std::cout);
+            inputData = reader.ReadDataSet();
+        }
+        catch(string message)
+        {
+            cerr << message;
+            return 1;
+        }
+    }
+    else if (fileName.compare(fileName.length() - 3, 3, "foo") == 0)
+    {
+      std::cout << "Foo file: " << fileName << "\n";
+
+      // build the input dataset
+      vtkm::cont::DataSetBuilderUniform dsb;
+
+      int dimsx = 2;
+      //      values.resize(dimsx*dimsx*dimsx);
+      // Enter custom sized values here
+      // (FOR PACT-BD-EDIT)
+      values.resize(10001);
+
+      vtkm::Id3 vdims;
+      vdims[0] = static_cast<vtkm::Id>(1);
+      vdims[1] = static_cast<vtkm::Id>(10001);
+      vdims[2] = static_cast<vtkm::Id>(1);
+
+//      std::vector<vtkm::FloatDefault> std_nodes_sorted;
+//      // PACTBD-EDIT
+////      for(vtkm::FloatDefault i = 0.f; i < 29791.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
+////      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
+//      {
+//        std_nodes_sorted.push_back(i);
+//      }
+
+//      vtkm::cont::ArrayHandle<vtkm::FloatDefault> dataField =
+//        vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
+
+      inputData = dsb.Create(vdims);
+
+      // inputData.AddPointField("values", values);
+      inputData.AddPointField(fieldName, values);
+
+      /// DEBUG PRINT std::cout << "inDataSet ASCII summary\n";
+      inputData.PrintSummary(std::cout);
+    }
+
     else // Read ASCII data input
     {
       std::cout << "Reading file: " << fileName << "\n";
@@ -318,9 +382,9 @@ int main(int argc, char* argv[])
       inputData.AddPointField(fieldName, values);
     } // END ASCII Read
 
-
+    std::cout << "Getting the Point Field ... " << std::endl;
     fieldName = inputData.GetPointField(fieldName).GetName();
-
+    std::cout << "Done! " << std::endl;
 
     // 
     // Only callled to write the ct to file

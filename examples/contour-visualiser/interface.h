@@ -65,6 +65,27 @@ namespace cv1k
                 std::string
                 );
 
+        void computeAdditionalBranchDataFloat(
+                const vtkm::cont::DataSet,
+                const std::string,
+                const vtkm::worklet::contourtree_augmented::ContourTree,
+                const vtkm::cont::ArrayHandle<vtkm::Id>,
+                const vtkm::cont::ArrayHandle<vtkm::Id>,
+                const vtkm::cont::ArrayHandle<vtkm::Id>,
+                const vtkm::cont::ArrayHandle<vtkm::Id>,
+                const vtkm::cont::ArrayHandle<vtkm::Id>,
+                std::vector<vtkm::Id>&,
+                vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Id, 2>>&,
+                vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Id, 2>>&,
+                vtkm::cont::ArrayHandle<vtkm::Id>&,
+                vtkm::cont::ArrayHandle<vtkm::Float64>&,
+                vtkm::cont::ArrayHandle<vtkm::Float64>&,
+                vtkm::cont::ArrayHandle<vtkm::Float64>&,
+                vtkm::cont::ArrayHandle<vtkm::Float64>,
+                vtkm::cont::ArrayHandle<vtkm::Float64>,
+                std::string
+                );
+
         std::vector<vtkm::Id> getBranchesSortedOrder(vtkm::cont::ArrayHandle<vtkm::Float64>, vtkm::cont::ArrayHandle<vtkm::Float64>);
     }
 }

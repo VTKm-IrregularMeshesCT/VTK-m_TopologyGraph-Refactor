@@ -145,6 +145,8 @@ public:
            unsigned int computeRegularStructure,
            const MeshBoundaryMeshExecType& meshBoundary)
   {
+    std::cout << "CTUA in another Run() before RunContourTree()" << std::endl;
+
     RunContourTree(
       fieldArray, // Just a place-holder to fill the required field. Used when calling SortData on the contour tree which is a no-op
       contourTree,
@@ -541,6 +543,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
            bool useMarchingCubes = false,
            unsigned int computeRegularStructure = 1)
   {
+    std::cout << "worklet/ContourTreeUniformAugmented::RunContourTree() Run()" << std::endl;
+
     // use marching cubes for debugging the topology graph:
     useMarchingCubes = false;
     /// DEBUG PRINT std::cout << "{sc_tp/worklet/ContourTreeUniformAugmented.h : Running augmented CT ...\n";
@@ -1283,6 +1287,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // 3D Contour Tree with Freudenthal
     else
     {      
+
+        std::cout << "else: worklet/ContourTreeUniformAugmented::RunContourTree() ..." << std::endl;
 //        // Uncomment below for Freudenthal tests:
 //        // NOTE: THIS EXPLICITLY CALLS THE CODE IN INITIALIZEACTIVEEDGES.H
 //        // ...   BE CAREFUL TO REMOVE THE MESH SAVING CODE IF CRASHING

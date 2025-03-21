@@ -1115,21 +1115,27 @@ int main(int argc, char* argv[])
     auto branchSaddlePortal  = branchSaddle.ReadPortal();
     auto branchParentPortal  = branchParent.ReadPortal();
 
-
+#if DEBUG_PRINT_PACTBD
     std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:\n" << std::endl;
     std::cout << "(ContourTreeApp.cxx) whichBranch:";
+#endif
 
     std::ofstream file("ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt");
 
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
+#if DEBUG_PRINT_PACTBD
         std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+#endif
         file << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
     }
 
     file.close();
 
+#if DEBUG_PRINT_PACTBD
     std::cout << std::endl;
+#endif
+
 #if DEBUG_PRINT_PACTBD
 
     std::cout << "(ContourTreeApp.cxx) branchMinimum:";

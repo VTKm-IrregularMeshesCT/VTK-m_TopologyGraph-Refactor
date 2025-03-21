@@ -5215,9 +5215,9 @@ public:
               }
 
 #if DEBUG_PRINT_PACTBD
-#endif
               std::cout << sortID << " - SP[" << superparent << "] = (" << sortedNode << "->" << tailends[superNodeID] << "\n";// << hypernode << " " << hyperarct << std::endl;
               file << sortID << "," << superparent << std::endl;
+#endif
 
               if (sortedNode == 0)
                 firstVertexForSuperparentPortal.Set(superparent, sortedNode);
