@@ -316,7 +316,8 @@ int main(int argc, char* argv[])
 #ifdef WITH_MPI
   VTKM_LOG_IF_S(vtkm::cont::LogLevel::Info, rank == 0, "Running with MPI. #ranks=" << size);
 #else
-  VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Single node run");
+//  VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Single node run");
+  VTKM_LOG_S(vtkm::cont::LogLevel::Warn, "Single node run");
   int rank = 0;
 #endif
 
@@ -526,6 +527,9 @@ int main(int argc, char* argv[])
   ///////////////////////////////////////////////
   // Read the input data
   ///////////////////////////////////////////////
+
+  std::cout << "Read the input data" << std::endl;
+
   vtkm::Float64 dataReadTime = 0;
   vtkm::Float64 buildDatasetTime = 0;
   std::vector<vtkm::Float32>::size_type nDims = 0;
@@ -806,6 +810,13 @@ int main(int argc, char* argv[])
   }
 #endif // WITH_MPI construct input dataset
 
+
+
+  const std::string RED = "\033[31m";
+   const std::string RESET = "\033[0m";
+
+   int file_io_counter = 0;
+
   currTime = totalTime.GetElapsedTime();
   // TIMING: Build VTKM Dataset (finish)
   buildDatasetTime = currTime - prevTime;
@@ -874,6 +885,10 @@ int main(int argc, char* argv[])
   ////////////////////////////////////////////
   // Compute the branch decomposition
   ////////////////////////////////////////////
+  ///
+  /// Declare the variable here since we do some file IO in the if statement too
+  vtkm::Float64 computeBranchDecompTime;
+  ///
   if (rank == 0 && computeBranchDecomposition && computeRegularStructure)
   {
 
@@ -1004,7 +1019,7 @@ int main(int argc, char* argv[])
     timingsStream << "    --------------- Branch Decomposition Timings " << rank
                   << " --------------" << std::endl;
     timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Weights"
-                  << ": " << branchDecompTimer.GetElapsedTime() << " seconds" << std::endl;
+                  << ": " << RED << branchDecompTimer.GetElapsedTime() << " seconds" << RESET << std::endl;
     branchDecompTimer.Start();
 
     // compute the branch decomposition by volume
@@ -1101,19 +1116,26 @@ int main(int argc, char* argv[])
     auto branchParentPortal  = branchParent.ReadPortal();
 
 
-
     std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:\n" << std::endl;
     std::cout << "(ContourTreeApp.cxx) whichBranch:";
+
+    std::ofstream file("ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt");
+
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
-        std::cout << whichBranchPortal.Get(branchID) << " ";
+        std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+        file << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
     }
+
+    file.close();
+
     std::cout << std::endl;
+#if DEBUG_PRINT_PACTBD
 
     std::cout << "(ContourTreeApp.cxx) branchMinimum:";
     for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
     {
-        std::cout << branchMinimumPortal.Get(branchID) << " ";
+        std::cout << branchMinimumPortal.Get(branchID) << std::endl;
     }
     std::cout << std::endl;
 
@@ -1138,11 +1160,13 @@ int main(int argc, char* argv[])
     }
     std::cout << std::endl;
 
+#endif
 
     // Record and log the branch decompostion timings
     timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Branch Decomposition"
                   << ": " << branchDecompTimer.GetElapsedTime() << " seconds" << std::endl;
-    VTKM_LOG_S(vtkm::cont::LogLevel::Info, timingsStream.str());
+//    VTKM_LOG_S(vtkm::cont::LogLevel::Info, timingsStream.str());
+    VTKM_LOG_S(vtkm::cont::LogLevel::Warn, timingsStream.str());
 
     /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: LOGGING DONE\n";
 
@@ -1170,11 +1194,12 @@ int main(int argc, char* argv[])
 //      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
-//      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
-      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
@@ -1197,11 +1222,13 @@ int main(int argc, char* argv[])
       auto superarcIntrinsicWeightNEWPortal = superarcIntrinsicWeightNEW.ReadPortal();
       auto superarcDependentWeightNEWPortal = superarcDependentWeightNEW.ReadPortal();
 
+#if DEBUG_PRINT_PACTBD
       std::cout << std::endl << "(ContourTreeApp.cxx) Superarc Intrinsic from decomposition:" << std::endl;
       for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
       {
           std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
       }
+#endif
 
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
@@ -1273,6 +1300,7 @@ int main(int argc, char* argv[])
           ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
             filter.GetContourTree().Superparents,
             filter.GetContourTree().Supernodes,
+            filter.GetContourTree().Superarcs,
             whichBranch,
             branchMinimum,
             branchMaximum,
@@ -1287,12 +1315,30 @@ int main(int argc, char* argv[])
       // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
+      currTime = totalTime.GetElapsedTime();
+      // TIMING: Compute Branch Decomposition (finish)
+//      vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
+      computeBranchDecompTime = currTime - prevTime;
+      prevTime = currTime;
+
       std::cout << std::endl;
 
       /// DEBUG PRINT
+#if DEBUG_PRINT_PACTBD
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING\n";
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
-      std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n";
+#endif
+
+
+
+
+
+std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n";
+// FILE IO START
+      file_io_counter++;
+      VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+                 std::endl
+                   << file_io_counter << ") WRITING: (PrintDot) ContourTreeGraph--branch-decomposition-fullCT.gv" << std::endl);
       std::vector<vtkm::Id> saddle_rootingFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branchesFullBD = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> depth_FullBD = std::vector<vtkm::Id>();
@@ -1300,19 +1346,28 @@ int main(int argc, char* argv[])
       std::vector<vtkm::FloatDefault>    branch_weights_write_FullBD = std::vector<vtkm::FloatDefault>();
       std::vector<bool>     main_branch_flags_FullBD = std::vector<bool>();
       std::vector<vtkm::Id> depth_write_FullBD = std::vector<vtkm::Id>();
+
+
       std::ofstream filegvbdfullBD("ContourTreeGraph--branch-decomposition-fullCT.gv");
       branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD,
                                                           depth_FullBD, branch_weightsFullBD, branch_weights_write_FullBD,
                                                           main_branch_flags_FullBD, depth_write_FullBD, 0, 0);
+// FILE IO END
 
 
 //      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph-56M-branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph--1024--branch-decomposition-fullCT.txt");
 //      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16--branch-decomposition-fullCT.txt");
-      std::ofstream filegvbdfull("ContourTreeGraph--branch-decomposition-fullCT.txt");
 
+// FILE IO START
+      file_io_counter++;
+            VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+                       std::endl
+                         << file_io_counter << ") WRITING: (PrintBranch) ContourTreeGraph--branch-decomposition-fullCT.txt" << std::endl);
+      std::ofstream filegvbdfull("ContourTreeGraph--branch-decomposition-fullCT.txt");
       branchDecompostionRoot->PrintBranchDecomposition(filegvbdfull);
+// FILE IO END
 
 #ifdef DEBUG_PRINT
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
@@ -1336,11 +1391,18 @@ int main(int argc, char* argv[])
       /// DEBUG PRINT
       std::cout << "(REFACTOR VERSION)\n";
       std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
+
+// FILE IO START
+      file_io_counter++;
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
+            VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+                       std::endl
+                         << file_io_counter << ") WRITING: ContourTreeGraph--branch-decomposition-simplifiedCT.gv" << std::endl);
       std::ofstream filegvbdsimplified("ContourTreeGraph--branch-decomposition-simplifiedCT.gv");
       branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting,
                                                           local_branches, depth, branch_weights, branch_weights_write,
                                                           main_branch_flags, depth_write, 0, 0);
+// FILE IO END
 
       // Compute the relevant iso-values
       std::vector<ValueType> isoValues;
@@ -1382,7 +1444,8 @@ int main(int argc, char* argv[])
       {
         isoStream << val << " ";
       }
-      VTKM_LOG_S(vtkm::cont::LogLevel::Info, isoStream.str());
+//      VTKM_LOG_S(vtkm::cont::LogLevel::Info, isoStream.str());
+      VTKM_LOG_S(vtkm::cont::LogLevel::Warn, isoStream.str());
 
 
       std::cout << isoStream.str() << std::endl << std::endl << std::endl << std::endl;
@@ -1393,17 +1456,24 @@ int main(int argc, char* argv[])
 //      std::ofstream filebdgv("ContourTreeGraph-56M-branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--1024--branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--NastyW-16--branch-decomposition-prunedCT.txt");
-      std::ofstream filebdgv("ContourTreeGraph--branch-decomposition-simplifiedCT.txt");
 
+// FILE IO START
+      file_io_counter++;
+            VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+                       std::endl
+                         << file_io_counter << ") WRITING: ContourTreeGraph--branch-decomposition-simplifiedCT.txt" << std::endl);
+      std::ofstream filebdgv("ContourTreeGraph--branch-decomposition-simplifiedCT.txt");
       branchDecompostionRoot->PrintBranchDecomposition(filebdgv);
+// FILE IO END
 
     } //end if compute isovalue
   }
 
-  currTime = totalTime.GetElapsedTime();
-  // TIMING: Compute Branch Decomposition (finish)
-  vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
-  prevTime = currTime;
+  // previously getting branch time here, need to move it above before FILE IO
+//  currTime = totalTime.GetElapsedTime();
+//  // TIMING: Compute Branch Decomposition (finish)
+//  vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
+//  prevTime = currTime;
 
   //vtkm::cont::Field resultField =  result.GetField();
   //vtkm::cont::ArrayHandle<vtkm::Pair<vtkm::Id, vtkm::Id> > saddlePeak;
@@ -1436,6 +1506,13 @@ int main(int argc, char* argv[])
 //      std::ofstream file("ContourTreeGraph-56M-original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--1024--original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--NastyW-16--original-fullCT-ColumnFormat.txt");
+
+// FILE IO START
+    file_io_counter++;
+    VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+               std::endl
+                 << file_io_counter << ") WRITING: ContourTreeGraph--original-fullCT-ColumnFormat.txt" << std::endl);
+
     std::ofstream file("ContourTreeGraph--original-fullCT-ColumnFormat.txt");
 
 
@@ -1445,28 +1522,36 @@ int main(int argc, char* argv[])
     } else {
         std::cerr << "Unable to open file for writing.\n";
     }
+// FILE IO END
+
+
+// FILE IO START
+    file_io_counter++;
+          VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
+                     std::endl
+                       << file_io_counter << ") WRITING: ContourTreeGraph--original-fullCT.gv" << std::endl);
 
     std::cout << "Saving the Contour Tree As Dot GraphViz File .gv" << std::endl;
-//    std::ofstream filegv("ContourTreeGraph-270985-parcels-128x2M-D3d.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-grid-384-freud3D.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-grid-192-freud3D.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-grid-96-freud3D.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-grid-48-freud3D.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-grid-24-freud3D.gv");
-//    std::ofstream filegv("ContourTreeGraph-270985-parcels-LT2M-PACT.gv");
-    //std::ofstream filegv("ContourTreeGraph-90k-PACT-TEST-1-duplicated.gv"); // ContourTreeGraph-70-PACT-TEST-1
-//    std::ofstream filegv("ContourTreeGraph-cleanedup-parcels-LT2M-PACT.gv");
-//    std::ofstream filegv("ContourTreeGraph-29K-branch-decomposition-fullCT.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-parcels-128x2M-D3d.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-grid-384-freud3D.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-grid-192-freud3D.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-grid-96-freud3D.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-grid-48-freud3D.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-grid-24-freud3D.gv");
+    //    std::ofstream filegv("ContourTreeGraph-270985-parcels-LT2M-PACT.gv");
+        //std::ofstream filegv("ContourTreeGraph-90k-PACT-TEST-1-duplicated.gv"); // ContourTreeGraph-70-PACT-TEST-1
+    //    std::ofstream filegv("ContourTreeGraph-cleanedup-parcels-LT2M-PACT.gv");
+    //    std::ofstream filegv("ContourTreeGraph-29K-branch-decomposition-fullCT.gv");
 
-//    std::ofstream filegv("ContourTreeGraph-13k-original-fullCT.gv");
-//    std::ofstream filegv("ContourTreeGraph-56M-original-fullCT.gv");
-//    std::ofstream filegv("ContourTreeGraph--1024--original-fullCT.gv");
-//    std::ofstream filegv("ContourTreeGraph--NastyW-16--original-fullCT.gv");
+    //    std::ofstream filegv("ContourTreeGraph-13k-original-fullCT.gv");
+    //    std::ofstream filegv("ContourTreeGraph-56M-original-fullCT.gv");
+    //    std::ofstream filegv("ContourTreeGraph--1024--original-fullCT.gv");
+
+    //    std::ofstream filegv("ContourTreeGraph--NastyW-16--original-fullCT.gv");
     std::ofstream filegv("ContourTreeGraph--original-fullCT.gv");
-
-
     filter.GetContourTree().PrintDotSuperStructure(filegv);
     std::cout << " Finished PrintDotSuperStructure " << std::endl;
+// FILE IO END
 
 //    std::ofstream filegv("ContourTreeGraph-branch-decomposition-LT2M-PACT.gv");
 //    branchDecompostionRoot->PrintBranchDecomposition(std::cout);
@@ -1503,12 +1588,12 @@ int main(int argc, char* argv[])
                << ": " << currTime << " seconds");
 
   const ctaug_ns::ContourTree& ct = filter.GetContourTree();
-  VTKM_LOG_S(vtkm::cont::LogLevel::Info,
+  VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
              std::endl
                << "    ---------------- Contour Tree Array Sizes ---------------------" << std::endl
                << ct.PrintArraySizes());
   // Print hyperstructure statistics
-  VTKM_LOG_S(vtkm::cont::LogLevel::Info,
+  VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
              std::endl
                << ct.PrintHyperStructureStatistics(false) << std::endl);
 

@@ -77,6 +77,7 @@ using ValueType = vtkm::Float64; //vtkm::FloatDefault;
 using FloatArrayType = vtkm::cont::ArrayHandle<ValueType>;
 
 
+
 // TODO The pointered list structure and use of std::vector don't seem to fit well with using Branch with VTKM
 template <typename T>
 class Branch
@@ -111,6 +112,7 @@ public:
   static Branch<T>* ComputeBranchDecomposition(
     const IdArrayType& contourTreeSuperparents,
     const IdArrayType& contourTreeSupernodes,
+          const IdArrayType& contourTreeSuperarcs, // NEW: passed superarcs for surface component IDs vis
     const IdArrayType& whichBranch,
     const IdArrayType& branchMinimum,
     const IdArrayType& branchMaximum,
@@ -154,6 +156,44 @@ public:
 
   void PrintBranchInformation(); // TODO
 
+//  static void PrintBranchInformation(Branch<T>* root);// TODO
+  static void PrintBranchInformation(Branch<T>* branch,
+                                     std::vector<std::vector<vtkm::Id>>& branch_SP_map,
+                                     vtkm::Id bid)
+  {
+//      std::cout << bid << ":" << std::endl;
+      if(branch == nullptr)
+      {
+          std::cout << " non ";
+          return;
+      }
+
+//      std::cout << branch->OriginalId << " -> ";
+
+//      if(branch->Children.empty())
+//      {
+//          std::cout << " non ";
+//      }
+      for(int j = 0; j < branch_SP_map[bid].size(); j+=3) //j++)
+      {
+          if(branch_SP_map[bid][j] != bid)
+          {
+              std::cout << branch_SP_map[bid][j] << " -> ";
+          }
+      }
+
+      if(!branch->Children.empty())
+      {
+          std::cout << std::endl << "Children of i=" << bid << std::endl;
+      }
+
+      for(auto child : branch->Children)
+      {
+          PrintBranchInformation(child, branch_SP_map, child->OriginalId);  // recursively print children
+      }
+  }
+
+
 private:
   // Private default constructore to ensure that branch decomposition can only be created from a contour tree or loaded from storate (via static methods)
   Branch()
@@ -185,9 +225,11 @@ struct VolumeSorter
 { // VolumeSorter()
   inline bool operator()(Branch<T>* a, Branch<T>* b)
   {
+#if DEBUG_PRINT_PACTBD
       std::cout << "< VolumeSorter Branch Comparitor >: ";
       std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << a->ExtremumVal << ")->(" << a->SaddleVal << ") ";
       std::cout << a->Volume << " < " << b->Volume << std::endl;
+#endif
       return a->Volume < b->Volume;
   }
 }; // VolumeSorter()
@@ -199,9 +241,11 @@ struct VolumeSorterFloat
   {
       // FIXME: No simulation of simplicity - WHY NOT?
       // (no fallback for them being identical)
+#if DEBUG_PRINT_PACTBD
       std::cout << "< VolumeSorterFloat Branch Comparitor > | ";
       std::cout << "(" << a->ExtremumVal << ")->(" << a->SaddleVal << ") vs (" << b->ExtremumVal << ")->(" << b->SaddleVal << ") |";
       std::cout << a->VolumeFloat << " < " << b->VolumeFloat << " |" << std::endl << std::endl;
+#endif
       return a->VolumeFloat < b->VolumeFloat;
   }
 }; // VolumeSorter()
@@ -315,7 +359,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   }
 
   // 2025-01-13
+#if DEBUG_PRINT_PACTBD
   std::cout << "------------- vvv Branch INTEGER weights vvv -------------" << std::endl;
+
 
   // loop through all the regular nodes, ...
   // ... then counting how many regular nodes are on each branch
@@ -324,14 +370,20 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
     size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
     //      vtkm::Id sortID = supernodesPortal.Get(i);
     //    std::cout << i << " [sortID=" << sortID << "]" << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
+
+
     std::cout << i << "[" << branchID << "] " << " (" << MaskedIndex(superparentsPortal.Get(i)) << ") "
               << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
               << branches[branchID]->Volume
               << std::endl;
-  }
-  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
 
-  std::cout << "------------- vvv Branch FLOATIN weights vvv -------------" << std::endl;
+  }
+
+  std::cout << "------------- ^^^ Branch INTEGER weights ^^^ -------------" << std::endl;
+#endif
+
+#if DEBUG_PRINT_PACTBD
+  std::cout << "------------- vvv Branch FLOATING weights vvv -------------" << std::endl;
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
   {
     size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))));
@@ -341,18 +393,19 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
               << branches[branchID]->VolumeFloat
               << std::endl;
   }
-  std::cout << "------------- ^^^ Branch FLOATIN weights ^^^ -------------" << std::endl;
+  std::cout << "------------- ^^^ Branch FLOATING weights ^^^ -------------" << std::endl;
+#endif
 
   // 2024-08-16 Get the existing volume information instead of just counting nodes
 
-  std::cout << "Number of SPs: " << contourTreeSuperparents.GetNumberOfValues() << std::endl;
+  std::cout << "Number of SuperParents: " << contourTreeSuperparents.GetNumberOfValues() << std::endl;
 
   // 2025-01-05 getting the right (floating point) volume information
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
   {
     branches[static_cast<size_t>(
                MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
-      ->VolumeFloat = 0.5f; // Increment Volume
+      ->VolumeFloat = 0.0f; // Increment Volume
 
 //    vtkm::Id sortID = supernodesPortal.Get(i);
 
@@ -436,8 +489,24 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
 
+//template <typename T>
+//template <typename StorageType>
+//Branch<T>* Branch<T>::ComputeBranchDecomposition(
+//  const IdArrayType& contourTreeSuperparents,
+//  const IdArrayType& contourTreeSupernodes,
+//  const IdArrayType& whichBranch,
+//  const IdArrayType& branchMinimum,
+//  const IdArrayType& branchMaximum,
+//  const IdArrayType& branchSaddle,
+//  const IdArrayType& branchParent,
+//  const IdArrayType& sortOrder,
+//  const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
+//  bool dataFieldIsSorted,
+//  const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincid
+//  const FloatArrayType& superarcDependentWeight)
 
 
+//static recursiveBranching(bran
 
 
 
@@ -446,6 +515,7 @@ template <typename StorageType>
 Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const IdArrayType& contourTreeSuperparents,
   const IdArrayType& contourTreeSupernodes,
+  const IdArrayType& contourTreeSuperarcs,
   const IdArrayType& whichBranch,
   const IdArrayType& branchMinimum,
   const IdArrayType& branchMaximum,
@@ -476,6 +546,8 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
   // NEW: add the read portals for branch intrinsic weights:
   auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
+  // NEW: and the superarcs
+  auto superarcsPortal = contourTreeSuperarcs.ReadPortal();
 
 
 
@@ -483,14 +555,14 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
 
-
-
+#if DEBUG_PRINT_PACTBD
   std::cout << std::endl << "(Branch.h->ComputeBranchDecomposition) Superarc Intrinsic Weight Portal (PASSED IN):" << std::endl;
   for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
   {
       std::cout << i << " -> " << superarcIntrinsicWeightPortal.Get(i) << std::endl;
   }
   std::cout << std::endl;
+#endif
 
 //  NOT USING DEPENDENT WEIGHTS YET
 //  std::cout << std::endl << "(Branch.h->ComputeBranchDecomposition) Superarc Dependent Weight Portal:" << std::endl;
@@ -513,6 +585,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   std::vector<Branch<T>*> branches;
   Branch<T>* root = nullptr;
   branches.reserve(static_cast<std::size_t>(nBranches));
+
+
+  std::cout << "Number of Branches, for the Branch Decomposition:" << nBranches << std::endl;
 
   for (int branchID = 0; branchID < nBranches; ++branchID)
     branches.push_back(new Branch<T>);
@@ -613,7 +688,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 //  std::cout << std::endl;
 
+  vtkm::Id sortID; // = supernodesPortal.Get(i);
   int current_superparent;
+  int supernode_tailend;
   std::vector<std::vector<vtkm::Id>> branch_SP_map(nBranches);
 
 // 2025-03-10 Commented out the branch initialisation, replaced with a branch-parent-array
@@ -623,7 +700,15 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
   {
     current_superparent = MaskedIndex(superparentsPortal.Get(i));
+//    sortID = supernodesPortal.Get(i);
+    supernode_tailend = supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(current_superparent)));
+
     size_t branchID = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(current_superparent)));
+
+    vtkm::Id branchMin = MaskedIndex(supernodesPortal.Get(
+      MaskedIndex(branchMinimumPortal.Get(static_cast<vtkm::Id>(branchID)))));
+    vtkm::Id branchMax = MaskedIndex(supernodesPortal.Get(
+      MaskedIndex(branchMaximumPortal.Get(static_cast<vtkm::Id>(branchID)))));
 
 //    std::cout << MaskedIndex(superparentsPortal.Get(i)) << ") "
 //              << branches[branchID]->Extremum << "->" << branches[branchID]->Saddle << " = "
@@ -642,7 +727,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
       // 2025-03-10
       std::cout << "-> ADDED BRANCH CHAIN SP: " << current_superparent << std::endl;
 #endif
-      branch_SP_map[branchID].push_back(current_superparent);
+      branch_SP_map[branchID].push_back(current_superparent); // supernode_tailend
+      branch_SP_map[branchID].push_back(i); // NEW 2025-03-14
+      branch_SP_map[branchID].push_back(supernode_tailend); // NEW 2025-03-14
     }
 
 
@@ -650,22 +737,108 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 #if DEBUG_PRINT_PACTBD
   std::cout << "------- ^^^ Branch VALUE TYPE INITIAL weights ^^^ --------" << std::endl << std::endl;
 #endif
+  std::cout << "Printing the supernode/branch mappings" << std::endl;
+
+//  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
+//  {
+
+//      std::cout << i << ")" << MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))) << std::endl;
+
+//    branches[static_cast<size_t>(
+//               MaskedIndex(whichBranchPortal.Get(MaskedIndex(superparentsPortal.Get(i)))))]
+//      ->Volume++; // Increment Volume
+//  }
+
+std::cout << "Printing the supernode/branch mappings" << std::endl;
 
   for(int i = 0; i < nBranches; i++)
   {
+      std::cout << "branch[" << i << "] "  << "\t";
+
 #if DEBUG_PRINT_PACTBD
     std::cout << i << " -> "
               << branches[i]->Extremum << "->" << branches[i]->Saddle << " = "
               << branches[i]->VolumeFloat << std::endl << "\t";
 #endif
-    for(int j = 0; j < branch_SP_map[i].size(); j++)
+
+    for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
 #if DEBUG_PRINT_PACTBD
         std::cout << branch_SP_map[i][j] << " ";
 #endif
 //        if (!std::isnan(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j])))
         branches[i]->VolumeFloat += superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
+
+//        std::cout << "(" << branch_SP_map[i][j] << " = " << branch_SP_map[i][j+1] << " -> " << branch_SP_map[i][j+2] << ") ";
+        std::cout << branch_SP_map[i][j] << " -> ";
+
+//        size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][j])));
+
+//        if(!branches[branchIDPrint]->Children.empty())
+//        {
+//            std::cout << std::endl << "\t";
+//            PrintBranchInformation(branches[branchIDPrint]->Children[0], branch_SP_map, branches[branchIDPrint]->OriginalId);
+//        }
+
+        //        for (Branch<T>* c : branches[branchIDPrint]->Children)
+        //        {
+        //            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+        //            std::cout << c->OriginalId << " -> ";
+        //        }
+
+//        if(!branches[i]->Children.empty())
+//        {
+//            std::cout << "Children of i=" << i << std::endl;
+//        }
+
+//        for (Branch<T>* c : branches[i]->Children)
+//        {
+////            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+//            std::cout << c->OriginalId << " -> ";
+//        }
+
+
     }
+
+    if(!branches[i]->Children.empty())
+    {
+        std::cout << std::endl << "Children of i=" << i << std::endl;
+    }
+
+    for (Branch<T>* c : branches[i]->Children)
+    {
+        std::cout << c->OriginalId << " -> ";
+//                    std::cout << std::endl << "\t";
+            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+    }
+
+
+//    size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][0])));
+
+//    if(!branches[branchIDPrint]->Children.empty())
+//    {
+//        std::cout << std::endl << "\t";
+//    }
+
+//    for (Branch<T>* c : branches[branchIDPrint]->Children)
+//    {
+//        PrintBranchInformation(c, branch_SP_map, branchIDPrint);
+////        std::cout << " (" << c->OriginalId << ") ";
+//    }
+
+//    if(!branches[i]->Children.empty())
+//    {
+//        std::cout << std::endl << "\t";
+//    }
+
+//// 2025-03-15 NEW
+//    for (Branch<T>* c : branches[i]->Children)
+//    {
+//        PrintBranchInformation(c);
+////        std::cout << c->OriginalId << " -> ";
+//    }
+
+    std::cout << std::endl;
 #if DEBUG_PRINT_PACTBD
     std::cout << std::endl;
     std::cout << i << " -> "
@@ -793,7 +966,12 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
 
-
+template <typename T>
+// print the graph in python dict format:
+static void PrintBranchInformation(Branch<T>* root)
+{
+    std::cout<< root->OriginalId << " -> ";
+}
 
 
 
@@ -923,14 +1101,19 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 
     for (Branch<T>* c : b->Children)
     {
+#if DEBUG_PRINT_PACTBD
       std::cout << "---------> (Child " << child_num << ") Processing Branch: " << c->ExtremumVal << std::endl;
+#endif
+
       q.push_back(c);
 
+#if DEBUG_PRINT_PACTBD
       for (auto e : q)
       {
           std::cout << e->ExtremumVal << ' ';
           std::cout << '\n';
       }
+#endif
 
       if (usePersistenceSorter)
       {
@@ -938,22 +1121,27 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
       }
       else
       {
+#if DEBUG_PRINT_PACTBD
         std::cout << "\t-> pushing child" << std::endl;
+#endif
         // std::push_heap(q.begin(), q.end(), VolumeSorter<T>());
         std::push_heap(q.begin(), q.end(), VolumeSorterFloat<T>());
       }
 
+#if DEBUG_PRINT_PACTBD
       for (auto e : q)
       {
           std::cout << e->ExtremumVal << ' ';
           std::cout << '\n';
       }
+#endif
 
       child_num++;
 
     }
-
+#if DEBUG_PRINT_PACTBD
     std::cout << "====================== iteration " << num_active_branches << " ======================" << std::endl;
+#endif
 
     num_active_branches++;
 
@@ -978,6 +1166,7 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
   std::cout << std::endl << std::endl;
 
 } // SimplifyToSize()
+
 
 
 template <typename T>
@@ -1061,20 +1250,24 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
       c->PrintDotBranchDecomposition(os, saddles, local_branches, depth, branch_weights, branch_weights_write, main_branch_flags, depths_write,
                                      SaddleVal, ExtremumVal, iteration+1, indent + 4);
     }
-
+#if DEBUG_PRINT_PACTBD
     std::cout << "Finished branch segment: " << SaddleVal << " " << ExtremumVal << " " << local_branches.size() << " it: " << iteration+1 << std::endl;
+#endif
 
     std::vector<vtkm::Id> local_iteration_branches;
     for(int i = 0; i < local_branches.size(); i++)
     {
+#if DEBUG_PRINT_PACTBD
         std::cout << depth[i] << " ";
+#endif
         if(depth[i] == iteration+1)
         { // only copy branches from the same depth
            local_iteration_branches.push_back(local_branches[i]);
         }
     }
-
+#if DEBUG_PRINT_PACTBD
     std::cout << std::endl << "local: " << local_iteration_branches.size() << std::endl;
+#endif
 
     std::sort(local_iteration_branches.begin(), local_iteration_branches.end());
 
@@ -1083,7 +1276,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
     {
         if(for_iterator)
         {
+#if DEBUG_PRINT_PACTBD
             std::cout << c << "->" << parent_saddle << "[" << iteration+1 << "a" << for_iterator << "] (ORANGE)" << std::endl;
+#endif
             saddles.push_back(c);
             saddles.push_back(parent_saddle);
             branch_weights_write.push_back(VolumeFloat);
@@ -1095,7 +1290,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
         }
         else
         {// if it's the first iteration then the parent_saddle is the original
+#if DEBUG_PRINT_PACTBD
             std::cout << c << "->" << SaddleVal << "[" << iteration+1 << "a" << for_iterator << "] (ORANGE)" << std::endl;
+#endif
             saddles.push_back(c);
             saddles.push_back(SaddleVal);
             branch_weights_write.push_back(VolumeFloat);
@@ -1109,8 +1306,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
         parent_saddle = c;
         for_iterator++;
     }
-
+#if DEBUG_PRINT_PACTBD
     std::cout << ExtremumVal << "->" << local_iteration_branches[for_iterator-1] << "[" << iteration+1 << "b] (RED)" << std::endl;
+#endif
     saddles.push_back(ExtremumVal);
     saddles.push_back(local_iteration_branches[for_iterator-1]);
     branch_weights_write.push_back(VolumeFloat);
@@ -1123,7 +1321,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
   }
   else
   {// HAS NO children (pure cases Extremum -> Saddle)
+#if DEBUG_PRINT_PACTBD
       std::cout << ExtremumVal << "->" << SaddleVal << "[" << iteration << "] (GREEN)" << std::endl;
+#endif
 
       saddles.push_back(ExtremumVal);
       saddles.push_back(SaddleVal);
@@ -1147,7 +1347,7 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
   if (write_triggerGV)
   { // write from the root recursion call (main branch)
-      std::cout << "Gathered saddle-nodes" << std::endl;
+      std::cout << "Writing to graphviz file" << std::endl;
 
       std::vector<vtkm::Id> nodes;
       std::vector<vtkm::Id> depths;
@@ -1165,6 +1365,8 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
       std::map<int, std::string> colourMap;
       std::string colour_label;
 
+      std::cout << "... Nodes gathered" << std::endl;
+
       for(vtkm::Id iterator = 0; iterator < saddles.size()-1; iterator+=2)
       {
           if(main_branch_flags[iterator])
@@ -1180,11 +1382,15 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
           colourMap.insert({saddles[iterator+1], colour_label});
       }
 
+      std::cout << "... Mappings made" << std::endl;
+
       int depth_iter = 0;
 //      for(vtkm::Id nodeID : nodes)
       for(int nodeID = 0; nodeID < nodes.size(); nodeID++) // : saddles)
       {
+#if DEBUG_PRINT_PACTBD
           std::cout << "s" << nodes[nodeID] << std::endl;
+#endif
 
 //          if(main_branch_flags[iterator])
 
@@ -1200,12 +1406,16 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
           depth_iter++;
       }
+#if DEBUG_PRINT_PACTBD
       std::cout << std::endl;
+#endif
       int local_iterator = 0;
 //      for(vtkm::Id nodeID : saddles)
       for(vtkm::Id iterator = 0; iterator < saddles.size()-1; iterator+=2)
       {
+#if DEBUG_PRINT_PACTBD
           std::cout << "s" << saddles[iterator] << "->" << "s" << saddles[iterator+1] << std::endl;
+#endif
           if(main_branch_flags[iterator])
           {
               os << tab << "s" << saddles[iterator] << " -> " << "s" << saddles[iterator+1] << "[label=\"(main) " << branch_weights_write[iterator] << "\"]" << std::endl;
@@ -1217,8 +1427,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
           local_iterator++;
       }
-
+#if DEBUG_PRINT_PACTBD
       std::cout << std::endl;
+#endif
       os << tab << "}" << std::endl;
   }
 

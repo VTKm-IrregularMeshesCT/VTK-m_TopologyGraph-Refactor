@@ -152,7 +152,7 @@ public:
       nIterations,
       mesh,
       computeRegularStructure,
-      meshBoundary);
+      meshBoundary);    
     return;
   }
 
@@ -779,6 +779,20 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
                                 actual_values,
                                 global_inds);
 
+      // example:
+//      ContourTreeMesh(nodes_sorted /*const IdArrayType& nodes*/,
+//                      //const IdArrayType& arcs, forget the arcs, ...
+//                      // ... we do them manually for the topology graph:
+//                      nbor_connectivity, /*const IdArrayType& inNborConnectivity,*/
+//                      nbor_offsets, /*const IdArrayType& inNborOffsets,*/
+//                      // (arcs were used to compute nbor connectivity and offsets ...
+//                      //  ... but because topology graphs no longer have ...
+//                      //  ... the outdegree strictly capped at 1, ...
+//                      //  ... we enter the information manually - for now anyway)
+//                      const IdArrayType& inSortOrder,
+//                      const vtkm::cont::ArrayHandle<FieldType>& values,
+//                      const IdArrayType& inGlobalMeshIndex);
+
       //ContourTreeMesh<int> mesh("5x5.all.txt");
       std::cout << "Finished reading, printing content:\n";
       mesh.PrintContent(std::cout);
@@ -1352,15 +1366,17 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // PACTBD-EDIT
 //    int num_datapoints = 101;
 //    int num_datapoints = 1001;
-//    int num_datapoints = 10001;
+    int num_datapoints = 10001;
 //    int num_datapoints = 99972;
 //    int num_datapoints = 200001;
-    int num_datapoints = 985181;
+//    int num_datapoints = 985181;
+//    int num_datapoints = 2160930;
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
     // PACTBD-EDIT
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
     // ARCHER2
 //    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 
