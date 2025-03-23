@@ -243,6 +243,8 @@ int main(int argc, char* argv[])
   //  vtkm::worklet::contourtree_augmented::ContourTreeMesh<ValueType> contourTreeMesh;
   //  contourTreeMesh.Load(fileName.c_str()); // this breaks
 
+    std::cout << "FILE: " << fileName << std::endl;
+
     if (fileName.compare(fileName.length() - 3, 3, "bov") == 0)
     {
       vtkm::io::BOVDataSetReader reader(fileName);
@@ -432,6 +434,7 @@ int main(int argc, char* argv[])
             //  ... since each point must be assigned the same branch ID)
             // Note: vtkm::Range gives [min,max] range of the array
             vtkm::Id contourBranchId = (vtkm::Id)branchIDrange[0].Center();
+            std::cout << "branchIsovalue:" << branchIDrange[0] << std::endl;
             // we repeat the same for the isovalues:
             vtkm::Range isovaluerange[1];
             outputDataSets.GetPartition(i).GetPointField("isovaluePoints").GetRange(isovaluerange);

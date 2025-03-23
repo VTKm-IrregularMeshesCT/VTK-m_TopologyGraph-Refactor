@@ -43,12 +43,26 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/ContourTree.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/MeshExtrema.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/DataSetMesh.h>
+// NEW:
+#include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
 
 namespace cv1k
 {
 namespace filter
 {
-    void computeTriangleIds(vtkm::worklet::contourtree_augmented::ContourTree contourTree, vtkm::worklet::contourtree_augmented::DataSetMesh, vtkm::worklet::contourtree_augmented::MeshExtrema, vtkm::cont::ArrayHandle<vtkm::Float64>, vtkm::cont::ArrayHandle<cv1k::Triangle> triangles, vtkm::Float64 isovalue);
+    void computeTriangleIds(vtkm::worklet::contourtree_augmented::ContourTree contourTree,
+                            vtkm::worklet::contourtree_augmented::ContourTreeMesh<vtkm::Float64> mesh,
+                            vtkm::worklet::contourtree_augmented::MeshExtrema extrema,
+                            vtkm::cont::ArrayHandle<vtkm::Float64> fieldArray,
+                            vtkm::cont::ArrayHandle<cv1k::Triangle> triangles,
+                            vtkm::Float64 isovalue);
+
+    void computeTriangleIds(vtkm::worklet::contourtree_augmented::ContourTree contourTree,
+                            vtkm::worklet::contourtree_augmented::DataSetMesh,
+                            vtkm::worklet::contourtree_augmented::MeshExtrema,
+                            vtkm::cont::ArrayHandle<vtkm::Float64>,
+                            vtkm::cont::ArrayHandle<cv1k::Triangle> triangles,
+                            vtkm::Float64 isovalue);
 
 }
 }

@@ -40,7 +40,93 @@ using namespace vtkm;
 constexpr vtkm::Id INDEX_MASK = std::numeric_limits<vtkm::Id>::max() / 16;
 
 
-void cv1k::filter::computeTriangleIds(worklet::contourtree_augmented::ContourTree contourTree, worklet::contourtree_augmented::DataSetMesh mesh, worklet::contourtree_augmented::MeshExtrema extrema, cont::ArrayHandle<Float64> fieldArray, vtkm::cont::ArrayHandle<cv1k::Triangle> triangles, Float64 isovalue)
+void cv1k::filter::computeTriangleIds(worklet::contourtree_augmented::ContourTree contourTree,
+                                      worklet::contourtree_augmented::ContourTreeMesh<vtkm::Float64> mesh,
+                                      worklet::contourtree_augmented::MeshExtrema extrema,
+                                      cont::ArrayHandle<Float64> fieldArray,
+                                      cont::ArrayHandle<cv1k::Triangle> triangles,
+                                      Float64 isovalue)
+{
+
+    // Each point has it's own isovalue
+    cont::ArrayHandle<Float64> isovalueArray;
+    isovalueArray.Allocate(triangles.GetNumberOfValues());
+
+    // Endpoints of path in the contour tree
+    cont::ArrayHandle<Vec<Id, 2>> endpoints;
+    endpoints.Allocate(triangles.GetNumberOfValues());
+
+    for(int i = 0 ; i < triangles.GetNumberOfValues() ; i++)
+    {
+        isovalueArray.WritePortal().Set(i, isovalue);
+        endpoints.WritePortal().Set(i, triangles.ReadPortal().Get(i).representativeEdge);
+    }
+
+    // Output array that will store the superarc on the path from endpoint[0] to endpoint[1] at an isovalue
+    cont::ArrayHandle<Id> superarcIds;
+    superarcIds.Allocate(endpoints.GetNumberOfValues());
+
+    // Set up the worklet
+    vtkm::worklet::contourtree_augmented::process_contourtree_inc::SetTriangleSuperarcId setTrianglesId(contourTree.Hypernodes.GetNumberOfValues(),
+                                                                                                        contourTree.Supernodes.GetNumberOfValues());
+    cont::Invoker Invoke;
+
+//    error: no match for call to
+//    ‘(const vtkm::worklet::contourtree_augmented::process_contourtree_inc::SetTriangleSuperarcId)
+//            (long long int&, vtkm::internal::ArrayPortalBasicRead<vtkm::Vec<long long int, 2> >&,  // endpoints
+//             vtkm::internal::ArrayPortalBasicRead<double>&, // fieldArray
+//             vtkm::internal::ArrayPortalBasicRead<double>&, // isovalueArray
+//             vtkm::internal::ArrayPortalImplicit<vtkm::internal::IndexFunctor>&, // mesh.SortOrder
+//             vtkm::internal::ArrayPortalImplicit<vtkm::internal::IndexFunctor>&, // mesh.SortIndices
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicRead<long long int>&,
+//             vtkm::internal::ArrayPortalBasicWrite<long long int>&)’
+
+    // Run the worklet
+    Invoke(setTrianglesId, // worklet
+            endpoints,
+            fieldArray,
+            isovalueArray,
+           mesh.SortOrder,
+           mesh.SortIndices,
+//            static_cast<vtkm::cont::ArrayHandle<vtkm::Id>&>(mesh.SortOrder), // (input)
+//            static_cast<vtkm::cont::ArrayHandle<vtkm::Id>&>(mesh.SortIndices), // (input)
+            contourTree.Superparents, // (input)
+            contourTree.WhenTransferred, // (input)
+            contourTree.Hyperparents, // (input)
+            contourTree.Hyperarcs, // (input)
+            contourTree.Hypernodes, // (input)
+            contourTree.Supernodes, // (input)
+            extrema.Peaks, // (input)
+            extrema.Pits,  // input
+            superarcIds // output
+          ); // (input)
+
+    for(int i = 0 ; i < triangles.GetNumberOfValues() ; i++)
+    {
+        // Set triangle ID
+        Triangle triangle = triangles.ReadPortal().Get(i);
+        triangle.superarcId = superarcIds.ReadPortal().Get(i);
+        triangles.WritePortal().Set(i, triangle);
+    }
+}
+
+
+
+
+
+void cv1k::filter::computeTriangleIds(worklet::contourtree_augmented::ContourTree contourTree,
+                                      worklet::contourtree_augmented::DataSetMesh mesh,
+                                      worklet::contourtree_augmented::MeshExtrema extrema,
+                                      cont::ArrayHandle<Float64> fieldArray,
+                                      vtkm::cont::ArrayHandle<cv1k::Triangle> triangles,
+                                      Float64 isovalue)
 {
 
     // Each point has it's own isovalue
@@ -66,8 +152,7 @@ void cv1k::filter::computeTriangleIds(worklet::contourtree_augmented::ContourTre
     cont::Invoker Invoke;
 
     // Run the worklet
-    Invoke(
-            setTrianglesId,
+    Invoke(setTrianglesId, // worklet
             endpoints,
             fieldArray,
             isovalueArray,

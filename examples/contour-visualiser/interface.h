@@ -66,8 +66,9 @@ namespace cv1k
                 );
 
         void computeAdditionalBranchDataFloat(
-                const vtkm::cont::DataSet,
-                const std::string,
+                const vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray,
+        //        const cont::DataSet inputData,    // passing a fakeFieldArray instead
+        //        const string fieldName,           // passing a fakeFieldArray instead
                 const vtkm::worklet::contourtree_augmented::ContourTree,
                 const vtkm::cont::ArrayHandle<vtkm::Id>,
                 const vtkm::cont::ArrayHandle<vtkm::Id>,

@@ -219,7 +219,12 @@ public:
   static const int MAX_OUTDEGREE = 150;// 20;
 
   vtkm::Id NumVertices;
-  vtkm::cont::ArrayHandleIndex SortOrder;
+  // WARNING! WARNING! WARNING!
+//  IdArrayType SortOrderIdArray;
+//  IdArrayType SortIndicesIdArray;
+
+//  vtkm::cont::ArrayHandle<vtkm::Id> SortOrder -- EXPECTING THIS
+  vtkm::cont::ArrayHandleIndex SortOrder;     // -- USING THIS
   vtkm::cont::ArrayHandleIndex SortIndices;
   vtkm::cont::ArrayHandle<FieldType> SortedValues;
   IdArrayType GlobalMeshIndex;
@@ -415,6 +420,10 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   // ... we must not forget to compute maximum number of neighbors, ...
   // ... which we can here - since we have the nbor connection/offset information:
   this->ComputeMaxNeighbors();
+
+  std::ofstream outFile("CT-ContourTreeMesh.txt");
+  this->PrintContent(outFile);
+  outFile.close();
 
 
 #if DEBUG_PRINT_PACTBD

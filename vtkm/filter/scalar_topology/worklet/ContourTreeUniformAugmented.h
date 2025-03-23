@@ -86,6 +86,10 @@
 #include <vtkm/io/VTKDataSetReader.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/PrintVectors.h>
 
+#include <vtkm/filter/scalar_topology/worklet/contourtree_distributed/PrintGraph.h>
+
+//#include <string>     // std::string, std::stof
+
 #include <chrono>
 #include <thread>
 
@@ -1535,15 +1539,68 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
                                 //nodes_sorted,
                                 global_inds);
 
+      // NEW: use the data values passed into the field here:
+      // PACTBD-EDIT
+      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+      std::ifstream field_input(field_filename);
+      vtkm::cont::ArrayHandle<FieldType, StorageType> fakeFieldArray;
+      fakeFieldArray.Allocate(num_datapoints);
+      auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
+
+
+
+      std::vector<FieldType> std_field;
+      if(field_input.is_open())
+      {
+          std::string line;
+          int i = 0;
+          while(getline(field_input, line))
+          {
+              std_field.push_back(static_cast<FieldType>(std::stof(line)));
+          }
+
+          for(vtkm::Id i = 0; i < num_datapoints; i++)
+          {
+            fakeFieldArrayWritePortal.Set(i, std_field[i]);
+          }
+      }
+      else
+      {
+          std::cerr << "Unable to open file: " << field_filename << "\n";
+      }
+      field_input.close();
+
       // Run the contour tree on the mesh
       // PACT:
-      RunContourTree(fieldArray,
+      RunContourTree(fakeFieldArray, //fieldArray,
                      contourTree,
                      sortOrder,
                      nIterations,
                      mesh,
                      computeRegularStructure,
                      mesh.GetMeshBoundaryExecutionObject());
+
+
+      std::ofstream outFile("CT-full.gv");
+
+      vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_SUPERIDS \
+                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+
+
+      // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
+      outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
+          "Contour Tree Super Dot",         // label/title
+          mesh,                             // mesh (re)constructed above
+          fakeFieldArray, //fieldArray,     // scalar data array handle
+          contourTree,                      // computed contour tree structure
+          detailedMask,                     // detailed output with all info
+          vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+
+
+      outFile.close();
 
 //// Uncomment below for Freudenthal tests:
 //// NOTE: THIS EXPLICITLY CALLS THE CODE IN INITIALIZEACTIVEEDGES.H

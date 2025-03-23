@@ -135,6 +135,8 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   cells.CastAndCallForTypes<VTKM_DEFAULT_CELL_SET_LIST_STRUCTURED>(
     vtkm::worklet::contourtree_augmented::GetPointDimensions(), meshSize);
 
+  std::cout << "mesh size: " << meshSize[0] << "x" << meshSize[1] << "x" << meshSize[2] << std::endl;
+
   // TODO blockIndex needs to change if we have multiple blocks per MPI rank and DoExecute is called for multiple blocks
   std::size_t blockIndex = 0;
 
@@ -161,15 +163,15 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
     vtkm::worklet::ContourTreeAugmented worklet;
     // Run the worklet
-    worklet.Run(concrete,
-                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]
-                                     : this->ContourTreeData,
-                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]
-                                     : this->MeshSortOrder,
-                this->NumIterations,
-                meshSize,
-                this->UseMarchingCubes,
-                compRegularStruct);
+    worklet.Run(concrete,                                                                   // fieldArray?
+                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
+                                     : this->ContourTreeData,                               // contourTree
+                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]    //
+                                     : this->MeshSortOrder,                                 // sortOrder
+                this->NumIterations,                                                        // nIterations
+                meshSize,                                                                   // meshSize
+                this->UseMarchingCubes,                                                     // useMarchingCubes
+                compRegularStruct);                                                         // computeRegularStructure
 
     // If we run in parallel but with only one global block, then we need set our outputs correctly
     // here to match the expected behavior in parallel

@@ -32,8 +32,10 @@ inline void PrintVTKDataFileSummary(const vtkm::io::internal::VTKDataSetFile& df
   out << "\tVersion: " << df.Version[0] << "." << df.Version[0] << std::endl;
   out << "\tTitle: " << df.Title << std::endl;
   out << "\tFormat: " << (df.IsBinary ? "BINARY" : "ASCII") << std::endl;
-  out << "\tDataSet type: " << vtkm::io::internal::DataSetStructureString(df.Structure)
-      << std::endl;
+  out << "blablabla" << std::endl;
+//  out << "\tDataSet type: " << vtkm::io::internal::DataSetStructureString(df.Structure)
+//      << std::endl;
+  out << "blablabla" << std::endl;
 }
 
 } // anonymous namespace
@@ -57,6 +59,7 @@ VTKDataSetReaderBase::VTKDataSetReaderBase(const std::string& fileName)
   , Loaded(false)
 {
   this->DataFile->FileName = fileName;
+    std::cout << "Data initialised: " << this->DataFile->FileName << std::endl;
 }
 
 VTKDataSetReaderBase::~VTKDataSetReaderBase() {}

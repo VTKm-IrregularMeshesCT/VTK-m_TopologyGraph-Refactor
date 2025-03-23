@@ -31,6 +31,7 @@ VTKUnstructuredGridReader::VTKUnstructuredGridReader(const std::string& fileName
 
 void VTKUnstructuredGridReader::Read()
 {
+  std::cout << "VTKUnstructuredGridReader::Read() called" << std::endl;
   if (this->DataFile->Structure != vtkm::io::internal::DATASET_UNSTRUCTURED_GRID)
   {
     throw vtkm::io::ErrorIO("Incorrect DataSet type");

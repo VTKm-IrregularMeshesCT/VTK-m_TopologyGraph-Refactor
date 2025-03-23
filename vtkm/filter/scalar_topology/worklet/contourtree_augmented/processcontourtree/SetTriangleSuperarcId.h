@@ -110,13 +110,14 @@ public:
   template <typename EndpointsArrayPortalType,
             typename InFieldArrayPortalType,
             typename InArrayPortalType,
+            typename InArrayPortalType2,
             typename OutArrayPortalType>
   VTKM_EXEC void operator()(const vtkm::Id node,
                             const EndpointsArrayPortalType& endpointsPortal,
                             const InFieldArrayPortalType& fieldPortal,
                             const InFieldArrayPortalType& isovaluePortal,
-                            const InArrayPortalType& sortOrder,
-                            const InArrayPortalType& sortIndices,
+                            const InArrayPortalType2& sortOrder,
+                            const InArrayPortalType2& sortIndices,
                             const InArrayPortalType& contourTreeSuperparentsPortal,
                             const InArrayPortalType& contourTreeWhenTransferredPortal,
                             const InArrayPortalType& contourTreeHyperparentsPortal,
@@ -334,7 +335,13 @@ public:
         //triangle.superarcId = highSupernode;
         superarcIdsPortal.Set(node, highSupernode);
       } // node between low & high
+
+//      std::cout << node << " IDs: " << superarcIdsPortal.Get(node) << " " << lowSupernode << " " << highSupernode << std::endl;
+
     }   // descending hyperarc
+
+
+
 
     //mcTriangles.Set(node, triangle);
   }

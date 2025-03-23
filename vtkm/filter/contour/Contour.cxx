@@ -30,6 +30,9 @@ vtkm::cont::DataSet Contour::DoExecute(const vtkm::cont::DataSet& inDataSet)
   // Switch between Marching Cubes and Flying Edges implementation of contour,
   // depending on the type of CellSet we are processing
 
+    std::cout << "Switch between Marching Cubes and Flying Edges implementation of contour" << std::endl;
+    std::cout << "... depending on the type of CellSet we are processing"  << std::endl;
+
   vtkm::cont::UnknownCellSet inCellSet = inDataSet.GetCellSet();
   auto inCoords = inDataSet.GetCoordinateSystem(this->GetActiveCoordinateSystemIndex()).GetData();
   std::unique_ptr<vtkm::filter::contour::AbstractContour> implementation;
@@ -38,12 +41,14 @@ vtkm::cont::DataSet Contour::DoExecute(const vtkm::cont::DataSet& inDataSet)
   if (inCellSet.template IsType<vtkm::cont::CellSetStructured<3>>())
   {
     VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Using flying edges");
+    std::cout << "Using flying edges"  << std::endl;
     implementation.reset(new vtkm::filter::contour::ContourFlyingEdges);
     implementation->SetComputeFastNormals(this->GetComputeFastNormals());
   }
   else
   {
     VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Using marching cells");
+    std::cout << "Using marching cells"  << std::endl;
     implementation.reset(new vtkm::filter::contour::ContourMarchingCells);
     implementation->SetComputeFastNormals(this->GetComputeFastNormals());
   }

@@ -40,7 +40,10 @@
 #include <cassert>
 #include <algorithm>
 
+#include <vtkm/io/VTKDataSetReader.h>
 #include <vtkm/io/VTKDataSetWriter.h>
+#include <vtkm/io/VTKUnstructuredGridReader.h>
+
 
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/ArrayHandle.h>
@@ -52,6 +55,56 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/ProcessContourTree.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/Branch.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/SetTriangleSuperarcId.h>
+
+
+//#include <vtkm/io/VTKUnstructuredGridReader.h>
+//#include <vtkm/filter/scalar_topology/worklet/ContourTreeUniformAugmented.h>
+#include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
+
+
+
+struct DelaunayMesh
+{
+    std::vector<vtkm::Id> std_nbor_connectivity;
+    std::vector<vtkm::Id> std_nbor_offsets;
+};
+
+
+DelaunayMesh parseDelaunayASCII(const std::string& filePath)
+{
+    std::ifstream inputFile(filePath);
+    std::string line;
+    DelaunayMesh graph;
+    size_t currentOffset = 0;
+
+    if(!inputFile)
+    {
+        std::cerr << "Error opening file: " << filePath << std::endl;
+        return graph; // This will return empty vectors if file cannot be opened
+    }
+
+    while(std::getline(inputFile, line))
+    {
+        std::istringstream iss(line);
+        vtkm::Id id;
+
+        // Push the currentOffset before processing the line
+        graph.std_nbor_offsets.push_back(currentOffset);
+
+        // Process each id in the current line
+        while (iss >> id) {
+            graph.std_nbor_connectivity.push_back(id);
+            ++currentOffset; // Increment the offset for each id found
+        }
+    }
+
+    // After processing all lines, the last offset should be equal to the total number of ids
+    // This implies the end of the last vertex's neighborhood
+    graph.std_nbor_offsets.push_back(currentOffset);
+
+    return graph;
+
+}
 
 
 using namespace std;
@@ -275,30 +328,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
 
     // Populate the previously innitialsed arrays
-    computeAdditionalBranchData(
-            inputData,
-            fieldName,
-            ct, 
-            ctSortOrder,
-            whichBranch, 
-            branchMinimum, 
-            branchSaddle, 
-            branchMaximum, 
-            whichBranchRegular,
-            branchEndpointsRegular,
-            branchEndpoints,
-            branchHeightArray,
-            branchIsovalueHeightArray,
-            branchIsovalueArray,
-            branchPointVolumeArray,
-            superarcIntrinsicWeight,
-            superarcDependentWeight,
-            branchIsovalueFlag
-            );
-
-    if ("pactbd" == decompositionType)
+    if ("volume" == decompositionType)
     {
-        computeAdditionalBranchDataFloat(
+        computeAdditionalBranchData(
                 inputData,
                 fieldName,
                 ct,
@@ -314,10 +346,61 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 branchIsovalueHeightArray,
                 branchIsovalueArray,
                 branchPointVolumeArray,
-                superarcIntrinsicWeightNEW,
-                superarcDependentWeightNEW,
+                superarcIntrinsicWeight,
+                superarcDependentWeight,
                 branchIsovalueFlag
                 );
+    }
+    else if ("pactbd" == decompositionType)
+    {
+        // PACTBD-EDIT
+        int num_datapoints = 10001;
+
+        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+        std::ifstream field_input(field_filename);
+        vtkm::cont::ArrayHandle<Float64> fakeFieldArray;
+        fakeFieldArray.Allocate(num_datapoints);
+        auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
+
+        std::vector<vtkm::Float64> std_field;
+        if(field_input.is_open())
+        {
+            std::string line;
+            int i = 0;
+            while(getline(field_input, line))
+            {
+                std_field.push_back(static_cast<vtkm::Float64>(std::stof(line)));
+            }
+
+            for(vtkm::Id i = 0; i < num_datapoints; i++)
+            {
+              fakeFieldArrayWritePortal.Set(i, std_field[i]);
+            }
+        }
+        else
+        {
+            std::cerr << "Unable to open file: " << field_filename << "\n";
+        }
+        field_input.close();
+        computeAdditionalBranchDataFloat(fakeFieldArray,
+                        //                inputData,
+                        //                fieldName,
+                                        ct,
+                                        ctSortOrder,
+                                        whichBranch,
+                                        branchMinimum,
+                                        branchSaddle,
+                                        branchMaximum,
+                                        whichBranchRegular,
+                                        branchEndpointsRegular,
+                                        branchEndpoints,
+                                        branchHeightArray,
+                                        branchIsovalueHeightArray,
+                                        branchIsovalueArray,
+                                        branchPointVolumeArray,
+                                        superarcIntrinsicWeightNEW,
+                                        superarcDependentWeightNEW,
+                                        branchIsovalueFlag);
     }
 
     // Prevent getting more branches than we have available
@@ -335,12 +418,80 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     timer.Reset();
     timer.Start();
 
-    // Build the mesh
-    vtkm::Id3 pointDimensions = inputData.GetCellSet().AsCellSet<vtkm::cont::CellSetStructured<3>>().GetPointDimensions();
-    worklet::contourtree_augmented::DataSetMeshTriangulation3DMarchingCubes mesh(vtkm::Id3(pointDimensions[0], pointDimensions[1], pointDimensions[2]));
-    mesh.SortData(inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>());
 
-    // Set up extremal chains
+    // Now we have to recreate some components that are used in the Contour Tree computation ...
+    // ... that are deleted afterwards for saving memory such as the mesh, and the extrema chains
+
+    cout << "Reating with VTKUnstructuredGridReader" << endl;
+    // Manually sending the VTK file from here since it is only needed here
+//    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
+    //vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
+    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-withvalues.vtk");
+
+    reader.PrintSummary(std::cout);
+    cont::DataSet inputDataVTK = reader.ReadDataSet();
+
+//    vtkm::io::VTKUnstructuredGridReader reader("/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/build/10k-from-2M-sampled-excel-sorted.1.vtk");
+////    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-field.vtk");
+//    reader.PrintSummary(std::cout);
+//    cont::DataSet inputDataVTK = reader.ReadDataSet();
+
+    cout << "Done!" << endl;
+
+    reader.PrintSummary(std::cout);
+
+    cout << "Summary done!" << endl;
+
+
+//    // Build the mesh (Regular)
+//        vtkm::Id3 pointDimensions = inputData.GetCellSet().AsCellSet<vtkm::cont::CellSetStructured<3>>().GetPointDimensions();
+//        worklet::contourtree_augmented::DataSetMeshTriangulation3DMarchingCubes mesh(vtkm::Id3(pointDimensions[0], pointDimensions[1], pointDimensions[2]));
+//        mesh.SortData(inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>());
+
+    // Build the mesh (PACT-BD)
+    // PACTBD-EDIT
+    int num_datapoints = 10001;
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    DelaunayMesh delmesh = parseDelaunayASCII(filename);
+    // Get CONNECTIVITY
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity =
+      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_connectivity, vtkm::CopyFlag::Off);
+    std::cout << "nbor_connectivity num vals: " << nbor_connectivity.GetNumberOfValues() << "\n";
+    // Get OFFSETS
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets =
+      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_offsets, vtkm::CopyFlag::Off);
+    std::cout << "nbor_offsets num vals: " << nbor_offsets.GetNumberOfValues() << "\n";
+    // Get VALUES
+    //    std::vector<int> std_actual_values;
+    std::vector<vtkm::Float64> std_actual_values;
+    for(int i = 0; i < num_datapoints; i++)
+    {
+      std_actual_values.push_back((vtkm::Float64)i);
+    }
+   // note: this array does not actually matter for our case ...
+//    vtkm::cont::ArrayHandle<int> actual_values =
+    vtkm::cont::ArrayHandle<vtkm::Float64> actual_values =
+      vtkm::cont::make_ArrayHandle(std_actual_values, vtkm::CopyFlag::Off);
+    // Get GLOBAL IDs
+    std::vector<vtkm::Id> std_global_inds = {0};
+    vtkm::cont::ArrayHandle<vtkm::Id> global_inds =
+      vtkm::cont::make_ArrayHandle(std_global_inds, vtkm::CopyFlag::Off);
+
+    std::cout << "USING PACT (unoptimized)...\n";
+//    vtkm::worklet::contourtree_augmented::ContourTreeMesh<int> mesh(ctSortOrder,
+    vtkm::worklet::contourtree_augmented::ContourTreeMesh<vtkm::Float64> mesh(ctSortOrder, // const IdArrayType& nodes,
+                            //arcs_list,
+                              nbor_connectivity,                                           // const IdArrayType& inNborConnectivity
+                              nbor_offsets,                                                // const IdArrayType& inNborOffsets
+                              ctSortOrder,                                                 // const IdArrayType& inSortOrder
+                              // doesnt work out of the box:
+                              // fieldArray, // testing fieldArray instead of manual actual_value
+                              actual_values,                                               // const vtkm::cont::ArrayHandle<FieldType>& values
+                              //nodes_sorted,
+                              global_inds);                                                // const IdArrayType& inGlobalMeshIndex
+
+
+    // Set up extremal chains (unchanged)
     worklet::contourtree_augmented::MeshExtrema extrema(mesh.NumVertices);
     extrema.SetStarts(mesh, true);
     extrema.BuildRegularChains(true);
@@ -374,6 +525,11 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     vtkm::cont::ArrayHandle<Float64> branchImportance;
     vtkm::cont::ArrayHandle<Float64> branchImportanceSecondary;
     if ("volume" == decompositionType)
+    {
+        branchImportance = branchPointVolumeArray;
+        branchImportanceSecondary = branchIsovalueHeightArray;
+    }
+    else if ("pactbd" == decompositionType)
     {
         branchImportance = branchPointVolumeArray;
         branchImportanceSecondary = branchIsovalueHeightArray;
@@ -419,6 +575,17 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
     vtkm::cont::PartitionedDataSet outputContours;
 
+
+    // ==================================================================================================================================== //
+    // ==================================================================================================================================== //
+    // ==================================================================================================================================== //
+
+    // SET UP (creating the CT, branch decomposition, simplification, and choosing N most important) DONE. Now actualy extracting contours  //
+
+    // ==================================================================================================================================== //
+    // ==================================================================================================================================== //
+    // ==================================================================================================================================== //
+
     for (int k = 0 ; k < numberOfBranches; k++)
     {
         //
@@ -441,10 +608,18 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         }
 
         // Compute an isosurface for the whole data set
-        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputData, {branchIsovalue}, fieldName);
+//        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputData, {branchIsovalue}, fieldName);
+        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputDataVTK, {branchIsovalue}, fieldName);
+
+        std::cout << "mcTriangles extracted total:" << mcTriangles.GetNumberOfValues() << std::endl;
 
         // Compute the superarc ID of all the triangles
-        cv1k::filter::computeTriangleIds(ct, mesh, extrema, inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(), mcTriangles, branchIsovalue);
+//         cv1k::filter::computeTriangleIds(ct, mesh, extrema, inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(), mcTriangles, branchIsovalue);
+        cv1k::filter::computeTriangleIds(ct, mesh, extrema,
+                                         inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+                                         mcTriangles, branchIsovalue);
+        std::cout << "Triangle IDs computed" << std::endl;
+        std::cout << "mcTriangles remaining total:" << mcTriangles.GetNumberOfValues() << std::endl;
 
         //
         // Compute the superarc from the current branch sits at that isovalue 
@@ -465,14 +640,16 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 });
 
         // Set up the worklet
-        vtkm::worklet::contourtree_augmented::process_contourtree_inc::SetTriangleSuperarcId setTrianglesId(ct.Hypernodes.GetNumberOfValues(), ct.Supernodes.GetNumberOfValues());
+        vtkm::worklet::contourtree_augmented::process_contourtree_inc::SetTriangleSuperarcId setTrianglesId(ct.Hypernodes.GetNumberOfValues(),
+                                                                                                            ct.Supernodes.GetNumberOfValues());
         cont::Invoker Invoke;
 
         //// Run the worklet
         Invoke(
                 setTrianglesId,
                 endpoints,
-                inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(),
+                    inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(),
+//                    inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
                 isovalueArray,
                 mesh.SortOrder, // (input)
                 mesh.SortIndices, // (input)
@@ -487,7 +664,12 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 superarcIds
               ); // (input)
 
-        const vtkm::Id branchSuperarcID = superarcIds.ReadPortal().Get(0);
+        //const vtkm::Id branchSuperarcID = superarcIds.ReadPortal().Get(0);
+        // assign the branch name to the last superarc, not the first one for PACTBD somehow:
+        const vtkm::Id branchSuperarcID = superarcIds.ReadPortal().Get(superarcIds.GetNumberOfValues()-1);
+
+        std::cout << "branchSuperarcID: " << branchSuperarcID << std::endl;
+
 
         //
         // Filter ouf the triangles that do not belong to the isosurface of the current branch
@@ -496,6 +678,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         for (int j = 0 ; j < mcTriangles.GetNumberOfValues() ; j++)
         {
             Triangle currentTriangle = mcTriangles.ReadPortal().Get(j);
+//            branchTriangles.push_back(currentTriangle);
 
             if (currentTriangle.superarcId == branchSuperarcID)
             {
@@ -505,6 +688,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 branchTriangles.push_back(currentTriangle);
             }
         }
+
+        std::cout << "branchTriangles remaining total:" << branchTriangles.size() << std::endl;
+
 
         if (debugLevel >= 1)
         {
@@ -555,6 +741,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         }
         contourDataSet.AddCellField("importance", importanceCellField);
 
+        std::cout << "4 branchIsovalue:" << branchIsovalue << std::endl;
+        std::cout << "4 branchId      :" << branchId << std::endl;
 
         cont::ArrayHandle<vtkm::Float64> isovalueCellField;
         isovalueCellField.Allocate(contourDataSet.GetNumberOfCells());
@@ -564,15 +752,42 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
             isovalueCellFieldWritePortal.Set(i, branchIsovalue);
         }
         contourDataSet.AddCellField("branchIsovalue",    isovalueCellField);
+        std::cout << "5 branchIsovalue:" << branchIsovalue << std::endl;
 
-        cont::ArrayHandle<int> volumeCellField;
-        volumeCellField.Allocate(contourDataSet.GetNumberOfCells());
-        auto volumeCellFieldWritePortal = volumeCellField.WritePortal();
-        for (int i = 0 ; i < volumeCellField.GetNumberOfValues() ; i++)
+//        if ("volume" == decompositionType)
+//        {
+//            cont::ArrayHandle<int> volumeCellField;
+//            volumeCellField.Allocate(contourDataSet.GetNumberOfCells());
+//            auto volumeCellFieldWritePortal = volumeCellField.WritePortal();
+//            for (int i = 0 ; i < volumeCellField.GetNumberOfValues() ; i++)
+//            {
+//                volumeCellFieldWritePortal.Set(i, branchPointVolumeArray.ReadPortal().Get(branchId));
+//            }
+//            contourDataSet.AddCellField("branchVolume",volumeCellField);
+//        }
+
+//        else if ("pactbd" == decompositionType)
+//        {
+            cont::ArrayHandle<vtkm::Float64> volumeCellField;
+            volumeCellField.Allocate(contourDataSet.GetNumberOfCells());
+            auto volumeCellFieldWritePortal = volumeCellField.WritePortal();
+            for (int i = 0 ; i < volumeCellField.GetNumberOfValues() ; i++)
+            {
+                volumeCellFieldWritePortal.Set(i, branchPointVolumeArray.ReadPortal().Get(branchId));
+            }
+            contourDataSet.AddCellField("branchVolume",volumeCellField);
+//        }
+
+
+        cont::ArrayHandle<int> superarcIdCellField;
+        superarcIdCellField.Allocate(mcTriangles.GetNumberOfValues());
+        auto superarcIdCellFieldWritePortal = superarcIdCellField.WritePortal();
+        for (int j = 0 ; j < mcTriangles.GetNumberOfValues() ; j++)
         {
-            volumeCellFieldWritePortal.Set(i, branchPointVolumeArray.ReadPortal().Get(branchId));
+            Triangle currentTriangle = mcTriangles.ReadPortal().Get(j);
+            superarcIdCellFieldWritePortal.Set(j, currentTriangle.superarcId);
         }
-        contourDataSet.AddCellField("branchVolume",volumeCellField);
+        contourDataSet.AddCellField("superarcID",superarcIdCellField);
 
 
 
@@ -609,7 +824,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 }//computeMostSignificantContours
 
 
-vector<Id> cv1k::interface::getBranchesSortedOrder(cont::ArrayHandle<Float64> branchImportance, cont::ArrayHandle<Float64> secondaryBranchImportance)
+vector<Id> cv1k::interface::getBranchesSortedOrder(cont::ArrayHandle<Float64> branchImportance,
+                                                   cont::ArrayHandle<Float64> secondaryBranchImportance)
 {
     // Add only the branches which have non zero height
     vector<tuple<Id, Float64, Float64>> sortedBranches;
@@ -812,8 +1028,9 @@ void cv1k::interface::computeAdditionalBranchData(
 
 
 void cv1k::interface::computeAdditionalBranchDataFloat(
-        const cont::DataSet inputData,
-        const string fieldName,
+        const vtkm::cont::ArrayHandle<Float64> fakeFieldArray,
+//        const cont::DataSet inputData,    // passing a fakeFieldArray instead
+//        const string fieldName,           // passing a fakeFieldArray instead
         const worklet::contourtree_augmented::ContourTree ct,
         const vtkm::cont::ArrayHandle<vtkm::Id> ctSortOrder,
         const cont::ArrayHandle<Id> whichBranch,
@@ -914,8 +1131,15 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
             branchType = 2;
         }
 
-        Float64 a = inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[0]);
-        Float64 b = inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[1]);
+
+        std::cout << "Branch ENDPOINTS    : " << endpoints[0] << " and " << endpoints[1] << std::endl;
+
+        Float64 a = fakeFieldArray.ReadPortal().Get(endpoints[0]);
+                //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[0]);
+        Float64 b = fakeFieldArray.ReadPortal().Get(endpoints[1]);
+                //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[1]);
+
+        std::cout << "Branch ENDPOINT VALS: " << a << " and " << b << std::endl;
 
         Float64 isovalue = 0.0;
 
@@ -975,5 +1199,7 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
 
         branchEndpoints.WritePortal().Set(i, {endpoints[0], endpoints[1]});
         branchEndpointsRegular.WritePortal().Set(i, {regularEndpoints[0], regularEndpoints[1]});
+
+        std::cout << "Branch ISOVALUE: " << isovalue << std::endl;
     }
 }
