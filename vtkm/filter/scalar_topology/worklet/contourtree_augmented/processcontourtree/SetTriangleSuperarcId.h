@@ -142,6 +142,12 @@ public:
     vtkm::Id edgeEndpointA = sortIndices.Get(endpointsPortal.Get(node)[0]);
     vtkm::Id edgeEndpointB = sortIndices.Get(endpointsPortal.Get(node)[1]);
 
+    bool debugflag = false;
+    if(edgeEndpointA == 5462)
+    {
+        debugflag = true;
+    }
+
     // Have to make sure that A is smaller than B, otherwise the path will have redudant edges
     // This is because we take the peak of A and pit of B, if we do it the other way we get incorrect labeling
     if (edgeEndpointA < edgeEndpointB)
@@ -336,7 +342,10 @@ public:
         superarcIdsPortal.Set(node, highSupernode);
       } // node between low & high
 
-//      std::cout << node << " IDs: " << superarcIdsPortal.Get(node) << " " << lowSupernode << " " << highSupernode << std::endl;
+      if(debugflag)
+      {
+          std::cout << node << " IDs: " << superarcIdsPortal.Get(node) << " " << lowSupernode << " " << highSupernode << std::endl;
+      }
 
     }   // descending hyperarc
 

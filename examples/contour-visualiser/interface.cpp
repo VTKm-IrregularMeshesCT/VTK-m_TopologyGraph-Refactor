@@ -613,7 +613,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
         std::cout << "mcTriangles extracted total:" << mcTriangles.GetNumberOfValues() << std::endl;
 
-        // Compute the superarc ID of all the triangles
+        // Compute the superarc ID of all the triangles (now confirmed correct)
 //         cv1k::filter::computeTriangleIds(ct, mesh, extrema, inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(), mcTriangles, branchIsovalue);
         cv1k::filter::computeTriangleIds(ct, mesh, extrema,
                                          inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
@@ -639,6 +639,10 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 ctSortOrder.ReadPortal().Get(branchEndpointsRegular.ReadPortal().Get(branchId)[1]),
                 });
 
+
+        std::cout << " Compute the superarc from the current branch sits at that isovalue, branchID=" << branchId;
+        std::cout << " endpoints=" << endpoints.ReadPortal().Get(0)[0] << " and " << endpoints.ReadPortal().Get(0)[1] << std::endl;
+
         // Set up the worklet
         vtkm::worklet::contourtree_augmented::process_contourtree_inc::SetTriangleSuperarcId setTrianglesId(ct.Hypernodes.GetNumberOfValues(),
                                                                                                             ct.Supernodes.GetNumberOfValues());
@@ -648,8 +652,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         Invoke(
                 setTrianglesId,
                 endpoints,
-                    inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(),
-//                    inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+//                    inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(),
+                    // use VTK data:
+                    inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
                 isovalueArray,
                 mesh.SortOrder, // (input)
                 mesh.SortIndices, // (input)
@@ -664,11 +669,20 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 superarcIds
               ); // (input)
 
+
+
         //const vtkm::Id branchSuperarcID = superarcIds.ReadPortal().Get(0);
         // assign the branch name to the last superarc, not the first one for PACTBD somehow:
         const vtkm::Id branchSuperarcID = superarcIds.ReadPortal().Get(superarcIds.GetNumberOfValues()-1);
 
-        std::cout << "branchSuperarcID: " << branchSuperarcID << std::endl;
+        std::cout << "branchSuperarcID: " << branchSuperarcID << " superarcIds portal for:" << std::endl;
+        if(branchSuperarcID == 70)
+        {
+            for(int i = 0; i < superarcIds.GetNumberOfValues(); i++)
+            {
+                std::cout << i << " -> " << superarcIds.ReadPortal().Get(i) << std::endl;
+            }
+        }
 
 
         //
@@ -679,6 +693,11 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         {
             Triangle currentTriangle = mcTriangles.ReadPortal().Get(j);
 //            branchTriangles.push_back(currentTriangle);
+//            if(branchSuperarcID == 70)
+//            {
+//                std::cout << "currentTriangle.superarcId " << currentTriangle.superarcId << " vs "
+//                          << "branchSuperarcID " << branchSuperarcID << std::endl;
+//            }
 
             if (currentTriangle.superarcId == branchSuperarcID)
             {
@@ -780,12 +799,14 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
 
         cont::ArrayHandle<int> superarcIdCellField;
-        superarcIdCellField.Allocate(mcTriangles.GetNumberOfValues());
+//        superarcIdCellField.Allocate(mcTriangles.GetNumberOfValues());
+        superarcIdCellField.Allocate(branchTriangles.size());
         auto superarcIdCellFieldWritePortal = superarcIdCellField.WritePortal();
-        for (int j = 0 ; j < mcTriangles.GetNumberOfValues() ; j++)
+//        for (int j = 0 ; j < mcTriangles.GetNumberOfValues() ; j++)
+        for (int i = 0; i < branchTriangles.size(); i++)
         {
-            Triangle currentTriangle = mcTriangles.ReadPortal().Get(j);
-            superarcIdCellFieldWritePortal.Set(j, currentTriangle.superarcId);
+            Triangle currentTriangle = mcTriangles.ReadPortal().Get(i);
+            superarcIdCellFieldWritePortal.Set(i, currentTriangle.superarcId);
         }
         contourDataSet.AddCellField("superarcID",superarcIdCellField);
 
@@ -1132,14 +1153,14 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
         }
 
 
-        std::cout << "Branch ENDPOINTS    : " << endpoints[0] << " and " << endpoints[1] << std::endl;
+        std::cout << i << ") branch " << endpoints[0] << "->" << endpoints[1] << " = ";
 
         Float64 a = fakeFieldArray.ReadPortal().Get(endpoints[0]);
                 //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[0]);
         Float64 b = fakeFieldArray.ReadPortal().Get(endpoints[1]);
                 //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[1]);
 
-        std::cout << "Branch ENDPOINT VALS: " << a << " and " << b << std::endl;
+        std::cout << "(" << a << "->" << b << ") = ";
 
         Float64 isovalue = 0.0;
 
@@ -1200,6 +1221,6 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
         branchEndpoints.WritePortal().Set(i, {endpoints[0], endpoints[1]});
         branchEndpointsRegular.WritePortal().Set(i, {regularEndpoints[0], regularEndpoints[1]});
 
-        std::cout << "Branch ISOVALUE: " << isovalue << std::endl;
+        std::cout << " iso: " << isovalue << std::endl;
     }
 }
