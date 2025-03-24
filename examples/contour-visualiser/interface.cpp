@@ -353,10 +353,20 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     }
     else if ("pactbd" == decompositionType)
     {
-        // PACTBD-EDIT
-        int num_datapoints = 10001;
+        // NEW PACTBD-EDIT
+//        int num_datapoints = 10001;
+//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+//        int num_datapoints = 99972;
+        int num_datapoints = 200001;
+//        int num_datapoints = 985181;
+//        int num_datapoints = 2160930;
+        // NEW PACTBD-EDIT
+        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
+//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
+//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
 
-        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+
+
         std::ifstream field_input(field_filename);
         vtkm::cont::ArrayHandle<Float64> fakeFieldArray;
         fakeFieldArray.Allocate(num_datapoints);
@@ -422,11 +432,16 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     // Now we have to recreate some components that are used in the Contour Tree computation ...
     // ... that are deleted afterwards for saving memory such as the mesh, and the extrema chains
 
-    cout << "Reating with VTKUnstructuredGridReader" << endl;
+    cout << "Reading with VTKUnstructuredGridReader" << endl;
     // Manually sending the VTK file from here since it is only needed here
 //    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
     //vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
-    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-withvalues.vtk");
+
+    // NEW PACTBD-EDIT
+//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-withvalues.vtk");
+    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
+//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/1M-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
+//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/2M-parcels-20250225-sorted.1-auto-scalar-valued.vtk");
 
     reader.PrintSummary(std::cout);
     cont::DataSet inputDataVTK = reader.ReadDataSet();
@@ -450,8 +465,19 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
     // Build the mesh (PACT-BD)
     // PACTBD-EDIT
-    int num_datapoints = 10001;
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    int num_datapoints = 10001;
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    int num_datapoints = 99972;
+        int num_datapoints = 200001;
+//        int num_datapoints = 985181;
+//        int num_datapoints = 2160930;
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
+
+
+
+
     DelaunayMesh delmesh = parseDelaunayASCII(filename);
     // Get CONNECTIVITY
     vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity =
@@ -611,16 +637,11 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputData, {branchIsovalue}, fieldName);
         cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputDataVTK, {branchIsovalue}, fieldName);
 
-        std::cout << "mcTriangles extracted total:" << mcTriangles.GetNumberOfValues() << std::endl;
-
         // Compute the superarc ID of all the triangles (now confirmed correct)
 //         cv1k::filter::computeTriangleIds(ct, mesh, extrema, inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(), mcTriangles, branchIsovalue);
         cv1k::filter::computeTriangleIds(ct, mesh, extrema,
                                          inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
                                          mcTriangles, branchIsovalue);
-        std::cout << "Triangle IDs computed" << std::endl;
-        std::cout << "mcTriangles remaining total:" << mcTriangles.GetNumberOfValues() << std::endl;
-
         //
         // Compute the superarc from the current branch sits at that isovalue 
         //
@@ -708,9 +729,6 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
             }
         }
 
-        std::cout << "branchTriangles remaining total:" << branchTriangles.size() << std::endl;
-
-
         if (debugLevel >= 1)
         {
             cout << "The size of the contour is " << (branchTriangles.size()) << " from " << mcTriangles.GetNumberOfValues()<< " that is " <<  100.0 * (static_cast<double>(branchTriangles.size()) / static_cast<double>(mcTriangles.GetNumberOfValues())) << "%" << endl;
@@ -760,9 +778,6 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         }
         contourDataSet.AddCellField("importance", importanceCellField);
 
-        std::cout << "4 branchIsovalue:" << branchIsovalue << std::endl;
-        std::cout << "4 branchId      :" << branchId << std::endl;
-
         cont::ArrayHandle<vtkm::Float64> isovalueCellField;
         isovalueCellField.Allocate(contourDataSet.GetNumberOfCells());
         auto isovalueCellFieldWritePortal = isovalueCellField.WritePortal();
@@ -771,7 +786,6 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
             isovalueCellFieldWritePortal.Set(i, branchIsovalue);
         }
         contourDataSet.AddCellField("branchIsovalue",    isovalueCellField);
-        std::cout << "5 branchIsovalue:" << branchIsovalue << std::endl;
 
 //        if ("volume" == decompositionType)
 //        {
@@ -799,10 +813,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
 
         cont::ArrayHandle<int> superarcIdCellField;
-//        superarcIdCellField.Allocate(mcTriangles.GetNumberOfValues());
         superarcIdCellField.Allocate(branchTriangles.size());
         auto superarcIdCellFieldWritePortal = superarcIdCellField.WritePortal();
-//        for (int j = 0 ; j < mcTriangles.GetNumberOfValues() ; j++)
         for (int i = 0; i < branchTriangles.size(); i++)
         {
             Triangle currentTriangle = mcTriangles.ReadPortal().Get(i);
@@ -1153,14 +1165,14 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
         }
 
 
-        std::cout << i << ") branch " << endpoints[0] << "->" << endpoints[1] << " = ";
+//        std::cout << i << ") branch " << endpoints[0] << "->" << endpoints[1] << " = ";
 
         Float64 a = fakeFieldArray.ReadPortal().Get(endpoints[0]);
                 //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[0]);
         Float64 b = fakeFieldArray.ReadPortal().Get(endpoints[1]);
                 //inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>().ReadPortal().Get(endpoints[1]);
 
-        std::cout << "(" << a << "->" << b << ") = ";
+//        std::cout << "(" << a << "->" << b << ") = ";
 
         Float64 isovalue = 0.0;
 
@@ -1221,6 +1233,6 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
         branchEndpoints.WritePortal().Set(i, {endpoints[0], endpoints[1]});
         branchEndpointsRegular.WritePortal().Set(i, {regularEndpoints[0], regularEndpoints[1]});
 
-        std::cout << " iso: " << isovalue << std::endl;
+//        std::cout << " iso: " << isovalue << std::endl;
     }
 }

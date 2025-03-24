@@ -267,51 +267,32 @@ int main(int argc, char* argv[])
             return 1;
         }
     }
-    else if (fileName.compare(fileName.length() - 3, 3, "foo") == 0)
-    {
-      std::cout << "Foo file: " << fileName << "\n";
+//    else if (fileName.compare(fileName.length() - 3, 3, "foo") == 0)
+//    {
+//      std::cout << "Foo file: " << fileName << "\n";
 
-      // build the input dataset
-      vtkm::cont::DataSetBuilderUniform dsb;
+//      // build the input dataset
+//      vtkm::cont::DataSetBuilderUniform dsb;
 
-      int dimsx = 2;
-      //      values.resize(dimsx*dimsx*dimsx);
-      // Enter custom sized values here
-      // (FOR PACT-BD-EDIT)
-      values.resize(10001);
+//      int dimsx = 2;
+//      //      values.resize(dimsx*dimsx*dimsx);
+//      // Enter custom sized values here
+//      // NEW PACTdBD-EDIT
+//      values.resize(10001);
 
-      vtkm::Id3 vdims;
-      vdims[0] = static_cast<vtkm::Id>(1);
-      vdims[1] = static_cast<vtkm::Id>(10001);
-      vdims[2] = static_cast<vtkm::Id>(1);
+//      vtkm::Id3 vdims;
+//      vdims[0] = static_cast<vtkm::Id>(1);
+//      vdims[1] = static_cast<vtkm::Id>(10001);
+//      vdims[2] = static_cast<vtkm::Id>(1);
 
-//      std::vector<vtkm::FloatDefault> std_nodes_sorted;
-//      // PACTBD-EDIT
-////      for(vtkm::FloatDefault i = 0.f; i < 29791.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
-//      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
-////      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
-//      {
-//        std_nodes_sorted.push_back(i);
-//      }
+//      inputData = dsb.Create(vdims);
 
-//      vtkm::cont::ArrayHandle<vtkm::FloatDefault> dataField =
-//        vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
+//      // inputData.AddPointField("values", values);
+//      inputData.AddPointField(fieldName, values);
 
-      inputData = dsb.Create(vdims);
-
-      // inputData.AddPointField("values", values);
-      inputData.AddPointField(fieldName, values);
-
-      /// DEBUG PRINT std::cout << "inDataSet ASCII summary\n";
-      inputData.PrintSummary(std::cout);
-    }
+//      /// DEBUG PRINT std::cout << "inDataSet ASCII summary\n";
+//      inputData.PrintSummary(std::cout);
+//    }
 
     else // Read ASCII data input
     {
@@ -434,7 +415,6 @@ int main(int argc, char* argv[])
             //  ... since each point must be assigned the same branch ID)
             // Note: vtkm::Range gives [min,max] range of the array
             vtkm::Id contourBranchId = (vtkm::Id)branchIDrange[0].Center();
-            std::cout << "branchIsovalue:" << branchIDrange[0] << std::endl;
             // we repeat the same for the isovalues:
             vtkm::Range isovaluerange[1];
             outputDataSets.GetPartition(i).GetPointField("isovaluePoints").GetRange(isovaluerange);

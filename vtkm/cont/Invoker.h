@@ -73,7 +73,8 @@ struct Invoker
   {
     using WorkletType = vtkm::internal::remove_cvref<Worklet>;
     using DispatcherType = typename WorkletType::template Dispatcher<WorkletType>;
-    std::cout << "Invoker1\n";
+    // Invoke() cont::Invoker Invoker.h Invoker_h
+    //    std::cout << "Invoker1\n";
     DispatcherType dispatcher(worklet, scatterOrMask);
     dispatcher.SetDevice(this->DeviceId);
     dispatcher.Invoke(std::forward<Args>(args)...);

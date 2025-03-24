@@ -1376,15 +1376,15 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // PACTBD-EDIT
 //    int num_datapoints = 101;
 //    int num_datapoints = 1001;
-    int num_datapoints = 10001;
+//    int num_datapoints = 10001;
 //    int num_datapoints = 99972;
-//    int num_datapoints = 200001;
+    int num_datapoints = 200001;
 //    int num_datapoints = 985181;
 //    int num_datapoints = 2160930;
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
     // PACTBD-EDIT
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
     // ARCHER2
@@ -1540,8 +1540,12 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
                                 global_inds);
 
       // NEW: use the data values passed into the field here:
-      // PACTBD-EDIT
-      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+      // NEW PACTBD-EDIT
+      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
+
+
       std::ifstream field_input(field_filename);
       vtkm::cont::ArrayHandle<FieldType, StorageType> fakeFieldArray;
       fakeFieldArray.Allocate(num_datapoints);

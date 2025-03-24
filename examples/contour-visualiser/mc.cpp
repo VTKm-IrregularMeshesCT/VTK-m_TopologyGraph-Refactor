@@ -138,8 +138,6 @@ cont::ArrayHandle<cv1k::Triangle> cv1k::mc::getMarchingCubeTriangles(cont::DataS
 
     }
 
-    std::cout << "returning the triangles" << std::endl;
-
     return triangles;
 }
 
