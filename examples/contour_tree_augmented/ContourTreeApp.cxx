@@ -903,11 +903,11 @@ int main(int argc, char* argv[])
 //    ctaug_ns::IdArrayType supernodeTransferWeight;
 //    ctaug_ns::IdArrayType hyperarcDependentWeight;
 
-    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerial in 'ContourTreeApp.cxx rank == 0'" << std::endl;
+//    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerial in 'ContourTreeApp.cxx rank == 0'" << std::endl;
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
-    std::cout << "[STAGE 1 Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial START ..." << std::endl;
+//    std::cout << "[STAGE 1 Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial START ..." << std::endl;
 
 //    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerial(filter.GetContourTree(),
 //                                                             filter.GetNumIterations(),
@@ -916,7 +916,7 @@ int main(int argc, char* argv[])
 //                                                             supernodeTransferWeight,  // (output)
 //                                                             hyperarcDependentWeight); // (output)
 
-    std::cout << "[STAGE 1 End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial ... END" << std::endl;
+//    std::cout << "[STAGE 1 End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial ... END" << std::endl;
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
@@ -970,7 +970,7 @@ int main(int argc, char* argv[])
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
-    std::cout << "[STAGE 1c Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
+    std::cout << "\n\n\n\n[STAGE 1c Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
 
 //    auto hypernodesPortal = filter.GetContourTree().Hypernodes.ReadPortal();
     std::cout << "number of arcs:"      << filter.GetContourTree().Arcs.GetNumberOfValues() << std::endl;
@@ -1004,7 +1004,7 @@ int main(int argc, char* argv[])
     CALLGRIND_STOP_INSTRUMENTATION;
     CALLGRIND_DUMP_STATS;
 
-    std::cout << "[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END" << std::endl;
+    std::cout << "[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
 
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
@@ -1094,7 +1094,7 @@ int main(int argc, char* argv[])
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
 
-    std::cout << "[STAGE 2f Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
+    std::cout << "\n\n\n\n[STAGE 2f Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
 
     ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(filter.GetContourTree(),
                                                                               superarcDependentWeightNEW,
@@ -1105,7 +1105,7 @@ int main(int argc, char* argv[])
                                                                               branchSaddle,  // (output)
                                                                               branchParent); // (output)
 
-    std::cout << "[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END" << std::endl;
+    std::cout << "[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n" << std::endl;
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif

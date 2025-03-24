@@ -736,8 +736,8 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   }
 #if DEBUG_PRINT_PACTBD
   std::cout << "------- ^^^ Branch VALUE TYPE INITIAL weights ^^^ --------" << std::endl << std::endl;
-#endif
   std::cout << "Printing the supernode/branch mappings" << std::endl;
+#endif
 
 //  for (vtkm::Id i = 0; i < contourTreeSuperparents.GetNumberOfValues(); i++)
 //  {
@@ -771,8 +771,10 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //        if (!std::isnan(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j])))
         branches[i]->VolumeFloat += superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
 
+#if DEBUG_PRINT_PACTBD
 //        std::cout << "(" << branch_SP_map[i][j] << " = " << branch_SP_map[i][j+1] << " -> " << branch_SP_map[i][j+2] << ") ";
         std::cout << branch_SP_map[i][j] << " -> ";
+#endif
 
 //        size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][j])));
 
@@ -802,6 +804,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
     }
 
+#if DEBUG_PRINT_PACTBD
     if(!branches[i]->Children.empty())
     {
         std::cout << std::endl << "Children of i=" << i << std::endl;
@@ -813,6 +816,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //                    std::cout << std::endl << "\t";
             PrintBranchInformation(c, branch_SP_map, c->OriginalId);
     }
+#endif
 
 
 //    size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][0])));
@@ -840,8 +844,8 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 ////        std::cout << c->OriginalId << " -> ";
 //    }
 
-    std::cout << std::endl;
 #if DEBUG_PRINT_PACTBD
+    std::cout << std::endl;
     std::cout << std::endl;
     std::cout << i << " -> "
               << branches[i]->Extremum << "->" << branches[i]->Saddle << " = "

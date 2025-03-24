@@ -6630,6 +6630,13 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 #endif
         std::cout << "END ComputeVolumeWeightsSerialStructCoefficients" << std::endl;
 
+#if PROFILING_PACTBD
+            printMemoryUsage("Coefficients Sweep");
+            std::cout << "    " << RED << std::setw(38) << std::left << "Coefficients Sweep"
+                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
+            timer.Start();
+#endif
+
     }  // END ComputeVolumeWeightsSerialStructCoefficients
 
 
