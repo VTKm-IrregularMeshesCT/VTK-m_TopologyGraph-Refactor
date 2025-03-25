@@ -4021,50 +4021,7 @@ public:
             // ---------------------------------------------- MID SLAB ----------------------------------------------- //
 
 
-            {// start of STEP 8 scope
-
-            }// end of STEP 8 scope
-
             // =========================  \/ Step 8: Compute sin(theta1) and sin(theta2) \/ ========================== //
-            // sin theta 1 computation:
-
-            std::vector<long double> areas_CGH;
-            std::vector<long double> sin_theta_1s;
-
-            std::vector<PositionVector> vectorsGH;
-            std::vector<PositionVector> vectorsCH;
-
-            for (int i = 0; i < tetlistSorted.size(); i++)
-            {
-                vectorsGH.emplace_back(verticesG[i], verticesH[i]);
-                vectorsCH.emplace_back(verticesC[i], verticesH[i]);
-
-                areas_CGH.push_back(1.0l/2.0l * vtkm::Magnitude(vtkm::Cross( vectorsGH[i].difference, vectorsCH[i].difference )) );
-                sin_theta_1s.push_back(2.0l * areas_CGH[i]/ (vectorsGH[i].mag() * vectorsCH[i].mag()) );
-            }
-
-
-
-            // sin theta 2 computation:
-
-            std::vector<long double> areas_BEF;
-            std::vector<long double> sin_theta_2s;
-
-            std::vector<PositionVector> vectorsFB;
-            std::vector<PositionVector> vectorsFE;
-
-            for (int i = 0; i < tetlistSorted.size(); i++)
-            {
-                vectorsFB.emplace_back(verticesF[i], verticesB[i]);
-                vectorsFE.emplace_back(verticesF[i], verticesE[i]);
-            }
-
-            for (int i = 0; i < tetlistSorted.size(); i++)
-            {
-                areas_BEF.push_back(1.0l/2.0l * vtkm::Magnitude(vtkm::Cross( vectorsFB[i].difference, vectorsFE[i].difference )) );
-                sin_theta_2s.push_back(2.0l * areas_BEF[i]/ (vectorsFB[i].mag() * vectorsFE[i].mag()) );
-            }
-
 
             // =========================  /\ Step 8: Compute sin(theta1) and sin(theta2) /\ ========================== //
 
@@ -4081,36 +4038,40 @@ public:
             // ------------------------------------------ COMBINE BATCH 1+2 ------------------------------------------- //
             // (OUTPUT OF STEP 9)
             std::vector<long double> a_mid;
+            a_mid.reserve(tetlistSorted.size());
             std::vector<long double> b_mid;
+            b_mid.reserve(tetlistSorted.size());
             std::vector<long double> c_mid;
+            c_mid.reserve(tetlistSorted.size());
 
             std::vector<long double> tetk2s;
+            tetk2s.reserve(tetlistSorted.size());
 
             // create a STEP 9a scope so that temporary local variables get unassigned
             {// start of scope for STEP 9a
 
                 // ----------------------------------------------- BATCH 1 ----------------------------------------------- //
                 // a_s1, b_s1, c_s1
-                std::vector<PositionVector> vectorsHG;
-                std::vector<PositionVector> vectorsBE;
-                std::vector<PositionVector> vectorsHC;
-                std::vector<PositionVector> vectorsCG;
+//                std::vector<PositionVector> vectorsHG;
+//                std::vector<PositionVector> vectorsBE;
+//                std::vector<PositionVector> vectorsHC;
+//                std::vector<PositionVector> vectorsCG;
 
-                vectorsHG.reserve(tetlistSorted.size());
-                vectorsBE.reserve(tetlistSorted.size());
-                vectorsHC.reserve(tetlistSorted.size());
-                vectorsCG.reserve(tetlistSorted.size());
+//                vectorsHG.reserve(tetlistSorted.size());
+//                vectorsBE.reserve(tetlistSorted.size());
+//                vectorsHC.reserve(tetlistSorted.size());
+//                vectorsCG.reserve(tetlistSorted.size());
 
                 // FE - already defined
                 // FB - already defined
 
                 //                std::vector<long double> tetk2s; moved out of scope
-                std::vector<long double> a_s1;
-                std::vector<long double> b_s1;
-                std::vector<long double> c_s1;
-                a_s1.reserve(tetlistSorted.size());
-                b_s1.reserve(tetlistSorted.size());
-                c_s1.reserve(tetlistSorted.size());
+                long double a_s1;
+                long double b_s1;
+                long double c_s1;
+//                a_s1.reserve(tetlistSorted.size());
+//                b_s1.reserve(tetlistSorted.size());
+//                c_s1.reserve(tetlistSorted.size());
 
                 // local variables for simplifying notation:
                 long double n1;
@@ -4128,12 +4089,12 @@ public:
                 // FE - already defined
                 // FB - already defined
 
-                std::vector<long double> a_s2;
-                std::vector<long double> b_s2;
-                std::vector<long double> c_s2;
-                a_s2.reserve(tetlistSorted.size());
-                b_s2.reserve(tetlistSorted.size());
-                c_s2.reserve(tetlistSorted.size());
+                long double a_s2;
+                long double b_s2;
+                long double c_s2;
+//                a_s2.reserve(tetlistSorted.size());
+//                b_s2.reserve(tetlistSorted.size());
+//                c_s2.reserve(tetlistSorted.size());
 
 
                 // local variables for simplifying notation:
@@ -4144,43 +4105,58 @@ public:
 
                 for (int i = 0; i < tetlistSorted.size(); i++)
                 {
-                    vectorsHG.emplace_back(verticesH[i], verticesG[i]);
-                    vectorsBE.emplace_back(verticesB[i], verticesE[i]);
-                    vectorsHC.emplace_back(verticesH[i], verticesC[i]);
-                    vectorsCG.emplace_back(verticesC[i], verticesG[i]);
+                    PositionVector vectorsHG(verticesH[i], verticesG[i]);
+                    PositionVector vectorsBE(verticesB[i], verticesE[i]);
+                    PositionVector vectorsHC(verticesH[i], verticesC[i]);
+                    PositionVector vectorsCG(verticesC[i], verticesG[i]);
 
                     // noting down repeating terms as I am writing the code for the first time:
                     //                (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() )
 
                     tetk2s.push_back( 1.0l / (long double)(teth3s[i] - teth2s[i]) );
 
-                    n1 = (tetk2s[i] * (vectorsHG[i].mag() - vectorsBE[i].mag() ));
-                    n2 = (vectorsHC[i].mag() * tetk2s[i]);
+                    n1 = (tetk2s[i] * (vectorsHG.mag() - vectorsBE.mag() ));
+                    n2 = (vectorsHC.mag() * tetk2s[i]);
 
-                    n3 = ( teth2s[i] * tetk2s[i] * vectorsHG[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
-                    n4 = ( tetk2s[i] * teth3s[i] * vectorsBE[i].mag() * vectorsHC[i].mag() * tetk2s[i] );
+                    n3 = ( teth2s[i] * tetk2s[i] * vectorsHG.mag() * vectorsHC.mag() * tetk2s[i] );
+                    n4 = ( tetk2s[i] * teth3s[i] * vectorsBE.mag() * vectorsHC.mag() * tetk2s[i] );
 
 
-                    a_s1.push_back( n1 * n2 );
-                    b_s1.push_back( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
-                    c_s1.push_back( n3 * teth2s[i] - n4 * teth2s[i] );
+                    a_s1 = ( n1 * n2 );
+                    b_s1 = ( -( (n1 * n2 * teth2s[i]) + n3 - n4 ) );
+                    c_s1 = ( n3 * teth2s[i] - n4 * teth2s[i] );
+
+                    PositionVector vectorsGH(verticesG[i], verticesH[i]);
+                    PositionVector vectorsCH(verticesC[i], verticesH[i]);
+
+                    long double areas_CGH = (1.0l/2.0l * vtkm::Magnitude(vtkm::Cross( vectorsGH.difference, vectorsCH.difference )) );
+                    long double sin_theta_1 = (2.0l * areas_CGH / (vectorsGH.mag() * vectorsCH.mag()) );
 
                     // BATCH 2
-                    m1 = (tetk2s[i] * (vectorsCG[i].mag() - vectorsFE[i].mag() ));
-                    m2 = (-vectorsFB[i].mag() * tetk2s[i]);
+                    // sin theta 2 computation
+                    PositionVector vectorsFB(verticesF[i], verticesB[i]);
+                    PositionVector vectorsFE(verticesF[i], verticesE[i]);
 
-                    m3 = (-teth2s[i] * tetk2s[i] * vectorsCG[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
-                    m4 = ( tetk2s[i] * teth3s[i] * vectorsFE[i].mag() * vectorsFB[i].mag() * tetk2s[i] );
+                    long double areas_BEF = (1.0l/2.0l * vtkm::Magnitude(vtkm::Cross( vectorsFB.difference, vectorsFE.difference )) );
+                    long double sin_theta_2 = (2.0l * areas_BEF/ (vectorsFB.mag() * vectorsFE.mag()) );
+                    // done sin theta 2 computation
 
 
-                    a_s2.push_back( m1 * m2 );
-                    b_s2.push_back( m1 * -m2 * teth3s[i] - m3 -m4);
-                    c_s2.push_back( m3 * teth3s[i] + m4 * teth3s[i] );
+                    m1 = (tetk2s[i] * (vectorsCG.mag() - vectorsFE.mag() ));
+                    m2 = (-vectorsFB.mag() * tetk2s[i]);
+
+                    m3 = (-teth2s[i] * tetk2s[i] * vectorsCG.mag() * vectorsFB.mag() * tetk2s[i] );
+                    m4 = ( tetk2s[i] * teth3s[i] * vectorsFE.mag() * vectorsFB.mag() * tetk2s[i] );
+
+
+                    a_s2 = ( m1 * m2 );
+                    b_s2 = ( m1 * -m2 * teth3s[i] - m3 -m4);
+                    c_s2 = ( m3 * teth3s[i] + m4 * teth3s[i] );
 
                     // ------------------------------------------ COMBINE BATCH 1+2 ------------------------------------------- //
-                    a_mid.push_back(sin_theta_1s[i] / 2.0l * a_s1[i] + sin_theta_2s[i] / 2.0l * a_s2[i]);
-                    b_mid.push_back(sin_theta_1s[i] / 2.0l * b_s1[i] + sin_theta_2s[i] / 2.0l * b_s2[i]);
-                    c_mid.push_back(sin_theta_1s[i] / 2.0l * c_s1[i] + sin_theta_2s[i] / 2.0l * c_s2[i]);
+                    a_mid.push_back(sin_theta_1 / 2.0l * a_s1 + sin_theta_2 / 2.0l * a_s2);
+                    b_mid.push_back(sin_theta_1 / 2.0l * b_s1 + sin_theta_2 / 2.0l * b_s2);
+                    c_mid.push_back(sin_theta_1 / 2.0l * c_s1 + sin_theta_2 / 2.0l * c_s2);
                 }
 
             }// end of scope for STEP 9a
@@ -4211,7 +4187,9 @@ public:
 
                 for (int i = 0; i < tetlistSorted.size(); i++)
                 {
-                    FExFB_cross_product = vtkm::Cross(vectorsFE[i].difference, vectorsFB[i].difference);
+                    PositionVector vectorsFB(verticesF[i], verticesB[i]);
+                    PositionVector vectorsFE(verticesF[i], verticesE[i]);
+                    FExFB_cross_product = vtkm::Cross(vectorsFE.difference, vectorsFB.difference);
 
                     plane_normals.push_back( FExFB_cross_product / (vtkm::Magnitude(FExFB_cross_product)) );
                     plane_distances.push_back( vtkm::Magnitude(vtkm::Dot(plane_normals[i], verticesB[i]) - vtkm::Dot(plane_normals[i], verticesH[i]) ) / (vtkm::Magnitude(plane_normals[i]) ) );
