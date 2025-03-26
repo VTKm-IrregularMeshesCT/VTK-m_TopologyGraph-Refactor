@@ -3613,40 +3613,40 @@ public:
 
         timer.Start();
 
-        // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
-        // ... with their corresponding isovalues
-        std::vector<vtkm::Vec3f_64> verticesA; // vertex A contains the lowest isovalue h1
-        verticesA.reserve(tetlist.size());
-        std::vector<int> teth1s;
-        teth1s.reserve(tetlist.size());
+//        // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
+//        // ... with their corresponding isovalues
+//        std::vector<vtkm::Vec3f_64> verticesA; // vertex A contains the lowest isovalue h1
+//        verticesA.reserve(tetlist.size());
+//        std::vector<int> teth1s;
+//        teth1s.reserve(tetlist.size());
 
-        std::vector<vtkm::Vec3f_64> verticesB; // vertex B - h2
-        verticesB.reserve(tetlist.size());
-        std::vector<int> teth2s;
-        teth2s.reserve(tetlist.size());
+//        std::vector<vtkm::Vec3f_64> verticesB; // vertex B - h2
+//        verticesB.reserve(tetlist.size());
+//        std::vector<int> teth2s;
+//        teth2s.reserve(tetlist.size());
 
-        std::vector<vtkm::Vec3f_64> verticesC; // vertex C - h3
-        verticesC.reserve(tetlist.size());
-        std::vector<int> teth3s;
-        teth3s.reserve(tetlist.size());
+//        std::vector<vtkm::Vec3f_64> verticesC; // vertex C - h3
+//        verticesC.reserve(tetlist.size());
+//        std::vector<int> teth3s;
+//        teth3s.reserve(tetlist.size());
 
-        std::vector<vtkm::Vec3f_64> verticesD; // vertex D - h4
-        verticesD.reserve(tetlist.size());
-        std::vector<int> teth4s;
-        teth4s.reserve(tetlist.size());
+//        std::vector<vtkm::Vec3f_64> verticesD; // vertex D - h4
+//        verticesD.reserve(tetlist.size());
+//        std::vector<int> teth4s;
+//        teth4s.reserve(tetlist.size());
 
-        // Deriving middle slab triangle vertices E, F, G, H
-        // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
-        std::vector<vtkm::Vec3f_64> verticesE;
-        verticesE.reserve(tetlist.size());
-        std::vector<vtkm::Vec3f_64> verticesF;
-        verticesF.reserve(tetlist.size());
+//        // Deriving middle slab triangle vertices E, F, G, H
+//        // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
+//        std::vector<vtkm::Vec3f_64> verticesE;
+//        verticesE.reserve(tetlist.size());
+//        std::vector<vtkm::Vec3f_64> verticesF;
+//        verticesF.reserve(tetlist.size());
 
-        // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
-        std::vector<vtkm::Vec3f_64> verticesG;
-        verticesG.reserve(tetlist.size());
-        std::vector<vtkm::Vec3f_64> verticesH;
-        verticesH.reserve(tetlist.size());
+//        // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
+//        std::vector<vtkm::Vec3f_64> verticesG;
+//        verticesG.reserve(tetlist.size());
+//        std::vector<vtkm::Vec3f_64> verticesH;
+//        verticesH.reserve(tetlist.size());
 
 //        // Plane Points between isovalues h2 and h3  [Vertices P, Q, R, S]    - MIDDLE QUAD SLAB
           // Defined in the sweep since these are the quad vertices when the tet gets sliced
@@ -3686,10 +3686,6 @@ public:
 
         std::cout << "==========================================PRE-PROCESS=====================================" << std::endl;
 
-        bool dim1 = false;
-        bool dim2 = false;
-        bool dim3 = true;
-
         // ----------------------------------- PRE-PROCESS ----------------------------------- //
         // Here we basically populate the table as such:
         // vertexID / triangleID
@@ -3705,495 +3701,170 @@ public:
         std::vector<long double> vx_delta_h4_sum; // 3D coefficients
         vx_delta_h4_sum.reserve(tetlistSorted.size());
 
-        if(dim3)
+        std::cout << "Computing 3D Coefficients ..." << std::endl;
+
+        long double min_volume = 38358000.0l;
+        long double max_volume = 0.0l;
+
+        // Preallocation
+        std::vector<std::vector<long double>> tet_down_deltas_pfix(num_sweep_values, std::vector<long double>(4, 0.0l));
+
+        for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
         {
-//            std::cout << "Computing 3D Coefficients ..." << std::endl;
-
-//            // process one tet at a time ...
-//            // ... starting with they local coordinates and individual volumes
-
-//            // ==================== \/ Step 1: Name the vertices that define each tetrahedron A, B, C, D \/ ==================== //
-//            // ... together with h1, h2, h3, h4
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-//                verticesA.emplace_back( coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z );
-//                verticesB.emplace_back( coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z );
-//                verticesC.emplace_back( coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z );
-//                verticesD.emplace_back( coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z );
-
-//                // keep track of tetrahedron boundary values h1, h2, h3, and h4
-//                teth1s.emplace_back(tetlistSorted[i][0]);
-//                teth2s.emplace_back(tetlistSorted[i][1]);
-//                teth3s.emplace_back(tetlistSorted[i][2]);
-//                teth4s.emplace_back(tetlistSorted[i][3]);
-//            }
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff step 1");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff step 1"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-//            // =================== \/ Step 1.5: from points A, B, C, D define vectors between them \/ ================== //
-
-//            {// start of scope for STEPS 1.5 & 2
-
-//                //            std::vector<PositionVector> vectorsAB;    turns out AB is not needed
-//                //            vectorsAB.reserve(tetlistSorted.size());
-//                            std::vector<PositionVector> vectorsAC;
-//                            vectorsAC.reserve(tetlistSorted.size());
-//                            std::vector<PositionVector> vectorsAD;
-//                            vectorsAD.reserve(tetlistSorted.size());
-//                            std::vector<PositionVector> vectorsBD;
-//                            vectorsBD.reserve(tetlistSorted.size());
-
-//                            for (int i = 0; i < tetlistSorted.size(); i++)
-//                            {
-////                                vectorsAB.emplace_back(verticesA[i], verticesB[i]);
-//                                vectorsAC.emplace_back(verticesA[i], verticesC[i]);
-//                                vectorsAD.emplace_back(verticesA[i], verticesD[i]);
-//                                vectorsBD.emplace_back(verticesB[i], verticesD[i]);
-
-//                            }
-
-//                            // =================== /\ Step 1.5: from points A, B, C, D define vectors between them /\ ================== //
-
-//                #if PROFILING_PACTBD
-//                            printMemoryUsage("Coeff step 1.5");
-//                            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff step 1.5"
-//                                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//                            timer.Start();
-//                #endif
-
-//                            // ==================== \/ Step 2: Deriving middle slab triangle vertices E, F, G, H \/ ==================== //
-
-//                            // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
-
-//                            // We will now be computing:
-//                            //            verticesE;
-//                            //            verticesF;
-//                            // ... from vectors AD and AC respectively.
-
-
-//                            for(int i = 0; i < tetlistSorted.size(); i++)
-//                            {
-//                                // lerp at h=2 on AD between 1 and 4 (a=1, d=4)
-//                                long double lerpADh2_h1_h4 = (long double)(teth2s[i] - teth1s[i]) / (long double)(teth4s[i] - teth1s[i]);
-//                                verticesE.push_back(vectorsAD[i].lerp2point(lerpADh2_h1_h4));
-
-//                                long double lerpACh2_h1_h3 = (long double)(teth2s[i] - teth1s[i]) / (long double)(teth3s[i] - teth1s[i]);
-//                                verticesF.push_back(vectorsAC[i].lerp2point(lerpACh2_h1_h3));
-//                            }
-
-
-//                            // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET SLAB
-//                            // We will now be computing:
-//                            //            verticesG;
-//                            //            verticesH;
-//                            // ... from vectors AD and BD respectively.
-
-//                            for(int i = 0; i < tetlistSorted.size(); i++)
-//                            {
-//                                // lerp at h=3 on AD between h2 and h3 (a=h1, d=h4)
-//                                long double lerpADh3_h1_h4 = (long double)(teth3s[i] - teth1s[i]) / (long double)(teth4s[i] - teth1s[i]);
-//                                verticesG.push_back(vectorsAD[i].lerp2point(lerpADh3_h1_h4));
-
-//                                // lerp at h3 on BD between h2 and h4 (b=h2, d=h4)
-
-//                                long double lerpBDh2_h2_h4 = (long double)(teth3s[i] - teth2s[i]) / (long double)(teth4s[i] - teth2s[i]);
-//                                verticesH.push_back(vectorsBD[i].lerp2point(lerpBDh2_h2_h4));
-//                            }
-
-//                            // ==================== /\ Step 2: Deriving middle slab triangle vertices E, F, G, H /\ ==================== //
-
-
-//                #if PROFILING_PACTBD
-//                            printMemoryUsage("Coeff step 2");
-//                            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff step 2"
-//                                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//                            timer.Start();
-//                #endif
-//            }// end of scope for STEPS 1.5 & 2
-
-
-
-//            // =========================== \/ Step 3: Compute Entire (full) Tet Volumes \/ ============================ //
-
-//            std::vector<long double> full_tet_volumes;
-//            full_tet_volumes.reserve(tetlistSorted.size());
-
-//            std::cout << "TET VOLUMES:" << std::endl;
-
-//            long double min_volume = 38358000.0l;
-//            long double max_volume = 0.0l;
-
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-//                PositionVector a_vol(verticesA[i], verticesC[i]);
-//                PositionVector b_vol(verticesA[i], verticesD[i]);
-//                PositionVector c_vol(verticesA[i], verticesB[i]);
-
-//                full_tet_volumes.push_back((1.0l/6.0l) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference) ) );
-
-//                if(full_tet_volumes[i] < min_volume)
-//                {
-//                    min_volume = full_tet_volumes[i];
-//                }
-//                if(full_tet_volumes[i] > max_volume)
-//                {
-//                    max_volume = full_tet_volumes[i];
-//                }
-//            }
-
-//            std::cout << "volume range: " << min_volume << " to " << max_volume << std::endl;
-//#if SLEEP_ON
-//            std::this_thread::sleep_for(std::chrono::seconds(1));
-//#endif
-
-//            // =========================== /\ Step 3: Compute Entire (full) Tet Volumes  /\ ============================ //
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff step 3");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff step 3"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-//            // ---------------------------------------------- FIRST SLAB ----------------------------------------------- //
-
-
-
-//            // ============== \/ Step 4: Compute the first slab volume (defined from isovalues h1-h2) \/ =============== //
-
-//            std::vector<long double> slab1_h1h2_tet_volumes;
-//            slab1_h1h2_tet_volumes.reserve(tetlistSorted.size());
-
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-//                long double alpha_h2= std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth2s[i]-teth1s[i])/(long double)(teth3s[i]-teth1s[i])));
-
-//                long double beta_h2 = std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth2s[i]-teth1s[i])/(long double)(teth4s[i]-teth1s[i])));
-
-//                // NOTE: gamma can be optimised away, since we reach point B at h2 (because B holds h2) ...
-//                // ... gamma will always be 1.0l
-//                long double gamma_h2= std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth2s[i]-teth1s[i])/(long double)(teth2s[i]-teth1s[i])));
-
-
-//                PositionVector a_h1h2_vol(verticesA[i], verticesC[i]);
-//                PositionVector b_h1h2_vol(verticesA[i], verticesD[i]);
-//                PositionVector c_h1h2_vol(verticesA[i], verticesB[i]);
-
-//                a_h1h2_vol.lerp(alpha_h2);
-//                b_h1h2_vol.lerp(beta_h2);
-//                c_h1h2_vol.lerp(gamma_h2);
-
-//                slab1_h1h2_tet_volumes.push_back((1.0l/6.0l) * abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference, b_h1h2_vol.difference),
-//                                                                           c_h1h2_vol.difference) ) );
-//            }
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff First Slab step 4");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff First Slab step 4"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-//            // ==========  \/ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) \/ ============ //
-
-//            //
-//            std::vector<long double> a_h1h2;
-//            std::vector<long double> b_h1h2;
-//            std::vector<long double> c_h1h2;
-//            std::vector<long double> d_h1h2;
-
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-
-//                a_h1h2.push_back(slab1_h1h2_tet_volumes[i]                                  / (long double)( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
-//                b_h1h2.push_back(-(3.0l * slab1_h1h2_tet_volumes[i] * teth1s[i])              / (long double)( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
-//                c_h1h2.push_back((3.0l * slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 2)) / (long double)( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
-//                d_h1h2.push_back(-(slab1_h1h2_tet_volumes[i] * std::pow(teth1s[i], 3))      / (long double)( std::pow((-teth1s[i] + teth2s[i]), 3) ) );
-//            }
-
-//            // ========== /\ Step 5: Compute the first slab coefficients (defined from isovalues h1-h2) /\ ============ //
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff First Slab step 5");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff First Slab step 5"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-//            // ---------------------------------------------- LAST SLAB ----------------------------------------------- //
-
-
-
-
-//            // ============== \/ Step 6: Compute the last slab volume (defined from isovalues h3-h4) \/ =============== //
-
-
-//            std::vector<long double> slab3_h3h4_tet_volumes; // only the slab volume
-//            std::vector<long double> slab3_h3h4_tet_volumes_sweeping_up; // (total volume) - (slab)
-
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-//                long double alpha_h3= std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth3s[i]-teth4s[i])/(long double)(teth2s[i]-teth4s[i])));
-
-//                long double beta_h3 = std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth3s[i]-teth4s[i])/(long double)(teth1s[i]-teth4s[i])));
-
-//                long double gamma_h3= std::max(0.0l, std::min(1.0l,
-//                                          (long double)(teth3s[i]-teth4s[i])/(long double)(teth3s[i]-teth4s[i])));
-
-
-//                PositionVector a_h3h4_vol(verticesD[i], verticesB[i]);
-//                PositionVector b_h3h4_vol(verticesD[i], verticesA[i]);
-//                PositionVector c_h3h4_vol(verticesD[i], verticesC[i]);
-
-//                a_h3h4_vol.lerp(alpha_h3);
-//                b_h3h4_vol.lerp(beta_h3);
-//                c_h3h4_vol.lerp(gamma_h3);
-
-//                slab3_h3h4_tet_volumes.push_back((1.0l/6.0l) * abs(vtkm::Dot(vtkm::Cross(a_h3h4_vol.difference, b_h3h4_vol.difference),
-//                                                                           c_h3h4_vol.difference) ) );
-
-//                slab3_h3h4_tet_volumes_sweeping_up.push_back(full_tet_volumes[i] - slab3_h3h4_tet_volumes[i]);
-//            }
-
-//            // ============== /\ Step 6: Compute the last slab volume (defined from isovalues h3-h4) /\ =============== //
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff Last Slab step 6");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff Last Slab step 6"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-//            // ==========  \/ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) \/ ============ //
-
-//            //
-//            std::vector<long double> a_h3h4;
-//            std::vector<long double> b_h3h4;
-//            std::vector<long double> c_h3h4;
-//            std::vector<long double> d_h3h4;
-//            std::vector<long double> d_h3h4_down;
-
-//            // compute the coefficients using 'full_tet_volumes' as v_volumeh4moveup ...
-//            // ... and 'slab3_h3h4_tet_volumes' as v_volumeh3moveup
-////            long double d_h3h4; // dealing with the fourth coefficient separately, as we need to move the last segment up to start from slab volume at h3
-//            long double d_h3h3_to0;              //       updated 'd' coefficient that moves the slab function to start at y=0
-//            std::vector<long double> d_h3h4_up;  // final updated 'd' coefficient that moves the slab function to start at y=volume_h3
-//            long double vol_h3 = 0.0l;
-
-//            for (int i = 0; i < tetlistSorted.size(); i++)
-//            {
-//                a_h3h4.push_back((slab3_h3h4_tet_volumes_sweeping_up[i] - full_tet_volumes[i])                                                              / (long double)( std::pow((teth3s[i] - teth4s[i]), 3) ) );
-//                b_h3h4.push_back((-3.0l*teth4s[i] * slab3_h3h4_tet_volumes_sweeping_up[i] + 3.0l*teth4s[i] * full_tet_volumes[i])                             / (long double)( std::pow((teth3s[i] - teth4s[i]), 3) ) );
-//                c_h3h4.push_back(( 3.0l*std::pow(teth4s[i],2) * slab3_h3h4_tet_volumes_sweeping_up[i] - 3.0l*std::pow(teth4s[i],2) * full_tet_volumes[i])     / (long double)( std::pow((teth3s[i] - teth4s[i]), 3) ) );
-
-//                // compute the base d coefficient, update it later to lift the function up:
-//                d_h3h4.push_back((-std::pow(teth4s[i],3) * slab3_h3h4_tet_volumes_sweeping_up[i] + std::pow(teth4s[i],3) * full_tet_volumes[i])                     / (long double)( std::pow((teth3s[i] - teth4s[i]), 3)));
-
-
-//                vol_h3 = a_h3h4[i]*std::pow(teth3s[i], 3) + b_h3h4[i]*std::pow(teth3s[i], 2) + c_h3h4[i]*teth3s[i] + d_h3h4[i];
-
-//                d_h3h3_to0 = d_h3h4[i] - vol_h3;
-
-//                // deal with the fourth coefficient (d - the constant) separately, as it helps to move the function up/down
-//                d_h3h4_up.push_back( d_h3h3_to0 + slab3_h3h4_tet_volumes_sweeping_up[i] );
-//            }
-
-//            // ========== /\ Step 7: Compute the last slab coefficients (defined from isovalues h3-h4) /\ ============ //
-
-//#if PROFILING_PACTBD
-//            printMemoryUsage("Coeff Last Slab step 7");
-//            std::cout << "    " << RED << std::setw(38) << std::left << "Coeff Last Slab step 7"
-//                          << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-//            timer.Start();
-//#endif
-
-
-//            // ---------------------------------------------- MID SLAB ----------------------------------------------- //
-
-
-//            // ===========================  \/ Step 9: Compute Middle Slab Coefficients \/ =========================== //
-
-//            // ------------------------------------------ COMBINE BATCH 1+2 ------------------------------------------- //
-//            // (OUTPUT OF STEP 9)
-
-
-            std::cout << "Computing 3D Coefficients ..." << std::endl;
-
-            long double min_volume = 38358000.0l;
-            long double max_volume = 0.0l;
-
-            // Preallocation
-            std::vector<std::vector<long double>> tet_down_deltas_pfix(num_sweep_values, std::vector<long double>(4, 0.0l));
-
-            long double a_h1h2, b_h1h2, c_h1h2, d_h1h2;
-            long double a_h3h4, b_h3h4, c_h3h4, d_h3h4, d_h3h4_up;
-
-            for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
-            {
-                // Step 1 (Vertices and h-values)
-                verticesA.emplace_back(coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z);
-                verticesB.emplace_back(coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z);
-                verticesC.emplace_back(coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z);
-                verticesD.emplace_back(coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z);
-
-                teth1s.emplace_back(tetlistSorted[i][0]);
-                teth2s.emplace_back(tetlistSorted[i][1]);
-                teth3s.emplace_back(tetlistSorted[i][2]);
-                teth4s.emplace_back(tetlistSorted[i][3]);
-
-                // Steps 1.5, 2
-                PositionVector vAC(verticesA[i], verticesC[i]), vAD(verticesA[i], verticesD[i]), vBD(verticesB[i], verticesD[i]);
-                long double lerpADh2 = (long double)(teth2s[i] - teth1s[i])/(long double)(teth4s[i] - teth1s[i]);
-                verticesE.push_back(vAD.lerp2point(lerpADh2));
-                long double lerpACh2 = (long double)(teth2s[i] - teth1s[i])/(long double)(teth3s[i] - teth1s[i]);
-                verticesF.push_back(vAC.lerp2point(lerpACh2));
-                long double lerpADh3 = (long double)(teth3s[i] - teth1s[i])/(long double)(teth4s[i] - teth1s[i]);
-                verticesG.push_back(vAD.lerp2point(lerpADh3));
-                long double lerpBDh2 = (long double)(teth3s[i] - teth2s[i])/(long double)(teth4s[i] - teth2s[i]);
-                verticesH.push_back(vBD.lerp2point(lerpBDh2));
-
-                // Step 3
-                PositionVector a_vol(verticesA[i], verticesC[i]),
-                               b_vol(verticesA[i], verticesD[i]),
-                               c_vol(verticesA[i], verticesB[i]);
-                long double full_tet_vol = (1.0l / 6.0l) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference));
-                min_volume = std::min(min_volume, full_tet_vol);
-                max_volume = std::max(max_volume, full_tet_vol);
-
-                // Step 4: Slab 1 Volumes
+            // Step 1 (Vertices and h-values)
+            vtkm::Vec3f_64 verticesA = {coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z};
+            vtkm::Vec3f_64 verticesB = {coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z};
+            vtkm::Vec3f_64 verticesC = {coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z};
+            vtkm::Vec3f_64 verticesD = {coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z};
+
+//            teth1s.emplace_back(tetlistSorted[i][0]);
+//            teth2s.emplace_back(tetlistSorted[i][1]);
+//            teth3s.emplace_back(tetlistSorted[i][2]);
+//            teth4s.emplace_back(tetlistSorted[i][3]);
+
+            // Steps 1.5, 2
+            PositionVector vAC(verticesA, verticesC), vAD(verticesA, verticesD), vBD(verticesB, verticesD);
+            long double lerpADh2 = (long double)(tetlistSorted[i][1] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][0]);
+            vtkm::Vec3f_64 verticesE = (vAD.lerp2point(lerpADh2));
+            long double lerpACh2 = (long double)(tetlistSorted[i][1] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][2] - tetlistSorted[i][0]);
+            vtkm::Vec3f_64 verticesF = (vAC.lerp2point(lerpACh2));
+            long double lerpADh3 = (long double)(tetlistSorted[i][2] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][0]);
+            vtkm::Vec3f_64 verticesG = (vAD.lerp2point(lerpADh3));
+            long double lerpBDh2 = (long double)(tetlistSorted[i][2] - tetlistSorted[i][1])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][1]);
+            vtkm::Vec3f_64 verticesH = (vBD.lerp2point(lerpBDh2));
+
+            // Step 3
+            PositionVector a_vol(verticesA, verticesC),
+                           b_vol(verticesA, verticesD),
+                           c_vol(verticesA, verticesB);
+            long double full_tet_vol = (1.0l / 6.0l) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference));
+            min_volume = std::min(min_volume, full_tet_vol);
+            max_volume = std::max(max_volume, full_tet_vol);
+
+            // Step 4: Slab 1 Volumes
 //                long double alpha_h2 = std::max(0.0l, std::min(1.0l, (long double)(teth2s[i]-teth1s[i])/(teth3s[i]-teth1s[i])));
 //                long double beta_h2  = std::max(0.0l, std::min(1.0l, (long double)(teth2s[i]-teth1s[i])/(teth4s[i]-teth1s[i])));
-                long double alpha_h2= std::max(0.0l, std::min(1.0l,
-                                          (long double)(teth2s[i]-teth1s[i])/(long double)(teth3s[i]-teth1s[i])));
+            long double alpha_h2= std::max(0.0l, std::min(1.0l,
+                                      (long double)(tetlistSorted[i][1]-tetlistSorted[i][0])/(long double)(tetlistSorted[i][2]-tetlistSorted[i][0])));
 
-                long double beta_h2 = std::max(0.0l, std::min(1.0l,
-                                          (long double)(teth2s[i]-teth1s[i])/(long double)(teth4s[i]-teth1s[i])));
-                PositionVector a_h1h2_vol = a_vol, b_h1h2_vol = b_vol, c_h1h2_vol = c_vol;
-                a_h1h2_vol.lerp(alpha_h2);
-                b_h1h2_vol.lerp(beta_h2);
-                long double slab1_h1h2_vol = (1.0l/6.0l)*abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference,b_h1h2_vol.difference),c_h1h2_vol.difference));
+            long double beta_h2 = std::max(0.0l, std::min(1.0l,
+                                      (long double)(tetlistSorted[i][1]-tetlistSorted[i][0])/(long double)(tetlistSorted[i][3]-tetlistSorted[i][0])));
+            PositionVector a_h1h2_vol = a_vol, b_h1h2_vol = b_vol, c_h1h2_vol = c_vol;
+            a_h1h2_vol.lerp(alpha_h2);
+            b_h1h2_vol.lerp(beta_h2);
+            long double slab1_h1h2_vol = (1.0l/6.0l)*abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference,b_h1h2_vol.difference),c_h1h2_vol.difference));
 
-                // Step 5: Slab 1 Coefficients
-                long double denom_h1h2 = (long double)( std::pow((-teth1s[i] + teth2s[i]), 3) ); //pow(-teth1s[i] + teth2s[i], 3);
-                long double a_h1h2 = slab1_h1h2_vol / denom_h1h2;
-                long double b_h1h2 = -(3.0l * slab1_h1h2_vol * teth1s[i]) / denom_h1h2;
-                long double c_h1h2 = (3.0l * slab1_h1h2_vol * std::pow(teth1s[i], 2)) / denom_h1h2;
-                long double d_h1h2 = -(slab1_h1h2_vol * std::pow(teth1s[i], 3)) / denom_h1h2;
+            // Step 5: Slab 1 Coefficients
+            long double denom_h1h2 = (long double)( std::pow((-tetlistSorted[i][0] + tetlistSorted[i][1]), 3) ); //pow(-tetlistSorted[i][0] + tetlistSorted[i][1], 3);
+            long double a_h1h2 = slab1_h1h2_vol / denom_h1h2;
+            long double b_h1h2 = -(3.0l * slab1_h1h2_vol * tetlistSorted[i][0]) / denom_h1h2;
+            long double c_h1h2 = (3.0l * slab1_h1h2_vol * std::pow(tetlistSorted[i][0], 2)) / denom_h1h2;
+            long double d_h1h2 = -(slab1_h1h2_vol * std::pow(tetlistSorted[i][0], 3)) / denom_h1h2;
 
-                // Step 6,7: Slab 3 Volumes & Coefficients
+            // Step 6,7: Slab 3 Volumes & Coefficients
 //                long double alpha_h3 = std::max(0.0l,std::min(1.0l,(long double)(teth3s[i]-teth4s[i])/(teth2s[i]-teth4s[i])));
 //                long double beta_h3 = std::max(0.0l,std::min(1.0l,(long double)(teth3s[i]-teth4s[i])/(teth1s[i]-teth4s[i])));
-                long double alpha_h3= std::max(0.0l, std::min(1.0l,
-                                          (long double)(teth3s[i]-teth4s[i])/(long double)(teth2s[i]-teth4s[i])));
+            long double alpha_h3= std::max(0.0l, std::min(1.0l,
+                                      (long double)(tetlistSorted[i][2]-tetlistSorted[i][3])/(long double)(tetlistSorted[i][1]-tetlistSorted[i][3])));
 
-                long double beta_h3 = std::max(0.0l, std::min(1.0l,
-                                          (long double)(teth3s[i]-teth4s[i])/(long double)(teth1s[i]-teth4s[i])));
-                PositionVector a_h3h4_vol(verticesD[i],verticesB[i]), b_h3h4_vol(verticesD[i],verticesA[i]), c_h3h4_vol(verticesD[i],verticesC[i]);
-                a_h3h4_vol.lerp(alpha_h3);
-                b_h3h4_vol.lerp(beta_h3);
-                long double slab3_h3h4_vol = (1.0l/6.0l)*abs(vtkm::Dot(vtkm::Cross(a_h3h4_vol.difference,b_h3h4_vol.difference),c_h3h4_vol.difference));
-                long double slab3_up_vol = full_tet_vol - slab3_h3h4_vol;
-                long double denom_h3h4 = (long double)( std::pow((teth3s[i] - teth4s[i]), 3) ); //pow(teth3s[i]-teth4s[i],3);
-                long double a_h3h4 = (slab3_up_vol - full_tet_vol)/denom_h3h4;
-                long double b_h3h4 = (-3.0l*teth4s[i]*slab3_up_vol+3.0l*teth4s[i]*full_tet_vol)/denom_h3h4;
-                long double c_h3h4 = (3.0l*teth4s[i]*teth4s[i]*slab3_up_vol-3.0l*teth4s[i]*teth4s[i]*full_tet_vol)/denom_h3h4;
-                long double d_h3h4 = (-pow(teth4s[i],3)*slab3_up_vol+pow(teth4s[i],3)*full_tet_vol)/denom_h3h4;
+            long double beta_h3 = std::max(0.0l, std::min(1.0l,
+                                      (long double)(tetlistSorted[i][2]-tetlistSorted[i][3])/(long double)(tetlistSorted[i][0]-tetlistSorted[i][3])));
+            PositionVector a_h3h4_vol(verticesD,verticesB), b_h3h4_vol(verticesD,verticesA), c_h3h4_vol(verticesD,verticesC);
+            a_h3h4_vol.lerp(alpha_h3);
+            b_h3h4_vol.lerp(beta_h3);
+            long double slab3_h3h4_vol = (1.0l/6.0l)*abs(vtkm::Dot(vtkm::Cross(a_h3h4_vol.difference,b_h3h4_vol.difference),c_h3h4_vol.difference));
+            long double slab3_up_vol = full_tet_vol - slab3_h3h4_vol;
+            long double denom_h3h4 = (long double)( std::pow((tetlistSorted[i][2] - tetlistSorted[i][3]), 3) ); //pow(tetlistSorted[i][2]-tetlistSorted[i][3],3);
+            long double a_h3h4 = (slab3_up_vol - full_tet_vol)/denom_h3h4;
+            long double b_h3h4 = (-3.0l*tetlistSorted[i][3]*slab3_up_vol+3.0l*tetlistSorted[i][3]*full_tet_vol)/denom_h3h4;
+            long double c_h3h4 = (3.0l*tetlistSorted[i][3]*tetlistSorted[i][3]*slab3_up_vol-3.0l*tetlistSorted[i][3]*tetlistSorted[i][3]*full_tet_vol)/denom_h3h4;
+            long double d_h3h4 = (-pow(tetlistSorted[i][3],3)*slab3_up_vol+pow(tetlistSorted[i][3],3)*full_tet_vol)/denom_h3h4;
 
-                // Insert your step 9 (mid slab equations & tet_down accumulators), unchanged, directly here exactly as previously provided
-                // Step 9 calculations (exactly as in original, unchanged form)
-                PositionVector vectorsHG(verticesH[i], verticesG[i]);
-                PositionVector vectorsBE(verticesB[i], verticesE[i]);
-                PositionVector vectorsHC(verticesH[i], verticesC[i]);
-                PositionVector vectorsCG(verticesC[i], verticesG[i]);
-                long double tetk2s = ( 1.0l / (long double)(teth3s[i] - teth2s[i]) );
+            // Insert your step 9 (mid slab equations & tet_down accumulators), unchanged, directly here exactly as previously provided
+            // Step 9 calculations (exactly as in original, unchanged form)
+            PositionVector vectorsHG(verticesH, verticesG);
+            PositionVector vectorsBE(verticesB, verticesE);
+            PositionVector vectorsHC(verticesH, verticesC);
+            PositionVector vectorsCG(verticesC, verticesG);
+            long double tetk2s = ( 1.0l / (long double)(tetlistSorted[i][2] - tetlistSorted[i][1]) );
 
-                long double n1 = tetk2s * (vectorsHG.mag() - vectorsBE.mag());
-                long double n2 = vectorsHC.mag() * tetk2s;
-                long double n3 = teth2s[i] * tetk2s * vectorsHG.mag() * vectorsHC.mag() * tetk2s;
-                long double n4 = tetk2s * teth3s[i] * vectorsBE.mag() * vectorsHC.mag() * tetk2s;
-                long double a_s1 = n1 * n2;
-                long double b_s1 = -( (n1 * n2 * teth2s[i]) + n3 - n4 );
-                long double c_s1 = n3 * teth2s[i] - n4 * teth2s[i];
+            long double n1 = tetk2s * (vectorsHG.mag() - vectorsBE.mag());
+            long double n2 = vectorsHC.mag() * tetk2s;
+            long double n3 = tetlistSorted[i][1] * tetk2s * vectorsHG.mag() * vectorsHC.mag() * tetk2s;
+            long double n4 = tetk2s * tetlistSorted[i][2] * vectorsBE.mag() * vectorsHC.mag() * tetk2s;
+            long double a_s1 = n1 * n2;
+            long double b_s1 = -( (n1 * n2 * tetlistSorted[i][1]) + n3 - n4 );
+            long double c_s1 = n3 * tetlistSorted[i][1] - n4 * tetlistSorted[i][1];
 
-                PositionVector vectorsGH(verticesG[i], verticesH[i]);
-                PositionVector vectorsCH(verticesC[i], verticesH[i]);
-                long double areas_CGH = (1.0l/2.0l) * vtkm::Magnitude(vtkm::Cross(vectorsGH.difference, vectorsCH.difference));
-                long double sin_theta_1 = 2.0l * areas_CGH / (vectorsGH.mag() * vectorsCH.mag());
+            PositionVector vectorsGH(verticesG, verticesH);
+            PositionVector vectorsCH(verticesC, verticesH);
+            long double areas_CGH = (1.0l/2.0l) * vtkm::Magnitude(vtkm::Cross(vectorsGH.difference, vectorsCH.difference));
+            long double sin_theta_1 = 2.0l * areas_CGH / (vectorsGH.mag() * vectorsCH.mag());
 
-                PositionVector vectorsFB(verticesF[i], verticesB[i]);
-                PositionVector vectorsFE(verticesF[i], verticesE[i]);
-                long double areas_BEF = (1.0l/2.0l) * vtkm::Magnitude(vtkm::Cross(vectorsFB.difference, vectorsFE.difference));
-                long double sin_theta_2 = 2.0l * areas_BEF / (vectorsFB.mag() * vectorsFE.mag());
+            PositionVector vectorsFB(verticesF, verticesB);
+            PositionVector vectorsFE(verticesF, verticesE);
+            long double areas_BEF = (1.0l/2.0l) * vtkm::Magnitude(vtkm::Cross(vectorsFB.difference, vectorsFE.difference));
+            long double sin_theta_2 = 2.0l * areas_BEF / (vectorsFB.mag() * vectorsFE.mag());
 
-                long double m1 = tetk2s * (vectorsCG.mag() - vectorsFE.mag());
-                long double m2 = -vectorsFB.mag() * tetk2s;
-                long double m3 = -teth2s[i] * tetk2s * vectorsCG.mag() * vectorsFB.mag() * tetk2s;
-                long double m4 = tetk2s * teth3s[i] * vectorsFE.mag() * vectorsFB.mag() * tetk2s;
+            long double m1 = tetk2s * (vectorsCG.mag() - vectorsFE.mag());
+            long double m2 = -vectorsFB.mag() * tetk2s;
+            long double m3 = -tetlistSorted[i][1] * tetk2s * vectorsCG.mag() * vectorsFB.mag() * tetk2s;
+            long double m4 = tetk2s * tetlistSorted[i][2] * vectorsFE.mag() * vectorsFB.mag() * tetk2s;
 
-                long double a_s2 = m1 * m2;
-                long double b_s2 = ( m1 * -m2 * teth3s[i] - m3 - m4 );
-                long double c_s2 = m3 * teth3s[i] + m4 * teth3s[i];
+            long double a_s2 = m1 * m2;
+            long double b_s2 = ( m1 * -m2 * tetlistSorted[i][2] - m3 - m4 );
+            long double c_s2 = m3 * tetlistSorted[i][2] + m4 * tetlistSorted[i][2];
 
-                long double a_mid = (sin_theta_1 / 2.0l * a_s1 + sin_theta_2 / 2.0l * a_s2);
-                long double b_mid = (sin_theta_1 / 2.0l * b_s1 + sin_theta_2 / 2.0l * b_s2);
-                long double c_mid = (sin_theta_1 / 2.0l * c_s1 + sin_theta_2 / 2.0l * c_s2);
+            long double a_mid = (sin_theta_1 / 2.0l * a_s1 + sin_theta_2 / 2.0l * a_s2);
+            long double b_mid = (sin_theta_1 / 2.0l * b_s1 + sin_theta_2 / 2.0l * b_s2);
+            long double c_mid = (sin_theta_1 / 2.0l * c_s1 + sin_theta_2 / 2.0l * c_s2);
 
-                vtkm::Vec3f_64 FExFB_cross_product = vtkm::Cross(vectorsFE.difference, vectorsFB.difference);
-                vtkm::Vec3f_64 plane_normal( FExFB_cross_product / (vtkm::Magnitude(FExFB_cross_product)) );
-                long double plane_distance = ( vtkm::Magnitude(vtkm::Dot(plane_normal, verticesB[i]) - vtkm::Dot(plane_normal, verticesH[i])) / vtkm::Magnitude(plane_normal) );
-                long double correction_factor = (plane_distance * tetk2s);
+            vtkm::Vec3f_64 FExFB_cross_product = vtkm::Cross(vectorsFE.difference, vectorsFB.difference);
+            vtkm::Vec3f_64 plane_normal( FExFB_cross_product / (vtkm::Magnitude(FExFB_cross_product)) );
+            long double plane_distance = ( vtkm::Magnitude(vtkm::Dot(plane_normal, verticesB) - vtkm::Dot(plane_normal, verticesH)) / vtkm::Magnitude(plane_normal) );
+            long double correction_factor = (plane_distance * tetk2s);
 
-                long double a_h2h3 = correction_factor / 3.0l * a_mid;
-                long double b_h2h3 = correction_factor / 2.0l * b_mid;
-                long double c_h2h3 = correction_factor * c_mid;
+            long double a_h2h3 = correction_factor / 3.0l * a_mid;
+            long double b_h2h3 = correction_factor / 2.0l * b_mid;
+            long double c_h2h3 = correction_factor * c_mid;
 
-                long double d_h2h3 = slab1_h1h2_vol - a_h2h3 * pow(teth2s[i],3) - b_h2h3 * pow(teth2s[i],2) - c_h2h3 * teth2s[i];
+            long double d_h2h3 = slab1_h1h2_vol - a_h2h3 * pow(tetlistSorted[i][1],3) - b_h2h3 * pow(tetlistSorted[i][1],2) - c_h2h3 * tetlistSorted[i][1];
 
-                long double d_h2h3_down = ( ( -a_h2h3 * pow(teth3s[i], 3) - b_h2h3 * pow(teth3s[i], 2) - c_h2h3 * teth3s[i] ) -
-                                           (-a_h3h4 * pow(teth3s[i], 3) - b_h3h4 * pow(teth3s[i], 2) - c_h3h4 * teth3s[i] - d_h3h4) );
+            long double d_h2h3_down = ( ( -a_h2h3 * pow(tetlistSorted[i][2], 3) - b_h2h3 * pow(tetlistSorted[i][2], 2) - c_h2h3 * tetlistSorted[i][2] ) -
+                                       (-a_h3h4 * pow(tetlistSorted[i][2], 3) - b_h3h4 * pow(tetlistSorted[i][2], 2) - c_h3h4 * tetlistSorted[i][2] - d_h3h4) );
 
-                long double d_h1h2_down = ( ( -a_h1h2 * pow(teth2s[i], 3) - b_h1h2 * pow(teth2s[i], 2) - c_h1h2 * teth2s[i] ) -
-                                           (-a_h2h3 * pow(teth2s[i], 3) - b_h2h3 * pow(teth2s[i], 2) - c_h2h3 * teth2s[i] - d_h2h3_down) );
+            long double d_h1h2_down = ( ( -a_h1h2 * pow(tetlistSorted[i][1], 3) - b_h1h2 * pow(tetlistSorted[i][1], 2) - c_h1h2 * tetlistSorted[i][1] ) -
+                                       (-a_h2h3 * pow(tetlistSorted[i][1], 3) - b_h2h3 * pow(tetlistSorted[i][1], 2) - c_h2h3 * tetlistSorted[i][1] - d_h2h3_down) );
 
-                // Then directly add to accumulation
-                tet_down_deltas_pfix[teth1s[i]][0] += a_h1h2;
-                tet_down_deltas_pfix[teth1s[i]][1] += b_h1h2;
-                tet_down_deltas_pfix[teth1s[i]][2] += c_h1h2;
-                tet_down_deltas_pfix[teth1s[i]][3] += full_tet_vol+d_h1h2_down;
+            // Then directly add to accumulation
+            tet_down_deltas_pfix[tetlistSorted[i][0]][0] += a_h1h2;
+            tet_down_deltas_pfix[tetlistSorted[i][0]][1] += b_h1h2;
+            tet_down_deltas_pfix[tetlistSorted[i][0]][2] += c_h1h2;
+            tet_down_deltas_pfix[tetlistSorted[i][0]][3] += full_tet_vol+d_h1h2_down;
 
-                tet_down_deltas_pfix[teth2s[i]][0] += -a_h1h2+a_h2h3;
-                tet_down_deltas_pfix[teth2s[i]][1] += -b_h1h2+b_h2h3;
-                tet_down_deltas_pfix[teth2s[i]][2] += -c_h1h2+c_h2h3;
-                tet_down_deltas_pfix[teth2s[i]][3] += -d_h1h2_down+d_h2h3_down;
+            tet_down_deltas_pfix[tetlistSorted[i][1]][0] += -a_h1h2+a_h2h3;
+            tet_down_deltas_pfix[tetlistSorted[i][1]][1] += -b_h1h2+b_h2h3;
+            tet_down_deltas_pfix[tetlistSorted[i][1]][2] += -c_h1h2+c_h2h3;
+            tet_down_deltas_pfix[tetlistSorted[i][1]][3] += -d_h1h2_down+d_h2h3_down;
 
-                tet_down_deltas_pfix[teth3s[i]][0] += -a_h2h3+a_h3h4;
-                tet_down_deltas_pfix[teth3s[i]][1] += -b_h2h3+b_h3h4;
-                tet_down_deltas_pfix[teth3s[i]][2] += -c_h2h3+c_h3h4;
-                tet_down_deltas_pfix[teth3s[i]][3] += -d_h2h3_down+d_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][2]][0] += -a_h2h3+a_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][2]][1] += -b_h2h3+b_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][2]][2] += -c_h2h3+c_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][2]][3] += -d_h2h3_down+d_h3h4;
 
-                tet_down_deltas_pfix[teth4s[i]][0] += -a_h3h4;
-                tet_down_deltas_pfix[teth4s[i]][1] += -b_h3h4;
-                tet_down_deltas_pfix[teth4s[i]][2] += -c_h3h4;
-                tet_down_deltas_pfix[teth4s[i]][3] += -d_h3h4;
-            }
+            tet_down_deltas_pfix[tetlistSorted[i][3]][0] += -a_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][3]][1] += -b_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][3]][2] += -c_h3h4;
+            tet_down_deltas_pfix[tetlistSorted[i][3]][3] += -d_h3h4;
+        }
 
-            for (vtkm::Id i = 0; i < num_sweep_values; i++)
-            {
-                vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
-                vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
-                vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
-                vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
-            }
+        for (vtkm::Id i = 0; i < num_sweep_values; i++)
+        {
+            vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
+            vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
+            vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
+            vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
+        }
 
 
 
@@ -4228,7 +3899,7 @@ public:
 
             // ==================== /\ Step 3: Deriving middle slab quad vertices P, Q, R, S /\ ==================== //
 /* THE PAST REQUIRES SWEEP ISOVALUE H */
-        }
+
 
 
 
