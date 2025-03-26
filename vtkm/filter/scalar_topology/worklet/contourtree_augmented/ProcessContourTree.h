@@ -3613,47 +3613,6 @@ public:
 
         timer.Start();
 
-//        // Vertices that define the Tetrahedron ABCD (Entire tetrahedron) ...
-//        // ... with their corresponding isovalues
-//        std::vector<vtkm::Vec3f_64> verticesA; // vertex A contains the lowest isovalue h1
-//        verticesA.reserve(tetlist.size());
-//        std::vector<int> teth1s;
-//        teth1s.reserve(tetlist.size());
-
-//        std::vector<vtkm::Vec3f_64> verticesB; // vertex B - h2
-//        verticesB.reserve(tetlist.size());
-//        std::vector<int> teth2s;
-//        teth2s.reserve(tetlist.size());
-
-//        std::vector<vtkm::Vec3f_64> verticesC; // vertex C - h3
-//        verticesC.reserve(tetlist.size());
-//        std::vector<int> teth3s;
-//        teth3s.reserve(tetlist.size());
-
-//        std::vector<vtkm::Vec3f_64> verticesD; // vertex D - h4
-//        verticesD.reserve(tetlist.size());
-//        std::vector<int> teth4s;
-//        teth4s.reserve(tetlist.size());
-
-//        // Deriving middle slab triangle vertices E, F, G, H
-//        // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
-//        std::vector<vtkm::Vec3f_64> verticesE;
-//        verticesE.reserve(tetlist.size());
-//        std::vector<vtkm::Vec3f_64> verticesF;
-//        verticesF.reserve(tetlist.size());
-
-//        // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
-//        std::vector<vtkm::Vec3f_64> verticesG;
-//        verticesG.reserve(tetlist.size());
-//        std::vector<vtkm::Vec3f_64> verticesH;
-//        verticesH.reserve(tetlist.size());
-
-//        // Plane Points between isovalues h2 and h3  [Vertices P, Q, R, S]    - MIDDLE QUAD SLAB
-          // Defined in the sweep since these are the quad vertices when the tet gets sliced
-//        std::vector<vtkm::Vec3f_64> verticesP;
-//        std::vector<vtkm::Vec3f_64> verticesQ;
-//        std::vector<vtkm::Vec3f_64> verticesR;
-//        std::vector<vtkm::Vec3f_64> verticesS;
 
         // Keep track of all tetrahedra vertices in a sorted list:
         //  ... for example a tet X, Y, Z, W might have vertices with sort IDs:
@@ -3707,27 +3666,35 @@ public:
         long double max_volume = 0.0l;
 
         // Preallocation
-        std::vector<std::vector<long double>> tet_down_deltas_pfix(num_sweep_values, std::vector<long double>(4, 0.0l));
+        // not using the 2D array, writing directly to vx_delta arrays:
+//        std::vector<std::vector<long double>> tet_down_deltas_pfix(num_sweep_values, std::vector<long double>(4, 0.0l));
+
+        // before your loop ensure these are initialized correctly:
+        vx_delta_h1_sum.assign(num_sweep_values, 0.0l);
+        vx_delta_h2_sum.assign(num_sweep_values, 0.0l);
+        vx_delta_h3_sum.assign(num_sweep_values, 0.0l);
+        vx_delta_h4_sum.assign(num_sweep_values, 0.0l);
 
         for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
         {
-            // Step 1 (Vertices and h-values)
+            // Step 1
+            // Vertices that define the Tetrahedron ABCD (The entire tetrahedron) ...
+            // ... with their corresponding isovalues (A holds h1, B - h2, C - h3 and D - h4)
             vtkm::Vec3f_64 verticesA = {coordlist3D[tetlistSorted[i][0]].x, coordlist3D[tetlistSorted[i][0]].y, coordlist3D[tetlistSorted[i][0]].z};
             vtkm::Vec3f_64 verticesB = {coordlist3D[tetlistSorted[i][1]].x, coordlist3D[tetlistSorted[i][1]].y, coordlist3D[tetlistSorted[i][1]].z};
             vtkm::Vec3f_64 verticesC = {coordlist3D[tetlistSorted[i][2]].x, coordlist3D[tetlistSorted[i][2]].y, coordlist3D[tetlistSorted[i][2]].z};
             vtkm::Vec3f_64 verticesD = {coordlist3D[tetlistSorted[i][3]].x, coordlist3D[tetlistSorted[i][3]].y, coordlist3D[tetlistSorted[i][3]].z};
 
-//            teth1s.emplace_back(tetlistSorted[i][0]);
-//            teth2s.emplace_back(tetlistSorted[i][1]);
-//            teth3s.emplace_back(tetlistSorted[i][2]);
-//            teth4s.emplace_back(tetlistSorted[i][3]);
-
-            // Steps 1.5, 2
+            // Step 2
+            // Deriving middle slab triangle vertices E, F, G, H
+            // Plane Points at isovalue h=h2 (4) (for interval h1->h2)              - FIRST TET
             PositionVector vAC(verticesA, verticesC), vAD(verticesA, verticesD), vBD(verticesB, verticesD);
             long double lerpADh2 = (long double)(tetlistSorted[i][1] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][0]);
             vtkm::Vec3f_64 verticesE = (vAD.lerp2point(lerpADh2));
             long double lerpACh2 = (long double)(tetlistSorted[i][1] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][2] - tetlistSorted[i][0]);
             vtkm::Vec3f_64 verticesF = (vAC.lerp2point(lerpACh2));
+
+            // Plane Points at isovalue h=h3 (5) (for interval h4->h3)              - LAST TET
             long double lerpADh3 = (long double)(tetlistSorted[i][2] - tetlistSorted[i][0])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][0]);
             vtkm::Vec3f_64 verticesG = (vAD.lerp2point(lerpADh3));
             long double lerpBDh2 = (long double)(tetlistSorted[i][2] - tetlistSorted[i][1])/(long double)(tetlistSorted[i][3] - tetlistSorted[i][1]);
@@ -3780,7 +3747,7 @@ public:
             long double c_h3h4 = (3.0l*tetlistSorted[i][3]*tetlistSorted[i][3]*slab3_up_vol-3.0l*tetlistSorted[i][3]*tetlistSorted[i][3]*full_tet_vol)/denom_h3h4;
             long double d_h3h4 = (-pow(tetlistSorted[i][3],3)*slab3_up_vol+pow(tetlistSorted[i][3],3)*full_tet_vol)/denom_h3h4;
 
-            // Insert your step 9 (mid slab equations & tet_down accumulators), unchanged, directly here exactly as previously provided
+
             // Step 9 calculations (exactly as in original, unchanged form)
             PositionVector vectorsHG(verticesH, verticesG);
             PositionVector vectorsBE(verticesB, verticesE);
@@ -3836,35 +3803,57 @@ public:
             long double d_h1h2_down = ( ( -a_h1h2 * pow(tetlistSorted[i][1], 3) - b_h1h2 * pow(tetlistSorted[i][1], 2) - c_h1h2 * tetlistSorted[i][1] ) -
                                        (-a_h2h3 * pow(tetlistSorted[i][1], 3) - b_h2h3 * pow(tetlistSorted[i][1], 2) - c_h2h3 * tetlistSorted[i][1] - d_h2h3_down) );
 
-            // Then directly add to accumulation
-            tet_down_deltas_pfix[tetlistSorted[i][0]][0] += a_h1h2;
-            tet_down_deltas_pfix[tetlistSorted[i][0]][1] += b_h1h2;
-            tet_down_deltas_pfix[tetlistSorted[i][0]][2] += c_h1h2;
-            tet_down_deltas_pfix[tetlistSorted[i][0]][3] += full_tet_vol+d_h1h2_down;
+//            // Then directly add to accumulation
+//            tet_down_deltas_pfix[tetlistSorted[i][0]][0] += a_h1h2;
+//            tet_down_deltas_pfix[tetlistSorted[i][0]][1] += b_h1h2;
+//            tet_down_deltas_pfix[tetlistSorted[i][0]][2] += c_h1h2;
+//            tet_down_deltas_pfix[tetlistSorted[i][0]][3] += full_tet_vol+d_h1h2_down;
 
-            tet_down_deltas_pfix[tetlistSorted[i][1]][0] += -a_h1h2+a_h2h3;
-            tet_down_deltas_pfix[tetlistSorted[i][1]][1] += -b_h1h2+b_h2h3;
-            tet_down_deltas_pfix[tetlistSorted[i][1]][2] += -c_h1h2+c_h2h3;
-            tet_down_deltas_pfix[tetlistSorted[i][1]][3] += -d_h1h2_down+d_h2h3_down;
+//            tet_down_deltas_pfix[tetlistSorted[i][1]][0] += -a_h1h2+a_h2h3;
+//            tet_down_deltas_pfix[tetlistSorted[i][1]][1] += -b_h1h2+b_h2h3;
+//            tet_down_deltas_pfix[tetlistSorted[i][1]][2] += -c_h1h2+c_h2h3;
+//            tet_down_deltas_pfix[tetlistSorted[i][1]][3] += -d_h1h2_down+d_h2h3_down;
 
-            tet_down_deltas_pfix[tetlistSorted[i][2]][0] += -a_h2h3+a_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][2]][1] += -b_h2h3+b_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][2]][2] += -c_h2h3+c_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][2]][3] += -d_h2h3_down+d_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][2]][0] += -a_h2h3+a_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][2]][1] += -b_h2h3+b_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][2]][2] += -c_h2h3+c_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][2]][3] += -d_h2h3_down+d_h3h4;
 
-            tet_down_deltas_pfix[tetlistSorted[i][3]][0] += -a_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][3]][1] += -b_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][3]][2] += -c_h3h4;
-            tet_down_deltas_pfix[tetlistSorted[i][3]][3] += -d_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][3]][0] += -a_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][3]][1] += -b_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][3]][2] += -c_h3h4;
+//            tet_down_deltas_pfix[tetlistSorted[i][3]][3] += -d_h3h4;
+
+            // Directly accumulate, NO extra memory needed
+            vx_delta_h1_sum[tetlistSorted[i][0]] += a_h1h2;
+            vx_delta_h2_sum[tetlistSorted[i][0]] += b_h1h2;
+            vx_delta_h3_sum[tetlistSorted[i][0]] += c_h1h2;
+            vx_delta_h4_sum[tetlistSorted[i][0]] += (full_tet_vol + d_h1h2_down);
+
+            vx_delta_h1_sum[tetlistSorted[i][1]] += (-a_h1h2 + a_h2h3);
+            vx_delta_h2_sum[tetlistSorted[i][1]] += (-b_h1h2 + b_h2h3);
+            vx_delta_h3_sum[tetlistSorted[i][1]] += (-c_h1h2 + c_h2h3);
+            vx_delta_h4_sum[tetlistSorted[i][1]] += (-d_h1h2_down + d_h2h3_down);
+
+            vx_delta_h1_sum[tetlistSorted[i][2]] += (-a_h2h3 + a_h3h4);
+            vx_delta_h2_sum[tetlistSorted[i][2]] += (-b_h2h3 + b_h3h4);
+            vx_delta_h3_sum[tetlistSorted[i][2]] += (-c_h2h3 + c_h3h4);
+            vx_delta_h4_sum[tetlistSorted[i][2]] += (-d_h2h3_down + d_h3h4);
+
+            vx_delta_h1_sum[tetlistSorted[i][3]] += (-a_h3h4);
+            vx_delta_h2_sum[tetlistSorted[i][3]] += (-b_h3h4);
+            vx_delta_h3_sum[tetlistSorted[i][3]] += (-c_h3h4);
+            vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
+
         }
 
-        for (vtkm::Id i = 0; i < num_sweep_values; i++)
-        {
-            vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
-            vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
-            vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
-            vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
-        }
+//        for (vtkm::Id i = 0; i < num_sweep_values; i++)
+//        {
+//            vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
+//            vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
+//            vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
+//            vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
+//        }
 
 
 
