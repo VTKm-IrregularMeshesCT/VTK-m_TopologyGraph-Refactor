@@ -88,6 +88,8 @@ VTKM_THIRDPARTY_PRE_INCLUDE
 VTKM_THIRDPARTY_POST_INCLUDE
 // clang-format on
 
+//#define WITH_MPI
+
 #ifdef WITH_MPI
 #include <mpi.h>
 #endif
@@ -108,6 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
+#define WRITE_FILES 0
 
 //using vtkm::FloatDefault = vtkm::Float64;
 
@@ -835,37 +838,29 @@ int main(int argc, char* argv[])
   // a vtkm::cont::PartitionedDataSet instead of a vtkm::cont::DataSet
   /// DEBUG PRINT std::cout << "{Ready to execute Contour Tree Augmented filter}\n";
 
-  // Lines 698-718 - failed VTK Poly Data Reader experiments ...
-////  vtkm::io::VTKDataSetReader reader("5b-split-int-edges.vtk");
-////  vtkm::io::VTKDataSetReader reader("5b-split-int-edges_old.vtk");
-////  vtkm::io::VTKDataSetReader reader("5b-split-int-edges_old-CONNECTIONS-Win.vtk");
-//  vtkm::io::VTKPolyDataReader reader("5b-split-int-edges_old_hopefully_working.vtk"); //"5b-split-int-edges_old-CONNECTIONS-Win.vtk");
+  // Time branch decompostion
+  vtkm::cont::Timer contourTreeTimer;
+  contourTreeTimer.Start();
 
 
-
-//  vtkm::cont::DataSet datatest = reader.ReadDataSet();
-////  vtkm::cont::PolyData datatest = reader.ReadDataSet();
-//  reader.PrintSummary(std::cout);
-//  std::cout << "printing summary of dataset ...\n";
-//  datatest.PrintSummary(std::cout);
-
-//  vtkm::cont::Field fieldtest = datatest.GetField(0);
-//  std::cout << "printing summary of field 0...\n";
-//  fieldtest.PrintSummary(std::cout);
-
-////  vtkNew<vtkXMLRectilinearGridReader> reader;
-
-//  std::cout << "{Finshed Reading}\n";
-
-  /// PRINT DEBUG std::cout << "FILTER.EXECUTE(useDataSet) ... \n";
+  std::cout << "FILTER.EXECUTE(useDataSet) ... \n";
   auto result = filter.Execute(useDataSet);
-  /// PRINT DEBUG std::cout << "... DONE: FILTER.EXECUTE(useDataSet) ... \n";
+  std::cout << "... DONE: FILTER.EXECUTE(useDataSet) ... \n";
 
   currTime = totalTime.GetElapsedTime();
   // TIMING: Compute Contour Tree (finish)
   vtkm::Float64 computeContourTreeTime = currTime - prevTime;
   // TIMING: Compute Branch Decomposition (begin)
   prevTime = currTime;
+
+  // Record the timings for the branch decomposition
+  std::stringstream timingsStream; // Use a string stream to log in one message
+  timingsStream << std::endl;
+  timingsStream << "    --------------- Contour Tree Timings " << rank
+                << " --------------" << std::endl;
+  timingsStream << "    " << std::setw(38) << std::left << "Compute Contour Tree"
+                << ": " << RED << contourTreeTimer.GetElapsedTime() << " seconds" << RESET << std::endl;
+
 
 #ifdef WITH_MPI
 #ifdef DEBUG_PRINT
@@ -897,30 +892,6 @@ int main(int argc, char* argv[])
     // Time branch decompostion
     vtkm::cont::Timer branchDecompTimer;
     branchDecompTimer.Start();
-    // compute the volume for each hyperarc and superarc
-//    ctaug_ns::IdArrayType superarcIntrinsicWeight;
-//    ctaug_ns::IdArrayType superarcDependentWeight;
-//    ctaug_ns::IdArrayType supernodeTransferWeight;
-//    ctaug_ns::IdArrayType hyperarcDependentWeight;
-
-//    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerial in 'ContourTreeApp.cxx rank == 0'" << std::endl;
-#if DEBUG_PRINT_PACTBD
-    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
-#endif
-//    std::cout << "[STAGE 1 Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial START ..." << std::endl;
-
-//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerial(filter.GetContourTree(),
-//                                                             filter.GetNumIterations(),
-//                                                             superarcIntrinsicWeight,  // (output)
-//                                                             superarcDependentWeight,  // (output)
-//                                                             supernodeTransferWeight,  // (output)
-//                                                             hyperarcDependentWeight); // (output)
-
-//    std::cout << "[STAGE 1 End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerial ... END" << std::endl;
-#if DEBUG_PRINT_PACTBD
-    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
-#endif
-
 
     // ---------------------------- FLOAT WEIGHTS ---------------------------- //
 
@@ -928,39 +899,6 @@ int main(int argc, char* argv[])
     FloatArrayType superarcDependentWeightNEW;
     FloatArrayType supernodeTransferWeightNEW;
     FloatArrayType hyperarcDependentWeightNEW;
-
-    // 2025-02-28 NO LONGER DO SERIAL BASIC STUFF
-//    std::cout << "Calling ProcessContourTree::ComputeVolumeWeightsSerialFloat in 'ContourTreeApp.cxx rank == 0'" << std::endl;
-
-//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloat(filter.GetContourTree(),
-//                                                                  filter.GetNumIterations(),
-//                                                                  superarcIntrinsicWeightNEW,  // (output)
-//                                                                  superarcDependentWeightNEW,  // (output)
-//                                                                  supernodeTransferWeightNEW,  // (output)
-//                                                                  hyperarcDependentWeightNEW); // (output)
-
-//    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 1f Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
-
-//    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialFloatCoefficients(filter.GetContourTree(),
-//                                                                              filter.GetNumIterations(),
-//                                                                              superarcIntrinsicWeightNEW,  // (output)
-//                                                                              superarcDependentWeightNEW,  // (output)
-//                                                                              supernodeTransferWeightNEW,  // (output)
-//                                                                              hyperarcDependentWeightNEW); // (output)
-
-//    std::cout << "[STAGE 1f End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
-
-#if DEBUG_PRINT_PACTBD
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "=============================COMPARE==============================" << std::endl;
-    std::cout << "==============NO LONGER DO THE FLOAT BASED COEFFS=================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "==================================================================" << std::endl;
-#endif
 
     vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightCoeffs;
     vtkm::cont::ArrayHandle<Coefficients> superarcDependentWeightCoeffs;
@@ -1014,7 +952,7 @@ int main(int argc, char* argv[])
 
 
     // Record the timings for the branch decomposition
-    std::stringstream timingsStream; // Use a string stream to log in one message
+//    std::stringstream timingsStream; // Use a string stream to log in one message
     timingsStream << std::endl;
     timingsStream << "    --------------- Branch Decomposition Timings " << rank
                   << " --------------" << std::endl;
@@ -1028,66 +966,6 @@ int main(int argc, char* argv[])
     ctaug_ns::IdArrayType branchMaximum;
     ctaug_ns::IdArrayType branchSaddle;
     ctaug_ns::IdArrayType branchParent;
-
-// 2025-02-28 NO LONGER DO SERIAL BASIC STUFF
-//    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[STAGE 2 Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() START ..." << std::endl;
-
-//    ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerial(filter.GetContourTree(),
-//                                                                         superarcDependentWeight,
-//                                                                         superarcIntrinsicWeight,
-//                                                                         whichBranch,   // (output)
-//                                                                         branchMinimum, // (output)
-//                                                                         branchMaximum, // (output)
-//                                                                         branchSaddle,  // (output)
-//                                                                         branchParent); // (output)
-
-//    std::cout << "[STAGE 2 End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerial() ... END\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" << std::endl;
-
-
-
-
-//    auto whichBranchPortal   = whichBranch.ReadPortal();
-//    auto branchMinimumPortal = branchMinimum.ReadPortal();
-//    auto branchMaximumPortal = branchMaximum.ReadPortal();
-//    auto branchSaddlePortal  = branchSaddle.ReadPortal();
-//    auto branchParentPortal  = branchParent.ReadPortal();
-
-
-//    std::cout << "Printing the arrays output from the Branch Decomposition:\n" << std::endl;
-//    std::cout << "whichBranch:";
-//    for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
-//    {
-//        std::cout << whichBranchPortal.Get(branchID) << " ";
-//    }
-//    std::cout << std::endl;
-
-//    std::cout << "branchMinimum:";
-//    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
-//    {
-//        std::cout << branchMinimumPortal.Get(branchID) << " ";
-//    }
-//    std::cout << std::endl;
-
-//    std::cout << "branchMaximum:";
-//    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
-//    {
-//        std::cout << branchMaximumPortal.Get(branchID) << " ";
-//    }
-//    std::cout << std::endl;
-
-//    std::cout << "branchSaddlePortal:";
-//    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
-//    {
-//        std::cout << branchSaddlePortal.Get(branchID) << " ";
-//    }
-//    std::cout << std::endl;
-
-//    std::cout << "branchParentPortal:";
-//    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
-//    {
-//        std::cout << branchParentPortal.Get(branchID) << " ";
-//    }
-//    std::cout << std::endl;
 
 
 #if DEBUG_PRINT_PACTBD
@@ -1109,70 +987,40 @@ int main(int argc, char* argv[])
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
+
+#if WRITE_FILES
+
     auto whichBranchPortal   = whichBranch.ReadPortal();
     auto branchMinimumPortal = branchMinimum.ReadPortal();
     auto branchMaximumPortal = branchMaximum.ReadPortal();
     auto branchSaddlePortal  = branchSaddle.ReadPortal();
     auto branchParentPortal  = branchParent.ReadPortal();
 
-#if DEBUG_PRINT_PACTBD
     std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:\n" << std::endl;
     std::cout << "(ContourTreeApp.cxx) whichBranch:";
-#endif
 
     std::ofstream file("ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt");
 
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
-#if DEBUG_PRINT_PACTBD
         std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
-#endif
         file << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
     }
-
     file.close();
-
-#if DEBUG_PRINT_PACTBD
-    std::cout << std::endl;
 #endif
 
-#if DEBUG_PRINT_PACTBD
-
-    std::cout << "(ContourTreeApp.cxx) branchMinimum:";
-    for (vtkm::Id branchID = 0; branchID < branchMinimumPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchMinimumPortal.Get(branchID) << std::endl;
-    }
-    std::cout << std::endl;
-
-    std::cout << "(ContourTreeApp.cxx) branchMaximum:";
-    for (vtkm::Id branchID = 0; branchID < branchMaximumPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchMaximumPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "(ContourTreeApp.cxx) branchSaddlePortal:";
-    for (vtkm::Id branchID = 0; branchID < branchSaddlePortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchSaddlePortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "(ContourTreeApp.cxx) branchParentPortal:";
-    for (vtkm::Id branchID = 0; branchID < branchParentPortal.GetNumberOfValues(); branchID++)
-    {
-        std::cout << branchParentPortal.Get(branchID) << " ";
-    }
-    std::cout << std::endl;
-
-#endif
 
     // Record and log the branch decompostion timings
     timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Branch Decomposition"
                   << ": " << branchDecompTimer.GetElapsedTime() << " seconds" << std::endl;
 //    VTKM_LOG_S(vtkm::cont::LogLevel::Info, timingsStream.str());
     VTKM_LOG_S(vtkm::cont::LogLevel::Warn, timingsStream.str());
+
+    currTime = totalTime.GetElapsedTime();
+    // TIMING: Compute Branch Decomposition (finish)
+    //      vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
+    computeBranchDecompTime = currTime - prevTime;
+    prevTime = currTime;
 
     /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: LOGGING DONE\n";
 
@@ -1201,9 +1049,9 @@ int main(int argc, char* argv[])
 //      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
-//      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
-      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
       {
@@ -1225,9 +1073,6 @@ int main(int argc, char* argv[])
 
 #endif
 
-      auto superarcIntrinsicWeightNEWPortal = superarcIntrinsicWeightNEW.ReadPortal();
-      auto superarcDependentWeightNEWPortal = superarcDependentWeightNEW.ReadPortal();
-
 #if DEBUG_PRINT_PACTBD
       std::cout << std::endl << "(ContourTreeApp.cxx) Superarc Intrinsic from decomposition:" << std::endl;
       for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
@@ -1239,67 +1084,6 @@ int main(int argc, char* argv[])
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
-
-
-      // OLD Branch.h version:
-//      // create explicit representation of the branch decompostion from the array representation
-//      BranchType* branchDecompostionRoot =
-//        ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
-//          filter.GetContourTree().Superparents,
-//          filter.GetContourTree().Supernodes,
-//          whichBranch,
-//          branchMinimum,
-//          branchMaximum,
-//          branchSaddle,
-//          branchParent,
-//          filter.GetSortOrder(),
-//          dataField,
-//          dataFieldIsSorted);
-
-//      // CHANGE: because at the moment the dependent and intrinsic weights have some errors ...
-//      // ... I write the arrays with the correct values for each to see how the BT should work.
-//      FloatArrayType superarcDependentWeightCorrect; //= superarcDependentWeight.ReadPortal();
-//      FloatArrayType superarcIntrinsicWeightCorrect; //= superarcIntrinsicWeight.ReadPortal();
-
-//      superarcDependentWeightCorrect.Allocate(superarcDependentWeightNEWPortal.GetNumberOfValues());
-//      superarcIntrinsicWeightCorrect.Allocate(superarcIntrinsicWeightNEWPortal.GetNumberOfValues());
-
-//      // The following is taken from ProcessContourTree.h and hardcoded here for testing
-//      std::string indent = "\t";
-//      std::array<double, 6> realIntrinsic = {0.0208333, 0.14127, 0.178175, 0.0236112,  1.636111,                   2.0}; // 0.0
-//      std::array<double, 6> realDependent = {0.0208333, 0.14127, 0.178175, 0.0236112,  0.636111+0.0208333+0.14127, 1.1}; // 1.0
-
-//      auto superarcDependentWeightCorrectReadPortal = superarcDependentWeightCorrect.ReadPortal();
-//      auto superarcIntrinsicWeightCorrectReadPortal = superarcIntrinsicWeightCorrect.ReadPortal();
-
-//      auto superarcDependentWeightCorrectWritePortal = superarcDependentWeightCorrect.WritePortal();
-//      auto superarcIntrinsicWeightCorrectWritePortal = superarcIntrinsicWeightCorrect.WritePortal();
-
-
-//      std::cout << std::endl << "(ContourTreeApp) Superarc Intrinsic Weight Portal (vs Correct):" << std::endl;
-//      for(int i = 0; i < superarcIntrinsicWeightNEWPortal.GetNumberOfValues(); i++)
-//      {
-//          std::cout << i << " -> " << superarcIntrinsicWeightNEWPortal.Get(i) << std::endl;
-
-//          superarcIntrinsicWeightCorrectWritePortal.Set(i, realIntrinsic[i]);
-
-//          std::cout << indent << i << " -> " << superarcIntrinsicWeightCorrectReadPortal.Get(i) << std::endl;
-
-
-//      }
-//      std::cout << std::endl;
-
-//      std::cout << std::endl << "(ContourTreeApp) Superarc Dependent Weight Portal:" << std::endl;
-//      for(int i = 0; i < superarcDependentWeightNEWPortal.GetNumberOfValues(); i++)
-//      {
-//          std::cout << i << " -> " << superarcDependentWeightNEWPortal.Get(i) << std::endl;
-
-//          superarcDependentWeightCorrectWritePortal.Set(i, realDependent[i]);
-
-//          std::cout << indent << i << " -> " << superarcDependentWeightCorrectReadPortal.Get(i) << std::endl;
-//      }
-
-
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
       BranchType* branchDecompostionRoot =
@@ -1338,7 +1122,7 @@ int main(int argc, char* argv[])
 
 
 
-
+#if WRITE_FILES
 std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n";
 // FILE IO START
       file_io_counter++;
@@ -1359,13 +1143,10 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
                                                           depth_FullBD, branch_weightsFullBD, branch_weights_write_FullBD,
                                                           main_branch_flags_FullBD, depth_write_FullBD, 0, 0);
 // FILE IO END
+#endif
 
 
-//      std::ofstream filegvbdfull("ContourTreeGraph-13k-branch-decomposition-fullCT.txt");
-//      std::ofstream filegvbdfull("ContourTreeGraph-56M-branch-decomposition-fullCT.txt");
-//      std::ofstream filegvbdfull("ContourTreeGraph--1024--branch-decomposition-fullCT.txt");
-//      std::ofstream filegvbdfull("ContourTreeGraph--NastyW-16--branch-decomposition-fullCT.txt");
-
+#if WRITE_FILES
 // FILE IO START
       file_io_counter++;
             VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
@@ -1374,15 +1155,27 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
       std::ofstream filegvbdfull("ContourTreeGraph--branch-decomposition-fullCT.txt");
       branchDecompostionRoot->PrintBranchDecomposition(filegvbdfull);
 // FILE IO END
+#endif
 
 #ifdef DEBUG_PRINT
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
 #endif
 
       // Simplify the contour tree of the branch decompostion
-//      branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       std::cout << std::endl;
       std::cout << "(ContourTreeApp) APPLYING BRANCH SIMPLIFICATION (BrS):\n";
+
+
+      usePersistenceSorter = false;
+//      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
+      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
+//       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
+      /// DEBUG PRINT
+
+#if WRITE_FILES
+// FILE IO START
+      std::cout << "(REFACTOR VERSION)\n";
+      std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
 
       std::vector<vtkm::Id> saddle_rooting = std::vector<vtkm::Id>();
       std::vector<vtkm::Id> local_branches = std::vector<vtkm::Id>();
@@ -1392,13 +1185,6 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
       std::vector<bool>     main_branch_flags = std::vector<bool>();
       std::vector<vtkm::Id> depth_write = std::vector<vtkm::Id>();
 
-      usePersistenceSorter = false;
-      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
-      /// DEBUG PRINT
-      std::cout << "(REFACTOR VERSION)\n";
-      std::cout << "(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION\n";
-
-// FILE IO START
       file_io_counter++;
       branchDecompostionRoot->PrintBranchDecomposition(std::cout);
             VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
@@ -1409,6 +1195,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
                                                           local_branches, depth, branch_weights, branch_weights_write,
                                                           main_branch_flags, depth_write, 0, 0);
 // FILE IO END
+#endif
 
       // Compute the relevant iso-values
       std::vector<ValueType> isoValues;
@@ -1463,6 +1250,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 //      std::ofstream filebdgv("ContourTreeGraph--1024--branch-decomposition-prunedCT.txt");
 //      std::ofstream filebdgv("ContourTreeGraph--NastyW-16--branch-decomposition-prunedCT.txt");
 
+#if WRITE_FILES
 // FILE IO START
       file_io_counter++;
             VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
@@ -1471,6 +1259,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
       std::ofstream filebdgv("ContourTreeGraph--branch-decomposition-simplifiedCT.txt");
       branchDecompostionRoot->PrintBranchDecomposition(filebdgv);
 // FILE IO END
+#endif
 
     } //end if compute isovalue
   }
@@ -1513,6 +1302,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 //      std::ofstream file("ContourTreeGraph--1024--original-fullCT-ColumnFormat.txt");
 //      std::ofstream file("ContourTreeGraph--NastyW-16--original-fullCT-ColumnFormat.txt");
 
+#if WRITE_FILES
 // FILE IO START
     file_io_counter++;
     VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
@@ -1529,8 +1319,9 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
         std::cerr << "Unable to open file for writing.\n";
     }
 // FILE IO END
+#endif
 
-
+#if WRITE_FILES
 // FILE IO START
     file_io_counter++;
           VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
@@ -1558,6 +1349,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
     filter.GetContourTree().PrintDotSuperStructure(filegv);
     std::cout << " Finished PrintDotSuperStructure " << std::endl;
 // FILE IO END
+#endif
 
 //    std::ofstream filegv("ContourTreeGraph-branch-decomposition-LT2M-PACT.gv");
 //    branchDecompostionRoot->PrintBranchDecomposition(std::cout);

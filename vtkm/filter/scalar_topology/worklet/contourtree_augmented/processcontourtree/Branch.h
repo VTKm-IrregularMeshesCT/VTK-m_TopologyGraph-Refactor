@@ -776,30 +776,36 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
         std::cout << branch_SP_map[i][j] << " -> ";
 #endif
 
-//        size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][j])));
+#if DEBUG_PRINT_PACTBD
+        size_t branchIDPrint = static_cast<size_t>(MaskedIndex(whichBranchPortal.Get(branch_SP_map[i][j])));
 
-//        if(!branches[branchIDPrint]->Children.empty())
-//        {
-//            std::cout << std::endl << "\t";
-//            PrintBranchInformation(branches[branchIDPrint]->Children[0], branch_SP_map, branches[branchIDPrint]->OriginalId);
-//        }
+        if(!branches[branchIDPrint]->Children.empty())
+        {
+            std::cout << std::endl << "\t";
+            PrintBranchInformation(branches[branchIDPrint]->Children[0], branch_SP_map, branches[branchIDPrint]->OriginalId);
+        }
 
-        //        for (Branch<T>* c : branches[branchIDPrint]->Children)
-        //        {
-        //            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
-        //            std::cout << c->OriginalId << " -> ";
-        //        }
+                for (Branch<T>* c : branches[branchIDPrint]->Children)
+                {
+                    PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+                    std::cout << c->OriginalId << " -> ";
+                }
 
-//        if(!branches[i]->Children.empty())
-//        {
-//            std::cout << "Children of i=" << i << std::endl;
-//        }
+        if(!branches[i]->Children.empty())
+        {
+            std::cout << "Children of i=" << i << std::endl;
+        }
+        else
+        {
+            std::cout << std::endl;
+        }
 
-//        for (Branch<T>* c : branches[i]->Children)
-//        {
-////            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
-//            std::cout << c->OriginalId << " -> ";
-//        }
+        for (Branch<T>* c : branches[i]->Children)
+        {
+//            PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+            std::cout << c->OriginalId << " -> ";
+        }
+#endif
 
 
     }
@@ -1223,6 +1229,62 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
                                             std::string::size_type indent)
 { // PrintBranchDecomposition()
 
+
+
+
+
+
+
+    // NEW: use the data values passed into the field here:
+    // NEW PACTBD-EDIT
+    int num_datapoints = 10001;
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
+//    const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
+
+    // ARCHER2
+    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
+
+
+    std::ifstream field_input(field_filename);
+    vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
+    fakeFieldArray.Allocate(num_datapoints);
+    auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
+    auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
+
+
+
+    std::vector<vtkm::Float64> std_field;
+    if(field_input.is_open())
+    {
+        std::string line;
+        int i = 0;
+        while(getline(field_input, line))
+        {
+            std_field.push_back(static_cast<vtkm::Float64>(std::stof(line)));
+        }
+
+        for(vtkm::Id i = 0; i < num_datapoints; i++)
+        {
+          fakeFieldArrayWritePortal.Set(i, std_field[i]);
+        }
+    }
+    else
+    {
+        std::cerr << "Unable to open file: " << field_filename << "\n";
+    }
+    field_input.close();
+
+
+
+
+
+
+
+
+
+
   std::string tab = "\t";
   bool write_triggerGV = false;
 
@@ -1403,11 +1465,13 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
           if(depths[nodeID])
           {
-              os << tab << "s" << nodes[nodeID] << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << "]" << std::endl;
+              os << tab << "s" << nodes[nodeID] << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << ", label=\"" << fakeFieldArrayReadPortal.Get(nodes[nodeID]) << "\"]" << std::endl;
           }
           else
           {
-              os << tab << "s" << nodes[nodeID] << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << "]" << std::endl;
+//              os << tab << "s" << fakeFieldArrayReadPortal.Get(nodes[nodeID]) << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << "]" << std::endl;
+              os << tab << "s" << nodes[nodeID] << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << ", label=\"" << fakeFieldArrayReadPortal.Get(nodes[nodeID]) << "\"]" << std::endl;
+//              os << tab << "s" << nodes[nodeID] << "[style=filled,fillcolor=" << colourMap[nodes[nodeID]] << "]" << std::endl;
           }
 
           depth_iter++;

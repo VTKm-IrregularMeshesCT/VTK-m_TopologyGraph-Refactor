@@ -11,6 +11,7 @@ make -j20 install
 cd build
 ./cv1k -f ../testing/hydrogen_atom.vtk -o output -t 4
 ./ContourVisualiser -f ../gridded-04/hh96.txt -o output -t 11 --decompositionType volume
+./ContourVisualiser -f ../gridded-04/hh24-space-E.txt -o output -t 15 --decompositionType pactbd
 
 ### Evaluation
 You can test using the testing/hydrogen_atom.vtk file.

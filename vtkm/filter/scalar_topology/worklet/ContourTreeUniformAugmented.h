@@ -1376,19 +1376,19 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // PACTBD-EDIT
 //    int num_datapoints = 101;
 //    int num_datapoints = 1001;
-//    int num_datapoints = 10001;
+    int num_datapoints = 10001;
 //    int num_datapoints = 99972;
-    int num_datapoints = 200001;
+//    int num_datapoints = 200001;
 //    int num_datapoints = 985181;
 //    int num_datapoints = 2160930;
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
     // PACTBD-EDIT
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
     // ARCHER2
-//    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";
@@ -1541,9 +1541,13 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 
       // NEW: use the data values passed into the field here:
       // NEW PACTBD-EDIT
-      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
+//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
+
+      // ARCHER2
+      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
 
 
       std::ifstream field_input(field_filename);
@@ -1588,10 +1592,15 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
       std::ofstream outFile("CT-full.gv");
 
       vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_SUPERIDS \
-                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
+                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+                              | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
+//                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
 
       // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
