@@ -106,7 +106,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 #include <chrono>
 #include <thread>
 
-#include <valgrind/callgrind.h>
+//#include <valgrind/callgrind.h>
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
