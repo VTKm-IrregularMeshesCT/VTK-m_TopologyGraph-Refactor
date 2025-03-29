@@ -1589,31 +1589,31 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
                      mesh.GetMeshBoundaryExecutionObject());
 
 
-      std::ofstream outFile("CT-full.gv");
+//      std::ofstream outFile("CT-full.gv");
 
-      vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
-                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
-                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
-                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
-                              | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
-//                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-//                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-//                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
-
-
-      // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
-      outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
-          "Contour Tree Super Dot",         // label/title
-          mesh,                             // mesh (re)constructed above
-          fakeFieldArray, //fieldArray,     // scalar data array handle
-          contourTree,                      // computed contour tree structure
-          detailedMask,                     // detailed output with all info
-          vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+//      vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+//                              | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
+////                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
 
-      outFile.close();
+//      // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
+//      outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
+//          "Contour Tree Super Dot",         // label/title
+//          mesh,                             // mesh (re)constructed above
+//          fakeFieldArray, //fieldArray,     // scalar data array handle
+//          contourTree,                      // computed contour tree structure
+//          detailedMask,                     // detailed output with all info
+//          vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+
+
+//      outFile.close();
 
 //// Uncomment below for Freudenthal tests:
 //// NOTE: THIS EXPLICITLY CALLS THE CODE IN INITIALIZEACTIVEEDGES.H

@@ -1028,7 +1028,7 @@ int main(int argc, char* argv[])
     //----Isovalue seleciton start
 
     std::cout << "(ContourTreeApp.cxx) NUM LEVELS: " << numLevels << std::endl;
-    numLevels = 1;
+    numLevels = 0;
     if (numLevels > 0) // if compute isovalues
     {
       // Get the data values for computing the explicit branch decomposition
