@@ -918,7 +918,7 @@ int main(int argc, char* argv[])
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
 
-    CALLGRIND_START_INSTRUMENTATION;
+//    CALLGRIND_START_INSTRUMENTATION;
     ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(filter.GetContourTree(),
                                                                               filter.GetNumIterations(),
                                                                               // The following four outputs are the coefficient tuples
@@ -939,8 +939,8 @@ int main(int argc, char* argv[])
                                                                               supernodeTransferWeightNEW,  // (output)
                                                                               hyperarcDependentWeightNEW); // (output)
 
-    CALLGRIND_STOP_INSTRUMENTATION;
-    CALLGRIND_DUMP_STATS;
+//    CALLGRIND_STOP_INSTRUMENTATION;
+//    CALLGRIND_DUMP_STATS;
 
     std::cout << "[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
 
