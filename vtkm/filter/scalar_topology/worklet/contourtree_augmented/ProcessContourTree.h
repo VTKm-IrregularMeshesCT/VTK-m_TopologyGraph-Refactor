@@ -3562,8 +3562,8 @@ public:
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-TETS.txt";
         // ARCHER
-        const std::string filename3D1 = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-        const std::string filename3D2 = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-TETS.txt";
+        const std::string filename3D1 = "/work/e710/e710/ddilys/PACTBD/data/100k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+        const std::string filename3D2 = "/work/e710/e710/ddilys/PACTBD/data/100k-from-2M-sampled-excel-sorted.1-TETS.txt";
 
         // get the total number of values to be swept ...
         // ... this will be one more than the total number of datapoints ...

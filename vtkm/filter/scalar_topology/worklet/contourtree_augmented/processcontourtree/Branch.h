@@ -1237,14 +1237,21 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
     // NEW: use the data values passed into the field here:
     // NEW PACTBD-EDIT
-    int num_datapoints = 10001;
+    //    int num_datapoints = 101;
+    //    int num_datapoints = 1001;
+    //    int num_datapoints = 10001;
+        int num_datapoints = 99972;
+    //    int num_datapoints = 200001;
+    //    int num_datapoints = 985181;
+    //    int num_datapoints = 2160930;
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
 //    const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
 
     // ARCHER2
-    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
+//    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
+    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/100k-field.txt";
 
 
     std::ifstream field_input(field_filename);
