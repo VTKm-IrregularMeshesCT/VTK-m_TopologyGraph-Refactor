@@ -1056,8 +1056,8 @@ int main(int argc, char* argv[])
 //      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
-//      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
-      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
