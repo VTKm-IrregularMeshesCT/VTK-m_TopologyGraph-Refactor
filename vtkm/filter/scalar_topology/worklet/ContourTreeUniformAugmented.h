@@ -1377,8 +1377,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //    int num_datapoints = 101;
 //    int num_datapoints = 1001;
 //    int num_datapoints = 10001;
-    int num_datapoints = 99972;
-//    int num_datapoints = 200001;
+//    int num_datapoints = 99972;
+    int num_datapoints = 200001;
 //    int num_datapoints = 985181;
 //    int num_datapoints = 2160930;
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/8-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
@@ -1389,7 +1389,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
     // ARCHER2
 //    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/100k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 
 
 //      const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/output-connections3.txt";
@@ -1549,7 +1549,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 
       // ARCHER2
 //      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
-      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/100k-field.txt";
+      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/200k-field.txt";
 
 
       std::ifstream field_input(field_filename);
