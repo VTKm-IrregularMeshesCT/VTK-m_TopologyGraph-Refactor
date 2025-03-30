@@ -1237,8 +1237,8 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
     // NEW: use the data values passed into the field here:
     // NEW PACTBD-EDIT
-    //    int num_datapoints = 101;
-        int num_datapoints = 1001;
+        int num_datapoints = 101;
+//        int num_datapoints = 1001;
     //    int num_datapoints = 10001;
 //        int num_datapoints = 99972;
 //        int num_datapoints = 200001;

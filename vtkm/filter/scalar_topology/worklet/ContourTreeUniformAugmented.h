@@ -1374,8 +1374,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
     // ... to see if possible to run it on a supercomputer
 
     // PACTBD-EDIT
-//    int num_datapoints = 101;
-    int num_datapoints = 1001;
+    int num_datapoints = 101;
+//    int num_datapoints = 1001;
 //    int num_datapoints = 10001;
 //    int num_datapoints = 99972;
 //    int num_datapoints = 200001;
@@ -1388,7 +1388,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
     // ARCHER2
-    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/1k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/1k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //      const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
 //    const std::string filename = "/work/e710/e710/ddilys/PACTBD/data/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
@@ -1550,7 +1551,8 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
 
       // ARCHER2
-      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/1k-field.txt";
+      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/101-field.txt";
+//      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/1k-field.txt";
 //      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/200k-field.txt";
 //        const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/1M-field.txt";
 //      const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/2M-parcels-20250225-field-sorted.txt";
