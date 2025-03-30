@@ -985,7 +985,7 @@ int main(int argc, char* argv[])
 
     std::cout << "[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n" << std::endl;
 
-    std::cout << "num. of branches: " << whichBranch.GetNumberOfValues() << std::endl;
+    std::cout << "num. of branches: " << branchSaddle.GetNumberOfValues() << std::endl;
 
 
 #if DEBUG_PRINT_PACTBD

@@ -1645,7 +1645,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //                     computeRegularStructure,
 //                     mesh.GetMeshBoundaryExecutionObject());
 
-
+#if PACT_DEBUG
       // Writing to a file
       std::ofstream file1("doubleASCII-conn.txt");
       std::ofstream file2("doubleASCII-offs.txt");
@@ -1662,6 +1662,7 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
           if (file2.is_open()) file2 << i << " " << delmesh.std_nbor_offsets[i] << "\n";
 //          std::cout << i << " " << delmesh.std_nbor_offsets[i] << "\n";
       }
+#endif
 
 
       return;

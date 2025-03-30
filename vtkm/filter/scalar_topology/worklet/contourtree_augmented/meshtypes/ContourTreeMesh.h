@@ -421,12 +421,12 @@ inline ContourTreeMesh<FieldType>::ContourTreeMesh(const IdArrayType& nodes,
   // ... which we can here - since we have the nbor connection/offset information:
   this->ComputeMaxNeighbors();
 
-  std::ofstream outFile("CT-ContourTreeMesh.txt");
-  this->PrintContent(outFile);
-  outFile.close();
 
 
 #if DEBUG_PRINT_PACTBD
+  std::ofstream outFile("CT-ContourTreeMesh.txt");
+  this->PrintContent(outFile);
+  outFile.close();
   // Print the contents fo this for debugging
   DebugPrint("ContourTreeMesh Initialized", __FILE__, __LINE__);
 #endif
