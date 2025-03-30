@@ -1241,9 +1241,9 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
     //    int num_datapoints = 1001;
     //    int num_datapoints = 10001;
 //        int num_datapoints = 99972;
-        int num_datapoints = 200001;
+//        int num_datapoints = 200001;
     //    int num_datapoints = 985181;
-    //    int num_datapoints = 2160930;
+        int num_datapoints = 2160930;
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
 //    const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
 //      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
