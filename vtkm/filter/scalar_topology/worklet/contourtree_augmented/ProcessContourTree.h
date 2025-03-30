@@ -3529,6 +3529,7 @@ public:
       // START ComputeVolumeWeightsSerialStructCoefficients
 
         std::cout << "CALL FROM THE COEFFICIENT-BASED STRUCT FUNCTION" << std::endl;
+        printMemoryUsage("BEFORE READING IN TRIANGLES");
 
         // start by storing the first sorted vertex ID for each superarc
         IdArrayType firstVertexForSuperparent;
