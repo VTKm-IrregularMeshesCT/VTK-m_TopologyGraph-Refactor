@@ -110,7 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
-#define WRITE_FILES 0
+#define WRITE_FILES 1
 
 //using vtkm::FloatDefault = vtkm::Float64;
 
@@ -1032,7 +1032,7 @@ int main(int argc, char* argv[])
     //----Isovalue seleciton start
 
     std::cout << "(ContourTreeApp.cxx) NUM LEVELS: " << numLevels << std::endl;
-    numLevels = 0;
+    numLevels = 1;
     if (numLevels > 0) // if compute isovalues
     {
       // Get the data values for computing the explicit branch decomposition
@@ -1051,11 +1051,11 @@ int main(int argc, char* argv[])
 //      for(vtkm::FloatDefault i = 0.f; i < 29791.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
-      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
+//      for(vtkm::FloatDefault i = 0.f; i < 102.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
-//      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
       {
