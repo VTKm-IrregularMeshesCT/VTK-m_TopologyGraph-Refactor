@@ -1,0 +1,580 @@
+[sc17dd@uol-599839 build-ref]$ make -j20 install
+[ 50%] Linking CXX executable ContourTree_Augmented
+[100%] Built target ContourTree_Augmented
+Install the project...
+-- Install configuration: ""
+[sc17dd@uol-599839 build-ref]$ ./ContourTree_Augmented --vtkm-device=Serial --printCT --levels=2 --mc=true --vtkm-log-level=INFO gridded-04/W4x4.txt
+date       time         ( uptime  ) [ thread name/id ]                   file:line     v| 
+2025-04-11 18:23:38.101 (   0.000s) [main thread     ]             loguru.cpp:593   Info| arguments: ./ContourTree_Augmented --vtkm-device=Serial --printCT --levels=2 --mc=true --vtkm-log-level=INFO gridded-04/W4x4.txt
+2025-04-11 18:23:38.101 (   0.000s) [main thread     ]             loguru.cpp:596   Info| Current dir: /localhome/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour_tree_augmented/build-ref
+2025-04-11 18:23:38.101 (   0.000s) [main thread     ]             loguru.cpp:598   Info| stderr verbosity: 0
+2025-04-11 18:23:38.101 (   0.000s) [main thread     ]             loguru.cpp:599   Info| -----------------------------------
+2025-04-11 18:23:38.101 (   0.001s) [main thread     ]         Initialize.cxx:279   Info| Unknown argument to Initialize: gridded-04/W4x4.txt
+
+2025-04-11 18:23:38.101 (   0.001s) [main thread     ]     ContourTreeApp.cxx:323   WARN| Single node run
+2025-04-11 18:23:38.101 (   0.001s) [main thread     ]     ContourTreeApp.cxx:474   Info| 
+    ------------ Settings -----------
+    filename=gridded-04/W4x4.txt
+    device=Serial
+    mc=1
+    augmentTree=1
+    branchDecomp=1
+    computeIsovalues=1
+2025-04-11 18:23:38.101 (   0.001s) [main thread     ]     ContourTreeApp.cxx:485   Info| 
+    ------------ Settings Isolevel Selection -----------
+    levels=2
+    eps=1e-05
+    comp3
+    type=0
+    method=0
+    mc=1
+    usePersistenceSorter
+Read the input data
+Reading file: gridded-04/W4x4.txt
+DataSet:
+  CoordSystems[1]
+    coords
+  CellSet 
+  StructuredCellSet:
+   UniformConnectivity<3> PointDimensions[2 2 2] GlobalPointDimensions[0 0 0] GlobalPointIndexStart[0 0 0] 
+  Fields[2]
+   coords assoc= Points valueType=vtkm::Vec<double, 3> storageType=vtkm::cont::StorageTagUniformPoints 8 values occupying 192 bytes [(0,0,0) (1,0,0) (0,1,0) ... (1,0,1) (0,1,1) (1,1,1)]
+   values assoc= Points valueType=double storageType=vtkm::cont::StorageTagBasic 8 values occupying 64 bytes [1 15 7 ... 0 8 3]
+2025-04-11 18:23:38.102 (   0.001s) [main thread     ]     ContourTreeApp.cxx:747   Info| 
+    ---------------- Input Mesh Properties --------------
+    Number of dimensions: 3
+FILTER.EXECUTE(useDataSet) ... 
+mesh size: 2x2x2
+worklet/ContourTreeUniformAugmented::RunContourTree() Run()
+else: worklet/ContourTreeUniformAugmented::RunContourTree() ...
+nbor_connectivity num vals: 3083854
+nbor_offsets num vals: 200002
+USING PACT (unoptimized)...
+{ContourTreeMesh.h : Constructor 0
+ ... +nodes, arcs, inSortOrder, values, inGlobalMeshIndex}
+2025-04-11 18:23:45.344 (   7.243s) [main thread     ]            DataSet.cxx:40    WARN| The size of field `resultData` (200001 values) does not match the size of the data set structure (8 points).
+... DONE: FILTER.EXECUTE(useDataSet) ... 
+
+
+
+
+[STAGE 1c Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ...
+number of arcs:200001
+number of superarcs:5152
+number of hyperarcs:2956
+CALL FROM THE COEFFICIENT-BASED STRUCT FUNCTION
+BEFORE READING IN TRIANGLES - Memory usage: 195300 KB
+READING Coordinates: /home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-COORDINATES.txt
+READING Tets: /home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-TETS.txt
+PRINT THE ARRAYS OF TETS: 
+num. of tets: 1341753
+    tetlistSorted allocation              : 0.064247 seconds
+BEFORE PRE-PROCESS - Memory usage: 195300 KB
+    BEFORE PRE-PROCESS                    : 0.149773 seconds
+==========================================PRE-PROCESS=====================================
+Computing 3D Coefficients ...
+END OF PRE-PROCESS - Memory usage: 195300 KB
+    END OF PRE-PROCESS                    : 2.75215 seconds
+// ----------------------------------- PRE-PROCESS ----------------------------------- //
+    TOTAL PRE-PROCESS                     : 2.75216 seconds
+// -------------------------------------- SWEEP  ------------------------------------- //
+Num of supernodes: 5152
+number of arcs:200001
+number of superarcs:5152
+number of hyperarcs:2956
+----------------------------------------------------------------------
+Arcs count: 200001
+Supernodes   count: 5152
+Superarcs    count: 5152
+Superparents count: 200001
+Hypernodes   count: 2956
+Hyperarcs    count: 2956
+Hyperparents count: 5152
+----------------------------------------------------------------------
+Superparents portal size: 200001
+Hyperparents portal size: 5152
+----------------------------------------------------------------------
+    Sweep sorted nodes loops              : 0.013007 seconds
+    TOTAL SWEEP TIME                      : 0.018358 seconds
+// ================================= ITERATIONS =================================== //
+Iteration: 0
+Iteration: 1
+Iteration: 2
+Iteration: 3
+Iteration: 4
+Iteration: 5
+Iteration: 6
+Iteration: 7
+Iteration: 8
+
+REINITILISING TRANSFER
+END ComputeVolumeWeightsSerialStructCoefficients
+Iterations Total Time - Memory usage: 195300 KB
+    Iterations Total Time                 : 0.036386 seconds
+[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END
+
+
+
+
+
+
+
+
+[STAGE 2f Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ...
+ComputeVolumeBranchDecompositionSerialFloat()
+
+==================================================================
+==================================================================
+==================================================================
+============================ START ===============================
+===================== BRANCH DECOMPOSITION =======================
+==================================================================
+==================================================================
+==================================================================
+==================================================================
+
+ANALYSIS ComputeVolumeBranchDecompositionSerialFloat ANALYSIS
+nSupernodes = 5152
+nSuperarcs  = 5151
+totalVolume = 200001
+totalVolumeFloat = 2.43326e+11
+
+FloatArrayType Comparator Constructor
+SuperArcVolumetricComparatorImpl
+	id    len: 0
+	float len: 5151
+FloatArrayType Comparator Implementation
+FloatArrayType Comparator Constructor
+SuperArcVolumetricComparatorImpl
+	id    len: 0
+	float len: 5151
+FloatArrayType Comparator Implementation
+
+==================================================================
+============================= START ==============================
+========================== BRANCH DATA ===========================
+==================================================================
+
+
+==================================================================
+============================ FINISH ==============================
+========================== BRANCH DATA ===========================
+==================================================================
+
+
+==================================================================
+==================================================================
+==================================================================
+============================ FINISH ==============================
+===================== BRANCH DECOMPOSITION =======================
+==================================================================
+==================================================================
+==================================================================
+==================================================================
+
+[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END
+
+
+
+
+num. of branches: 2617
+(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:
+
+(ContourTreeApp.cxx) whichBranch:0 = 0
+1 = 1
+2 = 2
+3 = 3
+...
+5147 = 1344
+5148 = 1344
+5149 = 1344
+5150 = 1344
+5151 = 1344
+2025-04-11 18:23:49.962 (  11.862s) [main thread     ]     ContourTreeApp.cxx:1021  WARN| 
+    --------------- Contour Tree Timings 0 --------------
+    Compute Contour Tree                  : 7.24196 seconds
+
+    --------------- Branch Decomposition Timings 0 --------------
+    Compute Volume Weights                : 3.62286 seconds
+    Compute Volume Branch Decomposition   : 0.995442 seconds
+
+(ContourTreeApp.cxx) NUM LEVELS: 2
+(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition 
+(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()
+ContourTreeApp->(ProcessContourTree)->Branch.h->ComputeBranchDecomposition()
+ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())
+
+
+
+
+
+
+
+##################################################################
+############################# START ##############################
+############# !MODIFIED! Branch.H Decomposition ##################
+##################################################################
+Number of Branches, for the Branch Decomposition:2617
+##################################################################
+############################ FINISH ##############################
+############# !MODIFIED! Branch.H Decomposition ##################
+##################################################################
+
+
+
+
+
+
+
+ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())
+(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()
+
+(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:
+2025-04-11 18:23:50.768 (  12.668s) [main thread     ]     ContourTreeApp.cxx:1135  WARN| 
+1) WRITING: (PrintDot) ContourTreeGraph--branch-decomposition-fullCT.gv
+
+Writing to graphviz file
+... Nodes gathered
+... Mappings made
+2025-04-11 18:24:29.417 (  51.316s) [main thread     ]     ContourTreeApp.cxx:1158  WARN| 
+2) WRITING: (PrintBranch) ContourTreeGraph--branch-decomposition-fullCT.txt
+
+
+(ContourTreeApp) APPLYING BRANCH SIMPLIFICATION (BrS):
+
+
+
+
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~ START ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-Branch.h-> Calling: SimplifyToSize() with targetSize = 10
+------------------branchDecompostionRoot-----------------
+branch ID: 1344
+branch Extremum: 196751
+branch ExtremumVal: 196751
+branch Saddle: 0
+branch SaddleVal: 0
+branch Volume: 0
+branch VolumeFloat: 2.38223e+11
+------------------branchDecompostionRoot-----------------
+
+====================== iteration 0 ======================
+-Branch.h-> active.size() = 0
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 196751
+-Branch.h-> active.size() = 1
+
+---------------------------------------------------------
+branch ID: 1344
+branch Extremum: 196751
+branch ExtremumVal: 196751
+branch Saddle: 0
+branch SaddleVal: 0
+branch Volume: 0
+branch VolumeFloat: 2.38223e+11
+branch Children: 1892
+---------------------------------------------------------
+
+====================== iteration 1 ======================
+-Branch.h-> active.size() = 1
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 199990
+-Branch.h-> active.size() = 2
+
+---------------------------------------------------------
+branch ID: 1578
+branch Extremum: 199990
+branch ExtremumVal: 199990
+branch Saddle: 122051
+branch SaddleVal: 122051
+branch Volume: 0
+branch VolumeFloat: 3.4925e+09
+branch Children: 210
+---------------------------------------------------------
+
+====================== iteration 2 ======================
+-Branch.h-> active.size() = 2
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 197921
+-Branch.h-> active.size() = 3
+
+---------------------------------------------------------
+branch ID: 1438
+branch Extremum: 197921
+branch ExtremumVal: 197921
+branch Saddle: 196192
+branch SaddleVal: 196192
+branch Volume: 0
+branch VolumeFloat: 3.1075e+08
+branch Children: 12
+---------------------------------------------------------
+
+====================== iteration 3 ======================
+-Branch.h-> active.size() = 3
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 198862
+-Branch.h-> active.size() = 4
+
+---------------------------------------------------------
+branch ID: 1454
+branch Extremum: 198862
+branch ExtremumVal: 198862
+branch Saddle: 126075
+branch SaddleVal: 126075
+branch Volume: 0
+branch VolumeFloat: 6.97218e+07
+branch Children: 5
+---------------------------------------------------------
+
+====================== iteration 4 ======================
+-Branch.h-> active.size() = 4
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 197744
+-Branch.h-> active.size() = 5
+
+---------------------------------------------------------
+branch ID: 1421
+branch Extremum: 197744
+branch ExtremumVal: 197744
+branch Saddle: 196920
+branch SaddleVal: 196920
+branch Volume: 0
+branch VolumeFloat: 1.45176e+07
+branch Children: 11
+---------------------------------------------------------
+
+====================== iteration 5 ======================
+-Branch.h-> active.size() = 5
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 197351
+-Branch.h-> active.size() = 6
+
+---------------------------------------------------------
+branch ID: 1375
+branch Extremum: 197351
+branch ExtremumVal: 197351
+branch Saddle: 125811
+branch SaddleVal: 125811
+branch Volume: 0
+branch VolumeFloat: 1.24854e+07
+branch Children: 6
+---------------------------------------------------------
+
+====================== iteration 6 ======================
+-Branch.h-> active.size() = 6
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 154446
+-Branch.h-> active.size() = 7
+
+---------------------------------------------------------
+branch ID: 2541
+branch Extremum: 154446
+branch ExtremumVal: 154446
+branch Saddle: 154587
+branch SaddleVal: 154587
+branch Volume: 0
+branch VolumeFloat: 1.21658e+07
+branch Children: 1
+---------------------------------------------------------
+
+====================== iteration 7 ======================
+-Branch.h-> active.size() = 7
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 153160
+-Branch.h-> active.size() = 8
+
+---------------------------------------------------------
+branch ID: 1887
+branch Extremum: 153160
+branch ExtremumVal: 153160
+branch Saddle: 153183
+branch SaddleVal: 153183
+branch Volume: 0
+branch VolumeFloat: 1.20467e+07
+branch Children: 0
+---------------------------------------------------------
+
+====================== iteration 8 ======================
+-Branch.h-> active.size() = 8
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 197392
+-Branch.h-> active.size() = 9
+
+---------------------------------------------------------
+branch ID: 1377
+branch Extremum: 197392
+branch ExtremumVal: 197392
+branch Saddle: 125828
+branch SaddleVal: 125828
+branch Volume: 0
+branch VolumeFloat: 1.10188e+07
+branch Children: 0
+---------------------------------------------------------
+
+====================== iteration 9 ======================
+-Branch.h-> active.size() = 9
+-Branch.h-> VolumeSorter: usePersistenceSorter = 0
+----------> (Active) Processing Branch: 197525
+-Branch.h-> active.size() = 10
+
+---------------------------------------------------------
+branch ID: 1387
+branch Extremum: 197525
+branch ExtremumVal: 197525
+branch Saddle: 125668
+branch SaddleVal: 125668
+branch Volume: 0
+branch VolumeFloat: 1.00043e+07
+branch Children: 2
+---------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FINISH ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+(REFACTOR VERSION)
+(ContourTreeApp) Computing the Branch Decomposition: PRINTING AFTER SIMPLIFICATION
+{
+  'Saddle' : 0,
+  'Extremum' : 196751,
+  'Volume' : 0,
+  'VolumeFloat' : 2.3925e+11,
+  'Children' : [
+    {
+      'Saddle' : 125668,
+      'Extremum' : 197525,
+      'Volume' : 0,
+      'VolumeFloat' : 1.00055e+07,
+    },
+    {
+      'Saddle' : 196192,
+      'Extremum' : 197921,
+      'Volume' : 0,
+      'VolumeFloat' : 3.19006e+08,
+    },
+    {
+      'Saddle' : 122051,
+      'Extremum' : 199990,
+      'Volume' : 0,
+      'VolumeFloat' : 3.61007e+09,
+      'Children' : [
+        {
+          'Saddle' : 125811,
+          'Extremum' : 197351,
+          'Volume' : 0,
+          'VolumeFloat' : 1.63986e+07,
+        },
+        {
+          'Saddle' : 125828,
+          'Extremum' : 197392,
+          'Volume' : 0,
+          'VolumeFloat' : 1.10188e+07,
+        },
+        {
+          'Saddle' : 196920,
+          'Extremum' : 197744,
+          'Volume' : 0,
+          'VolumeFloat' : 1.53102e+07,
+        },
+        {
+          'Saddle' : 126075,
+          'Extremum' : 198862,
+          'Volume' : 0,
+          'VolumeFloat' : 6.97535e+07,
+        },
+          ],
+    },
+    {
+      'Saddle' : 153183,
+      'Extremum' : 153160,
+      'Volume' : 0,
+      'VolumeFloat' : 1.20467e+07,
+    },
+    {
+      'Saddle' : 154587,
+      'Extremum' : 154446,
+      'Volume' : 0,
+      'VolumeFloat' : 1.22295e+07,
+    },
+  ],
+},
+2025-04-11 18:24:29.449 (  51.348s) [main thread     ]     ContourTreeApp.cxx:1196  WARN| 
+3) WRITING: ContourTreeGraph--branch-decomposition-simplifiedCT.gv
+
+Writing to graphviz file
+... Nodes gathered
+... Mappings made
+2025-04-11 18:24:29.596 (  51.495s) [main thread     ]     ContourTreeApp.cxx:1245  WARN| 
+    ------------------- Isovalue Suggestions --------------------
+    Isovalues: 122051 125668 125811 125828 126075 153183 154587 196192 196920 
+    Unique Isovalues (9):122051 125668 125811 125828 126075 153183 154587 196192 196920 
+
+    ------------------- Isovalue Suggestions --------------------
+    Isovalues: 122051 125668 125811 125828 126075 153183 154587 196192 196920 
+    Unique Isovalues (9):122051 125668 125811 125828 126075 153183 154587 196192 196920 
+
+
+
+2025-04-11 18:24:29.596 (  51.495s) [main thread     ]     ContourTreeApp.cxx:1262  WARN| 
+4) WRITING: ContourTreeGraph--branch-decomposition-simplifiedCT.txt
+
+FINISHED Contour Tree
+============
+ctaug_ns::PrintEdgePairArrayColumnLayout(saddlePeak, std::cout);
+NOTE: ... skipped printing to cout, only printing to the file
+2025-04-11 18:24:29.598 (  51.497s) [main thread     ]     ContourTreeApp.cxx:1314  WARN| 
+5) WRITING: ContourTreeGraph--original-fullCT-ColumnFormat.txt
+
+2025-04-11 18:24:29.605 (  51.504s) [main thread     ]     ContourTreeApp.cxx:1333  WARN| 
+6) WRITING: ContourTreeGraph--original-fullCT.gv
+
+Saving the Contour Tree As Dot GraphViz File .gv
+
+[START-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream) 
+[END-printGV] ContourTree.h:: PrintDotSuperStructure(std::ostream& outStream)
+
+ Finished PrintDotSuperStructure 
+2025-04-11 18:24:29.607 (  51.506s) [main thread     ]     ContourTreeApp.cxx:1390  WARN| 
+    -------------------------- Totals 0 -----------------------------
+    Start-up                              : 8.1e-05 seconds
+    Data Read                             : 7e-05 seconds
+    Build VTKM Dataset                    : 0.000663 seconds
+    Compute Contour Tree                  : 7.24204 seconds
+    Compute Branch Decomposition          : 0.805784 seconds
+    Total Time                            : 51.5056 seconds
+2025-04-11 18:24:29.607 (  51.506s) [main thread     ]     ContourTreeApp.cxx:1396  WARN| 
+    ---------------- Contour Tree Array Sizes ---------------------
+    #Nodes                                : 200001
+    #Arcs                                 : 200001
+    #Superparents                         : 200001
+    #Superarcs                            : 5152
+    #Supernodes                           : 5152
+    #Hyperparents                         : 5152
+    #WhenTransferred                      : 5152
+    #Hypernodes                           : 2956
+    #Hyperarcs                            : 2956
+
+2025-04-11 18:24:29.607 (  51.507s) [main thread     ]     ContourTreeApp.cxx:1400  WARN| 
+Iteration: 0 Hyper: 1589 Super: 1589 Min: 1 Avg: 1 Max: 1
+Iteration: 1 Hyper: 1029 Super: 1029 Min: 1 Avg: 1 Max: 1
+Iteration: 2 Hyper: 217 Super: 339 Min: 1 Avg: 1.56221 Max: 10
+Iteration: 3 Hyper: 92 Super: 123 Min: 1 Avg: 1.33696 Max: 4
+Iteration: 4 Hyper: 19 Super: 434 Min: 1 Avg: 22.8421 Max: 396
+Iteration: 5 Hyper: 6 Super: 79 Min: 1 Avg: 13.1667 Max: 73
+Iteration: 6 Hyper: 2 Super: 1410 Min: 188 Avg: 705 Max: 1222
+Iteration: 7 Hyper: 1 Super: 148 Min: 148 Avg: 148 Max: 148
+Iteration: 8 Hyper: 1 Super: 1 Min: 1 Avg: 1 Max: 1
+Total Hypernodes: 2956 Supernodes: 5152
+
+
+2025-04-11 18:24:29.607 (  51.507s) [main thread     ]             loguru.cpp:473   Info| atexit
+[sc17dd@uol-599839 build-ref]$ 
+

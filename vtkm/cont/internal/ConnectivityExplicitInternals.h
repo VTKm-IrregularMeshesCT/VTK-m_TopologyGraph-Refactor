@@ -65,6 +65,7 @@ struct ConnectivityExplicitInternals
   {
     if (this->ElementsValid)
     {
+      out << "     ConnectivityExplicitInternals" << std::endl;
       out << "     Shapes: ";
       vtkm::cont::printSummary_ArrayHandle(this->Shapes, out);
       out << "     Connectivity: ";

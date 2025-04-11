@@ -88,6 +88,9 @@
 
 #include <vtkm/filter/scalar_topology/worklet/contourtree_distributed/PrintGraph.h>
 
+#include <vtkm/io/VTKDataSetReader.h>
+#include <vtkm/io/VTKDataSetWriter.h>
+
 //#include <string>     // std::string, std::stof
 
 #include <chrono>
@@ -511,6 +514,89 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 
 }
 
+// Define type aliases for clarity:
+//using AdjacencyList = std::unordered_map<vtkm::Id, std::unordered_set<vtkm::Id>>;
+using AdjacencyList = std::unordered_map<vtkm::Id, std::set<vtkm::Id>>;
+
+// ---------------------------------------------------------------------------
+// Assumes pure tetrahedral mesh, no offset array, always 4 indices per cell:
+// connectivity: [p0,p1,p2,p3, p4,p5,p6,p7, ...] (groups of 4 points per cell)
+// numCells: total number of tetrahedral cells
+// ---------------------------------------------------------------------------
+AdjacencyList MakeAdjacencyTetrahedron(
+    const vtkm::cont::ArrayHandle<vtkm::Id> &connectivity)
+{
+    AdjacencyList adjacency;
+
+    auto connPortal = connectivity.ReadPortal();
+    vtkm::Id numValues = connectivity.GetNumberOfValues();
+
+    for (vtkm::Id idx = 0; idx < numValues; idx += 4)
+    {
+        vtkm::Id vertices[4] = {
+            connPortal.Get(idx),
+            connPortal.Get(idx+1),
+            connPortal.Get(idx+2),
+            connPortal.Get(idx+3)
+        };
+
+        // Loop through pairs of points in tetrahedron
+        for (int i = 0; i < 4; ++i)
+        {
+            vtkm::Id vi = vertices[i];
+            auto &neighbors = adjacency[vi]; // auto create if not exist
+
+            for (int j = 0; j < 4; ++j)
+            {
+                if (i == j) continue;
+                neighbors.insert(vertices[j]);
+            }
+        }
+    }
+
+    return adjacency;
+}
+
+
+
+// -----------------------------------------------------------------------------------
+// General version using offsets array. Can handle arbitrary cell sizes/ connectivity.
+// connectivity: Flat list of vertices
+// offsets: Defines start of each cell's connectivity indices (offsets[i+1]-offsets[i])
+// -----------------------------------------------------------------------------------
+AdjacencyList MakeAdjacencyWithOffsets(
+    const vtkm::cont::ArrayHandle<vtkm::Id> &connectivity,
+    const vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> &offsets)
+{
+    AdjacencyList adjacency;
+
+    auto connPortal = connectivity.ReadPortal();
+    auto offsetPortal = offsets.ReadPortal();
+
+    vtkm::Id numCells = offsets.GetNumberOfValues() - 1;
+
+    for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+    {
+        vtkm::Id start = offsetPortal.Get(cellId);
+        vtkm::Id end = offsetPortal.Get(cellId+1);
+
+        // Iterate through vertices in the cell:
+        for (vtkm::Id i = start; i < end; ++i)
+        {
+            vtkm::Id vi = connPortal.Get(i);
+            auto &neighbors = adjacency[vi];
+
+            for (vtkm::Id j = start; j < end; ++j)
+            {
+                vtkm::Id vj = connPortal.Get(j);
+                if(vi == vj) continue;
+                neighbors.insert(vj);
+            }
+        }
+    }
+
+    return adjacency;
+}
 
 
 
@@ -1520,6 +1606,127 @@ DelaunayMesh parseDelaunayDoubleASCII(const std::string& filePathUp,
 //        "delmesh.std_nbor_offsets", nbor_offsets);
 
       std::cout << "nbor_offsets num vals: " << nbor_offsets.GetNumberOfValues() << "\n";
+
+      // VTK FILE
+      vtkm::io::VTKDataSetReader reader("/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
+
+      reader.PrintSummary(std::cout);
+      cont::DataSet inputDataVTK = reader.ReadDataSet();
+
+      std::cout << "Done!" << std::endl;
+
+      reader.PrintSummary(std::cout);
+
+//      // vtkm::cont::CellSetSingleType<> tet_cells = inputDataVTK.GetCellSet();
+//      vtkm::cont::CellSetSingleType<> tet_cells   = inputDataVTK.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
+
+//      std::cout << "inputDataVTK.GetCellSet()[as CellSetSingleType].CellPointIds.Connectivity.GetNumberOfValues(): "
+//                << tet_cells.Data->CellPointIds.Connectivity.GetNumberOfValues() << std::endl;
+
+
+      // Explicitly interpret as tetrahedral cell set
+      using TetCellSet = vtkm::cont::CellSetSingleType<>;
+      if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+      {
+          std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+      }
+
+      // Safe cast to CellSetSingleType
+      const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+
+      // Check the cell shape explicitly if you like:
+      if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+      {
+          std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+      }
+
+      // Now safely access connectivity data:
+      vtkm::cont::ArrayHandle<vtkm::Id> connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+      vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> offsets = tet_cells.GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+
+      std::cout << "Connectivity array size: " << connectivity.GetNumberOfValues() << std::endl;
+      std::cout << "Offsets array size: " << offsets.GetNumberOfValues() << std::endl;
+
+      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(connectivity, offsets);
+              // MakeAdjacencyTetrahedron(connectivity);
+
+//      std::cout << "Printing adjacency for '" << adjacency_list.begin()->first << "'" << std::endl;
+
+      std::vector<vtkm::Id> std_nbor_connectivity_automatic;
+      std::vector<vtkm::Id> std_nbor_offsets_automatic;
+
+      vtkm::Id offset_count = 0;
+      std_nbor_offsets_automatic.push_back(offset_count);
+
+      for (vtkm::Id i = 0; i < num_datapoints; i++)
+      {
+//          offset_count = 0;
+          for (auto elem : adjacency_list[i])
+          {
+              offset_count++;
+//            std::cout << elem << " ";
+              std_nbor_connectivity_automatic.push_back(elem);
+          }
+//          std::cout << std::endl;
+          std_nbor_offsets_automatic.push_back(offset_count);
+      }
+
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto =
+      vtkm::cont::make_ArrayHandle(std_nbor_connectivity_automatic, vtkm::CopyFlag::Off);
+
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto =
+      vtkm::cont::make_ArrayHandle(std_nbor_offsets_automatic, vtkm::CopyFlag::Off);
+
+      std::cout << "2) Connectivity array size: " << nbor_connectivity_auto.GetNumberOfValues() << std::endl;
+      std::cout << "2) Offsets array size: " << nbor_offsets_auto.GetNumberOfValues() << std::endl;
+
+
+      std::cout << "offsets unequal at " << 0 << " - " << delmesh.std_nbor_offsets[0] << " -vs- " << std_nbor_offsets_automatic[0] << std::endl;
+      std::cout << "offsets unequal at " << num_datapoints-1 << " - " << delmesh.std_nbor_offsets[num_datapoints-1] << " -vs- " << std_nbor_offsets_automatic[num_datapoints-1] << std::endl;
+      std::cout << "offsets unequal at " << num_datapoints << " - " << delmesh.std_nbor_offsets[num_datapoints] << " -vs- " << std_nbor_offsets_automatic[num_datapoints] << std::endl;
+      std::cout << "offsets unequal at " << num_datapoints+1 << " - " << "NULL" << " -vs- " << std_nbor_offsets_automatic[num_datapoints+1] << std::endl;
+
+      for(int i =0; i < num_datapoints; i++)
+      {
+          if(delmesh.std_nbor_offsets[i] != std_nbor_offsets_automatic[i])
+          {
+              std::cout << "offsets unequal at " << i << " - " << delmesh.std_nbor_offsets[i] << " -vs- " << std_nbor_offsets_automatic[i] << std::endl;
+          }
+
+      }
+
+      std::cout << "Summary done!" << std::endl;
+      // VTK FILE
+
+
+      std::ofstream file("ContourTreeGraph--recreate-CONNECTIONS.txt");
+
+      vtkm::Id globalNbrID = 0;
+
+      std::cout << "nbor_connectivity.GetNumberOfValues() " << nbor_connectivity.GetNumberOfValues() << std::endl;
+      std::cout << "nbor_offsets.GetNumberOfValues() " << nbor_offsets.GetNumberOfValues() << std::endl;
+
+      for (vtkm::Id vertexID = 1; vertexID <= num_datapoints; vertexID++) // skip 0 because offsets start at 0
+      {
+//        for (globalNbrID; globalNbrID < nbor_offsets.ReadPortal().Get(vertexID); globalNbrID++)
+          for (globalNbrID; globalNbrID < nbor_offsets_auto.ReadPortal().Get(vertexID); globalNbrID++)
+          {
+//            file << nbor_connectivity.ReadPortal().Get(globalNbrID);
+              file << nbor_connectivity_auto.ReadPortal().Get(globalNbrID);
+
+//            if(globalNbrID+1 != nbor_offsets.ReadPortal().Get(vertexID))
+              if(globalNbrID+1 != nbor_offsets_auto.ReadPortal().Get(vertexID))
+              {
+                  file << " ";
+              }
+          }
+          file << std::endl;
+      }
+      file.close();
+
+
+
+
 
       // 112 nbor sleep
       std::this_thread::sleep_for(std::chrono::seconds(1));
