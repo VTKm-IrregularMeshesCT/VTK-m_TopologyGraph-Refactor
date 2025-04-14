@@ -69,6 +69,11 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #include <memory>
 
+
+// for memory usage
+#include <sys/resource.h>
+#include <unistd.h>
+
 namespace vtkm
 {
 namespace filter
@@ -115,10 +120,103 @@ vtkm::Id ContourTreeAugmented::GetNumIterations() const
   return this->NumIterations;
 }
 
+
+void static printMemoryUsage(const std::string& message)
+{
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+    std::cout << message << " - Memory usage: " << usage.ru_maxrss << " KB" << std::endl;
+}
+
+// Define type aliases for clarity:
+//using AdjacencyList = std::unordered_map<vtkm::Id, std::unordered_set<vtkm::Id>>;
+using AdjacencyList = std::unordered_map<vtkm::Id, std::set<vtkm::Id>>;
+
+// ---------------------------------------------------------------------------
+// Assumes pure tetrahedral mesh, no offset array, always 4 indices per cell:
+// connectivity: [p0,p1,p2,p3, p4,p5,p6,p7, ...] (groups of 4 points per cell)
+// numCells: total number of tetrahedral cells
+// ---------------------------------------------------------------------------
+AdjacencyList MakeAdjacencyTetrahedron(
+    const vtkm::cont::ArrayHandle<vtkm::Id> &connectivity)
+{
+    AdjacencyList adjacency;
+
+    auto connPortal = connectivity.ReadPortal();
+    vtkm::Id numValues = connectivity.GetNumberOfValues();
+
+    for (vtkm::Id idx = 0; idx < numValues; idx += 4)
+    {
+        vtkm::Id vertices[4] = {
+            connPortal.Get(idx),
+            connPortal.Get(idx+1),
+            connPortal.Get(idx+2),
+            connPortal.Get(idx+3)
+        };
+
+        // Loop through pairs of points in tetrahedron
+        for (int i = 0; i < 4; ++i)
+        {
+            vtkm::Id vi = vertices[i];
+            auto &neighbors = adjacency[vi]; // auto create if not exist
+
+            for (int j = 0; j < 4; ++j)
+            {
+                if (i == j) continue;
+                neighbors.insert(vertices[j]);
+            }
+        }
+    }
+
+    return adjacency;
+}
+
+
+
+// -----------------------------------------------------------------------------------
+// General version using offsets array. Can handle arbitrary cell sizes/ connectivity.
+// connectivity: Flat list of vertices
+// offsets: Defines start of each cell's connectivity indices (offsets[i+1]-offsets[i])
+// -----------------------------------------------------------------------------------
+AdjacencyList MakeAdjacencyWithOffsets(
+    const vtkm::cont::ArrayHandle<vtkm::Id> &connectivity,
+    const vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> &offsets)
+{
+    AdjacencyList adjacency;
+
+    auto connPortal = connectivity.ReadPortal();
+    auto offsetPortal = offsets.ReadPortal();
+
+    vtkm::Id numCells = offsets.GetNumberOfValues() - 1;
+
+    for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+    {
+        vtkm::Id start = offsetPortal.Get(cellId);
+        vtkm::Id end = offsetPortal.Get(cellId+1);
+
+        // Iterate through vertices in the cell:
+        for (vtkm::Id i = start; i < end; ++i)
+        {
+            vtkm::Id vi = connPortal.Get(i);
+            auto &neighbors = adjacency[vi];
+
+            for (vtkm::Id j = start; j < end; ++j)
+            {
+                vtkm::Id vj = connPortal.Get(j);
+                if(vi == vj) continue;
+                neighbors.insert(vj);
+            }
+        }
+    }
+
+    return adjacency;
+}
+
+
 //-----------------------------------------------------------------------------
 vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& input)
 {
-  /// DEBUG PRINT std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute()\n";
+  std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute() Version for Point Clouds / Irregular Meshes\n";
   vtkm::cont::Timer timer;
   timer.Start();
 
@@ -161,17 +259,286 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   auto resolveType = [&](const auto& concrete) {
     using T = typename std::decay_t<decltype(concrete)>::ValueType;
 
+
+
+
+
+
+
+
+
+
+
+
+      printMemoryUsage("BEFORE READING IN VTK");
+
+      // PACTBD-EDIT
+      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+
+      int num_datapoints;
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
+      vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+      // Obtain portals to write data directly:
+
+//      auto this->GetFieldFromDataSet(input);
+
+      // (the scoping deletes the reader right after populating the cont::DataSet)
+      {
+          vtkm::io::VTKDataSetReader reader(filename_vtk);
+          // read the data from a VTK file:
+          reader.PrintSummary(std::cout);
+          cont::DataSet inputDataVTK = reader.ReadDataSet();
+          std::cout << "Done!" << std::endl;
+          reader.PrintSummary(std::cout);
+
+
+          num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
+
+          // Explicitly interpret as tetrahedral cell set
+          using TetCellSet = vtkm::cont::CellSetSingleType<>;
+          if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+          {
+              std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+          }
+
+          // Safe cast to CellSetSingleType
+          const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+
+          // Check the cell shape explicitly if you like:
+          if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+          {
+              std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+          }
+
+    //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
+    //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
+
+          // Now safely access connectivity data (moving them up to avoid memory duplication)
+          vtkm::cont::ArrayHandle<vtkm::Id> connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+          vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> offsets = tet_cells.GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+
+          std::cout << "1) Connectivity array size: " << connectivity.GetNumberOfValues() << std::endl;
+          std::cout << "1) Offsets array size: " << offsets.GetNumberOfValues() << std::endl;
+
+          std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(connectivity, offsets);
+                  // MakeAdjacencyTetrahedron(connectivity);
+
+          std::cout << "Printing adjacency for '" << adjacency_list.begin()->first << "'" << std::endl;
+
+          // First, compute total sizes:
+          vtkm::Id total_nbors = 0;
+          for (vtkm::Id i = 0; i < num_datapoints; ++i)
+          {
+              total_nbors += adjacency_list[i].size();
+          }
+          std::cout << "total_nbors " << total_nbors << std::endl;
+          // Allocate ArrayHandles directly:
+//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
+          nbor_connectivity_auto.Allocate(total_nbors);
+          std::cout << "num_datapoints+1 " << num_datapoints+1 << std::endl;
+//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+          nbor_offsets_auto.Allocate(num_datapoints + 1); // offsets array has size num_points + 1
+
+
+          std::cout << "Populate the data" << std::endl;
+
+          auto connectivityPortal = nbor_connectivity_auto.WritePortal();
+          auto offsetsPortal = nbor_offsets_auto.WritePortal();
+
+          // Populate the data
+          vtkm::Id offset_counter = 0;
+          offsetsPortal.Set(0, offset_counter); // initial offset is always 0
+
+
+
+          for (vtkm::Id i = 0; i < num_datapoints; ++i)
+          {
+              for (auto elem : adjacency_list[i])
+              {
+                  connectivityPortal.Set(offset_counter++, elem);
+              }
+              offsetsPortal.Set(i + 1, offset_counter); // offset for next datapoint starts here
+          }
+
+      }
+
+      printMemoryUsage("AFTER READING IN VTK");
+
+      std::cout << "0) Number of Datapoints: " << num_datapoints  << std::endl;
+
+
+
+
+
+
+
+
+
+
+
+
+      // populate 'freeby' arrays:
+      // nodes_sorted - just a list of the nodes going from 0-to-N, ...
+      // ... where N = num_datapoints
+    // ------------------------------------------------------------------------------- //
+      std::vector<vtkm::Id> std_nodes_sorted;
+      for(vtkm::Id i = 0; i < num_datapoints; i++)
+      {
+        std_nodes_sorted.push_back(i);
+      }
+
+      vtkm::cont::ArrayHandle<vtkm::Id> nodes_sorted =
+        vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
+    // ------------------------------------------------------------------------------- //
+      std::vector<int> std_actual_values;
+      for(int i = 0; i < num_datapoints; i++)
+      {
+        std_actual_values.push_back(i);
+      }
+     // note: this array does not actually matter for our case ...
+      vtkm::cont::ArrayHandle<int> actual_values =
+        vtkm::cont::make_ArrayHandle(std_actual_values, vtkm::CopyFlag::Off);
+      // ------------------------------------------------------------------------------- //
+
+      std::vector<vtkm::Id> std_global_inds = {0};
+      vtkm::cont::ArrayHandle<vtkm::Id> global_inds =
+        vtkm::cont::make_ArrayHandle(std_global_inds, vtkm::CopyFlag::Off);
+      // ------------------------------------------------------------------------------- //
+
+      std::cout << "2) Connectivity array size: " << nbor_connectivity_auto.GetNumberOfValues() << std::endl;
+      std::cout << "2) Offsets array size: " << nbor_offsets_auto.GetNumberOfValues() << std::endl;
+
+      std::cout << "Summary done!" << std::endl;
+      // VTK FILE
+
+
+      std::ofstream file("ContourTreeGraph--recreate-CONNECTIONS.txt");
+
+      vtkm::Id globalNbrID = 0;
+
+//      std::cout << "nbor_connectivity.GetNumberOfValues() " << nbor_connectivity.GetNumberOfValues() << std::endl;
+//      std::cout << "nbor_offsets.GetNumberOfValues() " << nbor_offsets.GetNumberOfValues() << std::endl;
+
+      for (vtkm::Id vertexID = 1; vertexID <= num_datapoints; vertexID++) // skip 0 because offsets start at 0
+      {
+//        for (globalNbrID; globalNbrID < nbor_offsets.ReadPortal().Get(vertexID); globalNbrID++)
+          for (globalNbrID; globalNbrID < nbor_offsets_auto.ReadPortal().Get(vertexID); globalNbrID++)
+          {
+//            file << nbor_connectivity.ReadPortal().Get(globalNbrID);
+              file << nbor_connectivity_auto.ReadPortal().Get(globalNbrID);
+
+//            if(globalNbrID+1 != nbor_offsets.ReadPortal().Get(vertexID))
+              if(globalNbrID+1 != nbor_offsets_auto.ReadPortal().Get(vertexID))
+              {
+                  file << " ";
+              }
+          }
+          file << std::endl;
+      }
+      file.close();
+
+//       Using the 'TopologyGraph' constructor here ...
+//       ... (to be moved to a separate class eventually)
+      std::cout << "USING PACT (unoptimized)...\n";
+      vtkm::worklet::contourtree_augmented::ContourTreeMesh<int> mesh(nodes_sorted,
+                              //arcs_list,
+                                nbor_connectivity_auto, //nbor_connectivity,
+                                nbor_offsets_auto,//nbor_offsets,
+                                nodes_sorted,
+                                // doesnt work out of the box:
+                                // fieldArray, // testing fieldArray instead of manual actual_value
+                                actual_values,
+                                //nodes_sorted,
+                                global_inds);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     vtkm::worklet::ContourTreeAugmented worklet;
-    // Run the worklet
     worklet.Run(concrete,                                                                   // fieldArray?
+                mesh,
                 MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
                                      : this->ContourTreeData,                               // contourTree
                 MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]    //
                                      : this->MeshSortOrder,                                 // sortOrder
                 this->NumIterations,                                                        // nIterations
-                meshSize,                                                                   // meshSize
-                this->UseMarchingCubes,                                                     // useMarchingCubes
                 compRegularStruct);                                                         // computeRegularStructure
+    // Run the worklet (old)
+//    worklet.Run(concrete,                                                                   // fieldArray?
+//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
+//                                     : this->ContourTreeData,                               // contourTree
+//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]    //
+//                                     : this->MeshSortOrder,                                 // sortOrder
+//                this->NumIterations,                                                        // nIterations
+//                meshSize,                                                                   // meshSize
+//                this->UseMarchingCubes,                                                     // useMarchingCubes
+//                compRegularStruct);                                                         // computeRegularStructure
+
+
+
+
+
+
+
+
+
+
+
+//    std::ofstream outFile("CT-full.gv");
+
+//    vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+//                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+//                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+//                            | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
+////                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+
+
+//    // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
+//    outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
+//        "Contour Tree Super Dot",         // label/title
+//        mesh,                             // mesh (re)constructed above
+//        fakeFieldArray, //fieldArray,     // scalar data array handle
+//        contourTree,                      // computed contour tree structure
+//        detailedMask,                     // detailed output with all info
+//        vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+
+
+//    outFile.close();
+
+
+
+
+
+
+
+
+
+
+
 
     // If we run in parallel but with only one global block, then we need set our outputs correctly
     // here to match the expected behavior in parallel
@@ -221,6 +588,167 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   /// DEBUG PRINT std::cout << "sc_tp/ContourTreeUniformAugmented.cxx : ContourTreeAugmented::DoExecute() finished}\n";
   return result;
 } // ContourTreeAugmented::DoExecute
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+////-------------------------- ORIGINAL(-ISH) ------------------------------------//
+//vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& input)
+//{
+//  std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute()\n";
+//  vtkm::cont::Timer timer;
+//  timer.Start();
+
+//  // Check that the field is Ok
+//  const auto& field = this->GetFieldFromDataSet(input);
+//  if (!field.IsPointField())
+//  {
+//    throw vtkm::cont::ErrorFilterExecution("Point field expected.");
+//  }
+
+//  // Use the GetPointDimensions struct defined in the header to collect the meshSize information
+//  vtkm::Id3 meshSize;
+//  const auto& cells = input.GetCellSet();
+//  cells.CastAndCallForTypes<VTKM_DEFAULT_CELL_SET_LIST_STRUCTURED>(
+//    vtkm::worklet::contourtree_augmented::GetPointDimensions(), meshSize);
+
+//  std::cout << "mesh size: " << meshSize[0] << "x" << meshSize[1] << "x" << meshSize[2] << std::endl;
+
+//  // TODO blockIndex needs to change if we have multiple blocks per MPI rank and DoExecute is called for multiple blocks
+//  std::size_t blockIndex = 0;
+
+//  // Determine if and what augmentation we need to do
+//  unsigned int compRegularStruct = this->ComputeRegularStructure;
+//  // When running in parallel we need to at least augment with the boundary vertices
+//  if (compRegularStruct == 0)
+//  {
+//    if (this->MultiBlockTreeHelper)
+//    {
+//      if (this->MultiBlockTreeHelper->GetGlobalNumberOfBlocks() > 1)
+//      {
+//        compRegularStruct = 2; // Compute boundary augmentation
+//      }
+//    }
+//  }
+
+//  // Create the result object
+//  vtkm::cont::DataSet result;
+
+//  // FIXME: reduce the size of lambda.
+//  auto resolveType = [&](const auto& concrete) {
+//    using T = typename std::decay_t<decltype(concrete)>::ValueType;
+
+//    vtkm::worklet::ContourTreeAugmented worklet;
+//    // Run the worklet
+//    worklet.Run(concrete,                                                                   // fieldArray?
+//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
+//                                     : this->ContourTreeData,                               // contourTree
+//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]    //
+//                                     : this->MeshSortOrder,                                 // sortOrder
+//                this->NumIterations,                                                        // nIterations
+//                meshSize,                                                                   // meshSize
+//                this->UseMarchingCubes,                                                     // useMarchingCubes
+//                compRegularStruct);                                                         // computeRegularStructure
+
+//    // If we run in parallel but with only one global block, then we need set our outputs correctly
+//    // here to match the expected behavior in parallel
+//    if (this->MultiBlockTreeHelper)
+//    {
+//      if (this->MultiBlockTreeHelper->GetGlobalNumberOfBlocks() == 1)
+//      {
+//        // Copy the contour tree and mesh sort order to the output
+//        this->ContourTreeData = this->MultiBlockTreeHelper->LocalContourTrees[0];
+//        this->MeshSortOrder = this->MultiBlockTreeHelper->LocalSortOrders[0];
+//        // In parallel we need the sorted values as output resulti
+//        // Construct the sorted values by permutting the input field
+//        auto fieldPermutted =
+//          vtkm::cont::make_ArrayHandlePermutation(this->MeshSortOrder, concrete);
+//        // FIXME: can sortedValues be ArrayHandleUnknown?
+//        vtkm::cont::ArrayHandle<T> sortedValues;
+//        vtkm::cont::Algorithm::Copy(fieldPermutted, sortedValues);
+
+//        // FIXME: is this the right way to create the DataSet? The original code creates an empty
+//        //  DataSet without any coordinate system etc.
+//        result = this->CreateResultField(input,
+//                                         this->GetOutputFieldName(),
+//                                         vtkm::cont::Field::Association::WholeDataSet,
+//                                         sortedValues);
+//        //        vtkm::cont::Field rfield(
+//        //          this->GetOutputFieldName(), vtkm::cont::Field::Association::WholeDataSet, sortedValues);
+//        //        result.AddField(rfield);
+//        //        return result;
+//      }
+//    }
+//    else
+//    {
+//      // Construct the expected result for serial execution. Note, in serial the result currently
+//      // not actually being used, but in parallel we need the sorted mesh values as output
+//      // This part is being hit when we run in serial or parallel with more than one rank.
+//      result =
+//        this->CreateResultFieldPoint(input, this->GetOutputFieldName(), ContourTreeData.Arcs);
+//      //  return CreateResultFieldPoint(input, ContourTreeData.Arcs, this->GetOutputFieldName());
+//    }
+//  };
+//  this->CastAndCallScalarField(field, resolveType);
+
+//  VTKM_LOG_S(vtkm::cont::LogLevel::Perf,
+//             std::endl
+//               << "    " << std::setw(38) << std::left << "Contour Tree Filter DoExecute"
+//               << ": " << timer.GetElapsedTime() << " seconds");
+//  /// DEBUG PRINT std::cout << "sc_tp/ContourTreeUniformAugmented.cxx : ContourTreeAugmented::DoExecute() finished}\n";
+//  return result;
+//} // ContourTreeAugmented::DoExecute
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // TODO: is multiblock case ever tested?
 VTKM_CONT vtkm::cont::PartitionedDataSet ContourTreeAugmented::DoExecutePartitions(

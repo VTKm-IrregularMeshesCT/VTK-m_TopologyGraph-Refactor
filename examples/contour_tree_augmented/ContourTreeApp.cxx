@@ -1007,7 +1007,7 @@ int main(int argc, char* argv[])
 
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
-        std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+        // std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
         file << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
     }
     file.close();
