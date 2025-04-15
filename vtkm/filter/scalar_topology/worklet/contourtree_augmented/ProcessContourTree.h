@@ -96,6 +96,10 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+// file IO
+#include <vtkm/io/VTKDataSetReader.h>
+#include <vtkm/io/VTKDataSetWriter.h>
+
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
 #define PROFILING_PACTBD 1
@@ -120,6 +124,18 @@ struct Coordinates
     long double x;
     long double y;
     long double z;
+
+    Coordinates()
+    {
+
+    }
+
+    Coordinates(double _x, double _y, double _z)
+    {
+        x = (long double) _x;
+        y = (long double) _y;
+        z = (long double) _z;
+    }
 };
 
 struct Triangle
@@ -3553,12 +3569,12 @@ public:
         // Files for 3D experiments of Contour Tree Branch volume-based weight computations
         // PACTBD-EDIT
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
+//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-COORDINATES.txt";
         // PACTBD-EDIT
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
-        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-TETS.txt";
+//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-TETS.txt";
 
@@ -3583,9 +3599,10 @@ public:
         // The coordinates are needed for computing the areas/volumes.
         // Note that the coordinate information is not previously needed for the base contour tree computation ...
         // ... and is only introduced as a requirement at this stage.
-        std::vector<Coordinates> coordlist3D  = ReadCoordinatesFromFile(filename3D1);
+        std::vector<Coordinates> coordlist3D;//  = ReadCoordinatesFromFile(filename3D1);
+
         // tetrahedron list has pairs of 4 vertices that make up the tetrahedron
-        std::vector<Tetrahedron> tetlist      = ReadTetsFromFile(filename3D2);
+//        std::vector<Tetrahedron> tetlist      = ReadTetsFromFile(filename3D2);
 
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {// for each sortedNode
@@ -3600,7 +3617,7 @@ public:
         // Now move on to set up 3D tetrahedral variables
 
         std::cout << "PRINT THE ARRAYS OF TETS: \n";
-        std::cout << "num. of tets: " << tetlist.size() << std::endl;
+//        std::cout << "num. of tets: " << tetlist.size() << std::endl;
 
         // \/\/\/ Timing and performance profiling \/\/\/ //
         // For printing text as red in the console:
@@ -3612,14 +3629,14 @@ public:
         timer.Start();
         // /\/\/\ Timing and performance profiling /\/\/\ //
 
-        // Vertices of the tet are given as sort IDs and there are 4 of them:
-        std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
-                                                    std::vector<int> (4, 0));
+//        // Vertices of the tet are given as sort IDs and there are 4 of them:
+//        std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
+//                                                    std::vector<int> (4, 0));
 
-        std::cout << "    " << RED << std::setw(38) << std::left << "tetlistSorted allocation"
-                      << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
+//        std::cout << "    " << RED << std::setw(38) << std::left << "tetlistSorted allocation"
+//                      << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
 
-        timer.Start();
+//        timer.Start();
 
 
         // Keep track of all tetrahedra vertices in a sorted list:
@@ -3629,15 +3646,117 @@ public:
         //  ... and refer to vertices as A, B, C, D
         //  ... where we then assign A = 3, B = 5, C = 6, D = 7)
         //  (we do not keep track of the original ordering X, Y, Z, W) ...
-        for (int i = 0; i < tetlist.size(); i++)
+        std::ofstream file("ContourTreeGraph--recreate-TETS.txt");
+        // PACTBD-EDIT
+        const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+        // (the scoping deletes the reader right after populating the cont::DataSet)
+        vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
+        cont::ArrayHandle<vtkm::Vec3f> coordinatesVTK;
+//        cont::ArrayHandle<Coordinates> coordinatesVTK;
+//        cont::ArrayHandle<vtkm::Vec<long double, 3>> coordinatesVTK;
         {
-            tetlistSorted[i][0] = tetlist[i].p1;
-            tetlistSorted[i][1] = tetlist[i].p2;
-            tetlistSorted[i][2] = tetlist[i].p3;
-            tetlistSorted[i][3] = tetlist[i].p4;
+            vtkm::io::VTKDataSetReader reader(filename_vtk);
+            // read the data from a VTK file:
+            reader.PrintSummary(std::cout);
+            cont::DataSet inputDataVTK = reader.ReadDataSet();
+            std::cout << "Done!" << std::endl;
+            reader.PrintSummary(std::cout);
+
+            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec3f>>();
+//            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<Coordinates>>();
+//            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec<long double, 3>>>();
+            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
+            std::cout << coordinatesVTK.ReadPortal().Get(0)[0] << std::endl;
+            std::cout << coordinatesVTK.ReadPortal().Get(0)[1] << std::endl;
+            std::cout << coordinatesVTK.ReadPortal().Get(0)[2] << std::endl;
+            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
+
+
+//            num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
+
+            // Explicitly interpret as tetrahedral cell set
+            using TetCellSet = vtkm::cont::CellSetSingleType<>;
+            if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+            {
+                std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+            }
+
+            // Safe cast to CellSetSingleType
+            const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+
+            // Check the cell shape explicitly if you like:
+            if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+            {
+                std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+            }
+
+      //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
+      //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
+
+            // Now safely access connectivity data (moving them up to avoid memory duplication)
+            connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
         }
 
-        for (int i = 0; i < tetlist.size(); i++)
+
+        std::ofstream fileCoords("ContourTreeGraph--recreate-COORDINATES.txt");
+        auto coordinatesAutoVTK = coordinatesVTK.ReadPortal();
+
+        coordlist3D.reserve(coordinatesVTK.GetNumberOfValues());
+
+//        for(int i = 0; i < coordlist3D.size(); i++)
+        for(int i = 0; i < coordinatesVTK.GetNumberOfValues(); i++)
+        {
+//            fileCoords << coordlist3D[i].x << " " << coordlist3D[i].y << " " << coordlist3D[i].z << std::endl;
+            fileCoords << coordinatesAutoVTK.Get(i)[0] << " " << coordinatesAutoVTK.Get(i)[1] << " " << coordinatesAutoVTK.Get(i)[2] << std::endl;
+
+//            coordlist3D.emplace_back((long double)coordinatesAutoVTK.Get(i)[0],
+//                                     (long double)coordinatesAutoVTK.Get(i)[1],
+//                                     (long double)coordinatesAutoVTK.Get(i)[2]);
+            coordlist3D.emplace_back(coordinatesAutoVTK.Get(i)[0],
+                                     coordinatesAutoVTK.Get(i)[1],
+                                     coordinatesAutoVTK.Get(i)[2]);
+//            fileCoords << coordinatesAutoVTK.Get(i).x << " " << coordinatesAutoVTK.Get(i).y << " " << coordinatesAutoVTK.Get(i).z << std::endl;
+
+        }
+        fileCoords.close();
+
+
+
+
+        std::cout << "num. of tets: " << connectivity.GetNumberOfValues()/4 << std::endl;
+        // Vertices of the tet are given as sort IDs and there are 4 of them:
+        std::vector<std::vector<int>> tetlistSorted(connectivity.GetNumberOfValues()/4,
+                                                    std::vector<int> (4, 0));
+
+        std::cout << "    " << RED << std::setw(38) << std::left << "tetlistSorted allocation"
+                      << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
+
+        timer.Start();
+
+        auto connectivityRead = connectivity.ReadPortal();
+        for (int i = 0; i < connectivity.GetNumberOfValues(); i+=4)
+        {
+            file << connectivityRead.Get(i)    << " " << connectivityRead.Get(i+1)  << " "
+                 << connectivityRead.Get(i+2)  << " " << connectivityRead.Get(i+3)  << std::endl;
+            tetlistSorted[i/4][0] = connectivityRead.Get(i);
+            tetlistSorted[i/4][1] = connectivityRead.Get(i+1);
+            tetlistSorted[i/4][2] = connectivityRead.Get(i+2);
+            tetlistSorted[i/4][3] = connectivityRead.Get(i+3);
+        }
+        file.close();
+
+        // old - reading from a -TETS.txt file
+//        for (int i = 0; i < tetlist.size(); i++)
+//        {
+//            tetlistSorted[i][0] = tetlist[i].p1;
+//            tetlistSorted[i][1] = tetlist[i].p2;
+//            tetlistSorted[i][2] = tetlist[i].p3;
+//            tetlistSorted[i][3] = tetlist[i].p4;
+////            file << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
+//        }
+////        file.close();
+
+        for (int i = 0; i < connectivity.GetNumberOfValues()/4; i++)
         {// for each tet
             std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
         }// for each tet
