@@ -630,6 +630,27 @@ int main(int argc, char* argv[])
       // DEBUG SLEEP std::this_thread::sleep_for(std::chrono::seconds(10));
   }
 
+  else if (filename.compare(filename.length() - 3, 3, "vtk") == 0)
+  {
+      std::cout << "VTK file (a Delaunay output by TetGen expected): " << filename << std::endl;
+      // const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+      vtkm::io::VTKDataSetReader reader(filename);
+
+      // read the data from a VTK file:
+      reader.PrintSummary(std::cout);
+      inDataSet = reader.ReadDataSet();
+
+      // Explicitly interpret as tetrahedral cell set
+      // Expecting only single type (tetrahedral) cells from the TetGen Delaunay tetrahedralisation ...
+      // ... hence check the type early to match vtkm::cont::CellSetSingleType<>
+      if ( !inDataSet.GetCellSet().IsType< vtkm::cont::CellSetSingleType<> >() )
+      {
+          std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+          return 0;
+      }
+
+  }
+
   else if (filename.compare(filename.length() - 3, 3, "foo") == 0)
   {
     std::cout << "Foo file: " << filename << "\n";
@@ -738,31 +759,33 @@ int main(int argc, char* argv[])
 
   } // END ASCII Read
 
-  // Print the mesh metadata
-  if (rank == 0)
-  {
-    VTKM_LOG_S(vtkm::cont::LogLevel::Info,
-               std::endl
-                 << "    ---------------- Input Mesh Properties --------------" << std::endl
-                 << "    Number of dimensions: " << nDims);
-  }
 
-  // Check if marching cubes is enabled for non 3D data
-  bool invalidMCOption = (useMarchingCubes && nDims != 3);
-  VTKM_LOG_IF_S(vtkm::cont::LogLevel::Error,
-                invalidMCOption && (rank == 0),
-                "The input mesh is "
-                  << nDims << "D. "
-                  << "Contour tree using marching cubes is only supported for 3D data.");
+// HACK - CHANGE IN ANOTHER APPLET ContourTreeDelaunayApp.cxx
+//  // Print the mesh metadata
+//  if (rank == 0)
+//  {
+//    VTKM_LOG_S(vtkm::cont::LogLevel::Info,
+//               std::endl
+//                 << "    ---------------- Input Mesh Properties --------------" << std::endl
+//                 << "    Number of dimensions: " << nDims);
+//  }
 
-  // If we found any errors in the setttings than finalize MPI and exit the execution
-  if (invalidMCOption)
-  {
-#ifdef WITH_MPI
-    MPI_Finalize();
-#endif
-    return EXIT_SUCCESS;
-  }
+//  // Check if marching cubes is enabled for non 3D data
+//  bool invalidMCOption = (useMarchingCubes && nDims != 3);
+//  VTKM_LOG_IF_S(vtkm::cont::LogLevel::Error,
+//                invalidMCOption && (rank == 0),
+//                "The input mesh is "
+//                  << nDims << "D. "
+//                  << "Contour tree using marching cubes is only supported for 3D data.");
+
+//  // If we found any errors in the setttings than finalize MPI and exit the execution
+//  if (invalidMCOption)
+//  {
+//#ifdef WITH_MPI
+//    MPI_Finalize();
+//#endif
+//    return EXIT_SUCCESS;
+//  }
 
 #ifndef WITH_MPI                              // construct regular, single-block VTK-M input dataset
   vtkm::cont::DataSet useDataSet = inDataSet; // Single block dataset
@@ -832,7 +855,8 @@ int main(int argc, char* argv[])
 #ifdef WITH_MPI
   filter.SetBlockIndices(blocksPerDim, localBlockIndices);
 #endif
-  filter.SetActiveField("values");
+//  filter.SetActiveField("values");
+  filter.SetActiveField("var"); // ContourTreeDelaunayApp.cxx
 
   // Execute the contour tree analysis. NOTE: If MPI is used the result  will be
   // a vtkm::cont::PartitionedDataSet instead of a vtkm::cont::DataSet

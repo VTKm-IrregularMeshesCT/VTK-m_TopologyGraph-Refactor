@@ -3650,7 +3650,7 @@ public:
         // PACTBD-EDIT
         const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
         // (the scoping deletes the reader right after populating the cont::DataSet)
-        vtkm::cont::ArrayHandle<vtkm::Id> connectivity;
+        vtkm::cont::ArrayHandle<vtkm::Id> tet_connectivity;
         cont::ArrayHandle<vtkm::Vec3f> coordinatesVTK;
 //        cont::ArrayHandle<Coordinates> coordinatesVTK;
 //        cont::ArrayHandle<vtkm::Vec<long double, 3>> coordinatesVTK;
@@ -3694,7 +3694,8 @@ public:
       //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
 
             // Now safely access connectivity data (moving them up to avoid memory duplication)
-            connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+            // GET TETS
+            tet_connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
         }
 
 
@@ -3723,9 +3724,9 @@ public:
 
 
 
-        std::cout << "num. of tets: " << connectivity.GetNumberOfValues()/4 << std::endl;
+        std::cout << "num. of tets: " << tet_connectivity.GetNumberOfValues()/4 << std::endl;
         // Vertices of the tet are given as sort IDs and there are 4 of them:
-        std::vector<std::vector<int>> tetlistSorted(connectivity.GetNumberOfValues()/4,
+        std::vector<std::vector<int>> tetlistSorted(tet_connectivity.GetNumberOfValues()/4,
                                                     std::vector<int> (4, 0));
 
         std::cout << "    " << RED << std::setw(38) << std::left << "tetlistSorted allocation"
@@ -3733,15 +3734,15 @@ public:
 
         timer.Start();
 
-        auto connectivityRead = connectivity.ReadPortal();
-        for (int i = 0; i < connectivity.GetNumberOfValues(); i+=4)
+        auto tet_connectivityRead = tet_connectivity.ReadPortal();
+        for (int i = 0; i < tet_connectivity.GetNumberOfValues(); i+=4)
         {
-            file << connectivityRead.Get(i)    << " " << connectivityRead.Get(i+1)  << " "
-                 << connectivityRead.Get(i+2)  << " " << connectivityRead.Get(i+3)  << std::endl;
-            tetlistSorted[i/4][0] = connectivityRead.Get(i);
-            tetlistSorted[i/4][1] = connectivityRead.Get(i+1);
-            tetlistSorted[i/4][2] = connectivityRead.Get(i+2);
-            tetlistSorted[i/4][3] = connectivityRead.Get(i+3);
+            file << tet_connectivityRead.Get(i)    << " " << tet_connectivityRead.Get(i+1)  << " "
+                 << tet_connectivityRead.Get(i+2)  << " " << tet_connectivityRead.Get(i+3)  << std::endl;
+            tetlistSorted[i/4][0] = tet_connectivityRead.Get(i);
+            tetlistSorted[i/4][1] = tet_connectivityRead.Get(i+1);
+            tetlistSorted[i/4][2] = tet_connectivityRead.Get(i+2);
+            tetlistSorted[i/4][3] = tet_connectivityRead.Get(i+3);
         }
         file.close();
 
@@ -3756,7 +3757,7 @@ public:
 //        }
 ////        file.close();
 
-        for (int i = 0; i < connectivity.GetNumberOfValues()/4; i++)
+        for (int i = 0; i < tet_connectivity.GetNumberOfValues()/4; i++)
         {// for each tet
             std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
         }// for each tet

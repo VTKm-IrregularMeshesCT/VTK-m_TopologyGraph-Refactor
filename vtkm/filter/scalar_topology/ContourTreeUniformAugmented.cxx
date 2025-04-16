@@ -220,20 +220,20 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   vtkm::cont::Timer timer;
   timer.Start();
 
-  // Check that the field is Ok
-  const auto& field = this->GetFieldFromDataSet(input);
-  if (!field.IsPointField())
-  {
-    throw vtkm::cont::ErrorFilterExecution("Point field expected.");
-  }
+//  // Check that the field is Ok
+//  const auto& field = this->GetFieldFromDataSet(input);
+//  if (!field.IsPointField())
+//  {
+//    throw vtkm::cont::ErrorFilterExecution("Point field expected.");
+//  }
 
-  // Use the GetPointDimensions struct defined in the header to collect the meshSize information
-  vtkm::Id3 meshSize;
-  const auto& cells = input.GetCellSet();
-  cells.CastAndCallForTypes<VTKM_DEFAULT_CELL_SET_LIST_STRUCTURED>(
-    vtkm::worklet::contourtree_augmented::GetPointDimensions(), meshSize);
+//  // Use the GetPointDimensions struct defined in the header to collect the meshSize information
+//  vtkm::Id3 meshSize;
+//  const auto& cells = input.GetCellSet();
+//  cells.CastAndCallForTypes<VTKM_DEFAULT_CELL_SET_LIST_STRUCTURED>(
+//    vtkm::worklet::contourtree_augmented::GetPointDimensions(), meshSize);
 
-  std::cout << "mesh size: " << meshSize[0] << "x" << meshSize[1] << "x" << meshSize[2] << std::endl;
+//  std::cout << "mesh size: " << meshSize[0] << "x" << meshSize[1] << "x" << meshSize[2] << std::endl;
 
   // TODO blockIndex needs to change if we have multiple blocks per MPI rank and DoExecute is called for multiple blocks
   std::size_t blockIndex = 0;
@@ -273,7 +273,8 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       printMemoryUsage("BEFORE READING IN VTK");
 
       // PACTBD-EDIT
-      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+      // reading the file in the main applet now, TO-REMOVE
+//      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
 
       int num_datapoints;
       vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
@@ -284,25 +285,30 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
       // (the scoping deletes the reader right after populating the cont::DataSet)
       {
-          vtkm::io::VTKDataSetReader reader(filename_vtk);
-          // read the data from a VTK file:
-          reader.PrintSummary(std::cout);
-          cont::DataSet inputDataVTK = reader.ReadDataSet();
-          std::cout << "Done!" << std::endl;
-          reader.PrintSummary(std::cout);
+          // TO-REMOVE
+//          vtkm::io::VTKDataSetReader reader(filename_vtk);
+//          // read the data from a VTK file:
+//          reader.PrintSummary(std::cout);
+//          cont::DataSet inputDataVTK = reader.ReadDataSet();
+//          std::cout << "Done!" << std::endl;
+//          reader.PrintSummary(std::cout);
 
 
-          num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
+//          num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
+          num_datapoints = input.GetPointField("var").GetNumberOfValues();
 
           // Explicitly interpret as tetrahedral cell set
+          // (already checking in the main applet)
           using TetCellSet = vtkm::cont::CellSetSingleType<>;
-          if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+//          if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+          if (!input.GetCellSet().IsType<TetCellSet>())
           {
               std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
           }
 
           // Safe cast to CellSetSingleType
-          const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+//          const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+          const TetCellSet &tet_cells = input.GetCellSet().AsCellSet<TetCellSet>();
 
           // Check the cell shape explicitly if you like:
           if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
@@ -579,6 +585,8 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       //  return CreateResultFieldPoint(input, ContourTreeData.Arcs, this->GetOutputFieldName());
     }
   };
+
+  const auto& field = this->GetFieldFromDataSet(input); // Added new 2025-04-16
   this->CastAndCallScalarField(field, resolveType);
 
   VTKM_LOG_S(vtkm::cont::LogLevel::Perf,
