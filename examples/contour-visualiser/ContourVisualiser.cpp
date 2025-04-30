@@ -251,22 +251,45 @@ int main(int argc, char* argv[])
       inputData = reader.ReadDataSet();
       nDims = 3;
     }
-    else if (std::string::npos != fileName.find(".vtk"))
+
+
+    else if (fileName.compare(fileName.length() - 3, 3, "vtk") == 0)
     {
-        std::cout << "VTK file: " << fileName << "\n";
-        try
+        std::cout << "VTK file (a Delaunay output by TetGen expected): " << fileName << std::endl;
+        // const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+        vtkm::io::VTKDataSetReader reader(fileName);
+
+        // read the data from a VTK file:
+        reader.PrintSummary(std::cout);
+        inputData = reader.ReadDataSet();
+
+        // Explicitly interpret as tetrahedral cell set
+        // Expecting only single type (tetrahedral) cells from the TetGen Delaunay tetrahedralisation ...
+        // ... hence check the type early to match vtkm::cont::CellSetSingleType<>
+        if ( !inputData.GetCellSet().IsType< vtkm::cont::CellSetSingleType<> >() )
         {
-//            vtkm::io::VTKDataSetReader reader(fileName);
-            vtkm::io::VTKUnstructuredGridReader reader(fileName);
-            reader.PrintSummary(std::cout);
-            inputData = reader.ReadDataSet();
+            std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+            return 0;
         }
-        catch(string message)
-        {
-            cerr << message;
-            return 1;
-        }
+
     }
+
+//    else if (std::string::npos != fileName.find(".vtk"))
+//    {
+//        std::cout << "VTK file: " << fileName << "\n";
+//        try
+//        {
+////            vtkm::io::VTKDataSetReader reader(fileName);
+//            vtkm::io::VTKUnstructuredGridReader reader(fileName);
+//            reader.PrintSummary(std::cout);
+//            inputData = reader.ReadDataSet();
+//        }
+//        catch(string message)
+//        {
+//            cerr << message;
+//            return 1;
+//        }
+//    }
 //    else if (fileName.compare(fileName.length() - 3, 3, "foo") == 0)
 //    {
 //      std::cout << "Foo file: " << fileName << "\n";

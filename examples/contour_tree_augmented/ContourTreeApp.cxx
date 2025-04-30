@@ -943,7 +943,8 @@ int main(int argc, char* argv[])
 #endif
 
 //    CALLGRIND_START_INSTRUMENTATION;
-    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(filter.GetContourTree(),
+    ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(useDataSet,
+                                                                              filter.GetContourTree(),
                                                                               filter.GetNumIterations(),
                                                                               // The following four outputs are the coefficient tuples
                                                                               // (such as h1, h2, h3, h4 pairs)
@@ -1071,7 +1072,7 @@ int main(int argc, char* argv[])
       bool dataFieldIsSorted = true;
 
       std::vector<vtkm::FloatDefault> std_nodes_sorted;
-      // PACTBD-EDIT
+      // PACTBD-EDIT-FIXED
 //      for(vtkm::FloatDefault i = 0.f; i < 29791.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 16.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 9.f; i += 1.f)
@@ -1079,9 +1080,13 @@ int main(int argc, char* argv[])
 //      for(vtkm::FloatDefault i = 0.f; i < 1002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 10002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 99973.f; i += 1.f)
-      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
+
+      float num_datapoints_sort = (float)useDataSet.GetPointField("var").GetNumberOfValues();
+
+//      for(vtkm::FloatDefault i = 0.f; i < 200002.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 985182.f; i += 1.f)
 //      for(vtkm::FloatDefault i = 0.f; i < 2160931.f; i += 1.f)
+      for(vtkm::FloatDefault i = 0.f; i < num_datapoints_sort+1.f; i += 1.f)
       {
         std_nodes_sorted.push_back(i);
       }
@@ -1167,7 +1172,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 
 
       std::ofstream filegvbdfullBD("ContourTreeGraph--branch-decomposition-fullCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD,
+      branchDecompostionRoot->PrintDotBranchDecomposition(useDataSet, filegvbdfullBD, saddle_rootingFullBD, local_branchesFullBD,
                                                           depth_FullBD, branch_weightsFullBD, branch_weights_write_FullBD,
                                                           main_branch_flags_FullBD, depth_write_FullBD, 0, 0);
 // FILE IO END
@@ -1219,7 +1224,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
                        std::endl
                          << file_io_counter << ") WRITING: ContourTreeGraph--branch-decomposition-simplifiedCT.gv" << std::endl);
       std::ofstream filegvbdsimplified("ContourTreeGraph--branch-decomposition-simplifiedCT.gv");
-      branchDecompostionRoot->PrintDotBranchDecomposition(filegvbdsimplified, saddle_rooting,
+      branchDecompostionRoot->PrintDotBranchDecomposition(useDataSet, filegvbdsimplified, saddle_rooting,
                                                           local_branches, depth, branch_weights, branch_weights_write,
                                                           main_branch_flags, depth_write, 0, 0);
 // FILE IO END

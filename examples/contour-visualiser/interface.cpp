@@ -61,13 +61,52 @@
 //#include <vtkm/filter/scalar_topology/worklet/ContourTreeUniformAugmented.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
 
-
+using AdjacencyList = std::unordered_map<vtkm::Id, std::set<vtkm::Id>>;
 
 struct DelaunayMesh
 {
     std::vector<vtkm::Id> std_nbor_connectivity;
     std::vector<vtkm::Id> std_nbor_offsets;
 };
+
+// -----------------------------------------------------------------------------------
+// General version using offsets array. Can handle arbitrary cell sizes/ connectivity.
+// connectivity: Flat list of vertices
+// offsets: Defines start of each cell's connectivity indices (offsets[i+1]-offsets[i])
+// -----------------------------------------------------------------------------------
+AdjacencyList MakeAdjacencyWithOffsets(
+    const vtkm::cont::ArrayHandle<vtkm::Id> &connectivity,
+    const vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> &offsets)
+{
+    AdjacencyList adjacency;
+
+    auto connPortal = connectivity.ReadPortal();
+    auto offsetPortal = offsets.ReadPortal();
+
+    vtkm::Id numCells = offsets.GetNumberOfValues() - 1;
+
+    for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+    {
+        vtkm::Id start = offsetPortal.Get(cellId);
+        vtkm::Id end = offsetPortal.Get(cellId+1);
+
+        // Iterate through vertices in the cell:
+        for (vtkm::Id i = start; i < end; ++i)
+        {
+            vtkm::Id vi = connPortal.Get(i);
+            auto &neighbors = adjacency[vi];
+
+            for (vtkm::Id j = start; j < end; ++j)
+            {
+                vtkm::Id vj = connPortal.Get(j);
+                if(vi == vj) continue;
+                neighbors.insert(vj);
+            }
+        }
+    }
+
+    return adjacency;
+}
 
 
 DelaunayMesh parseDelaunayASCII(const std::string& filePath)
@@ -230,7 +269,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         vtkm::cont::ArrayHandle<Coefficients> supernodeTransferWeightCoeffs;
         vtkm::cont::ArrayHandle<Coefficients> hyperarcDependentWeightCoeffs;
 
-        ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(ct,
+        ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(inputData,
+                                                                                  ct,
                                                                                   ctNumIterations,
                                                                                   // The following four outputs are the coefficient tuples
                                                                                   // (such as h1, h2, h3, h4 pairs)
@@ -353,47 +393,55 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     }
     else if ("pactbd" == decompositionType)
     {
-        // NEW PACTBD-EDIT
-//        int num_datapoints = 101;
-//        int num_datapoints = 10001;
-//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
-//        int num_datapoints = 99972;
-        int num_datapoints = 200001;
-//        int num_datapoints = 985181;
-//        int num_datapoints = 2160930;
-        // NEW PACTBD-EDIT
-//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
-        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
-//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
-//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
+        // NEW PACTBD-EDIT-FIXED
+        vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
+        fakeFieldArray.Allocate(inputData.GetPointField("var").GetNumberOfValues());
+        fakeFieldArray = inputData.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+////        int num_datapoints = 101;
+////        int num_datapoints = 10001;
+////        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-field.txt";
+////        int num_datapoints = 99972;
+//        int num_datapoints = 200001;
+////        int num_datapoints = 985181;
+////        int num_datapoints = 2160930;
+//        // NEW PACTBD-EDIT-FIXED
+////        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
+//        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
+////        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
+////        const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
 
 
 
-        std::ifstream field_input(field_filename);
-        vtkm::cont::ArrayHandle<Float64> fakeFieldArray;
-        fakeFieldArray.Allocate(num_datapoints);
-        auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
+//        std::ifstream field_input(field_filename);
+//        vtkm::cont::ArrayHandle<Float64> fakeFieldArray;
+//        fakeFieldArray.Allocate(num_datapoints);
+//        auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
 
-        std::vector<vtkm::Float64> std_field;
-        if(field_input.is_open())
-        {
-            std::string line;
-            int i = 0;
-            while(getline(field_input, line))
-            {
-                std_field.push_back(static_cast<vtkm::Float64>(std::stof(line)));
-            }
+//        std::vector<vtkm::Float64> std_field;
+//        if(field_input.is_open())
+//        {
+//            std::string line;
+//            int i = 0;
+//            while(getline(field_input, line))
+//            {
+//                std_field.push_back(static_cast<vtkm::Float64>(std::stof(line)));
+//            }
 
-            for(vtkm::Id i = 0; i < num_datapoints; i++)
-            {
-              fakeFieldArrayWritePortal.Set(i, std_field[i]);
-            }
-        }
-        else
-        {
-            std::cerr << "Unable to open file: " << field_filename << "\n";
-        }
-        field_input.close();
+//            for(vtkm::Id i = 0; i < num_datapoints; i++)
+//            {
+//              fakeFieldArrayWritePortal.Set(i, std_field[i]);
+//            }
+//        }
+//        else
+//        {
+//            std::cerr << "Unable to open file: " << field_filename << "\n";
+//        }
+//        field_input.close();
+
+
+
+
+
         computeAdditionalBranchDataFloat(fakeFieldArray,
                         //                inputData,
                         //                fieldName,
@@ -439,27 +487,27 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
     //vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted.1.vtk");
 
-    // NEW PACTBD-EDIT
-//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/101-from-2M-sampled-excel-sorted.1-auto-scalar-valued.vtk");
-//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/1k-from-2M-sampled-excel-sorted.1-auto-scalar-valued.vtk");
-//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-withvalues.vtk");
-    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
-//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/1M-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
-//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/2M-parcels-20250225-sorted.1-auto-scalar-valued.vtk");
+//    // NEW PACTBD-EDIT-FIXED
+////    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/101-from-2M-sampled-excel-sorted.1-auto-scalar-valued.vtk");
+////    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/1k-from-2M-sampled-excel-sorted.1-auto-scalar-valued.vtk");
+////    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-withvalues.vtk");
+//    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
+////    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/1M-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk");
+////    vtkm::io::VTKDataSetReader reader("../delaunay-parcels/2M-parcels-20250225-sorted.1-auto-scalar-valued.vtk");
 
-    reader.PrintSummary(std::cout);
-    cont::DataSet inputDataVTK = reader.ReadDataSet();
-
-//    vtkm::io::VTKUnstructuredGridReader reader("/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/build/10k-from-2M-sampled-excel-sorted.1.vtk");
-////    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-field.vtk");
 //    reader.PrintSummary(std::cout);
 //    cont::DataSet inputDataVTK = reader.ReadDataSet();
 
-    cout << "Done!" << endl;
+////    vtkm::io::VTKUnstructuredGridReader reader("/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/build/10k-from-2M-sampled-excel-sorted.1.vtk");
+//////    vtkm::io::VTKUnstructuredGridReader reader("../delaunay-parcels/10k-from-2M-sampled-excel-sorted-field.vtk");
+////    reader.PrintSummary(std::cout);
+////    cont::DataSet inputDataVTK = reader.ReadDataSet();
 
-    reader.PrintSummary(std::cout);
+//    cout << "Done!" << endl;
 
-    cout << "Summary done!" << endl;
+//    reader.PrintSummary(std::cout);
+
+//    cout << "Summary done!" << endl;
 
 
 //    // Build the mesh (Regular)
@@ -468,31 +516,122 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //        mesh.SortData(inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>());
 
     // Build the mesh (PACT-BD)
-    // PACTBD-EDIT
-//    int num_datapoints = 101;
-//    int num_datapoints = 10001;
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-//    int num_datapoints = 99972;
-        int num_datapoints = 200001;
-//        int num_datapoints = 985181;
-//        int num_datapoints = 2160930;
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
-//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
+//    // PACTBD-EDIT-FIXED
+////    int num_datapoints = 101;
+////    int num_datapoints = 10001;
+////    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/10k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+////    int num_datapoints = 99972;
+//        int num_datapoints = 200001;
+////        int num_datapoints = 985181;
+////        int num_datapoints = 2160930;
+////    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+//    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+////    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-CONNECTIVITY.txt";
+////    const std::string filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-CONNECTIVITY.txt";
+
+//    DelaunayMesh delmesh = parseDelaunayASCII(filename);
+//    // Get CONNECTIVITY
+//    vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity =
+//      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_connectivity, vtkm::CopyFlag::Off);
+//    std::cout << "nbor_connectivity num vals: " << nbor_connectivity.GetNumberOfValues() << "\n";
+//    // Get OFFSETS
+//    vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets =
+//      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_offsets, vtkm::CopyFlag::Off);
+//    std::cout << "nbor_offsets num vals: " << nbor_offsets.GetNumberOfValues() << "\n";
+
+
+    int num_datapoints;
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+    // Obtain portals to write data directly:
+
+//      auto this->GetFieldFromDataSet(input);
+
+    // (the scoping deletes the reader right after populating the cont::DataSet)
+    {
+        num_datapoints = inputData.GetPointField("var").GetNumberOfValues();
+
+        // Explicitly interpret as tetrahedral cell set
+        // (already checking in the main applet)
+        using TetCellSet = vtkm::cont::CellSetSingleType<>;
+//          if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+        if (!inputData.GetCellSet().IsType<TetCellSet>())
+        {
+            std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+        }
+
+        // Safe cast to CellSetSingleType
+//          const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+        const TetCellSet &tet_cells = inputData.GetCellSet().AsCellSet<TetCellSet>();
+
+        // Check the cell shape explicitly if you like:
+        if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+        {
+            std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+        }
+
+  //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
+  //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
+
+        // Now safely access connectivity data (moving them up to avoid memory duplication)
+        vtkm::cont::ArrayHandle<vtkm::Id> connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+        vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> offsets = tet_cells.GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+
+        std::cout << "1) Connectivity array size: " << connectivity.GetNumberOfValues() << std::endl;
+        std::cout << "1) Offsets array size: " << offsets.GetNumberOfValues() << std::endl;
+
+        std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(connectivity, offsets);
+                // MakeAdjacencyTetrahedron(connectivity);
+
+        std::cout << "Printing adjacency for '" << adjacency_list.begin()->first << "'" << std::endl;
+
+        // First, compute total sizes:
+        vtkm::Id total_nbors = 0;
+        for (vtkm::Id i = 0; i < num_datapoints; ++i)
+        {
+            total_nbors += adjacency_list[i].size();
+        }
+        std::cout << "total_nbors " << total_nbors << std::endl;
+        // Allocate ArrayHandles directly:
+//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
+        nbor_connectivity_auto.Allocate(total_nbors);
+        std::cout << "num_datapoints+1 " << num_datapoints+1 << std::endl;
+//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+        nbor_offsets_auto.Allocate(num_datapoints + 1); // offsets array has size num_points + 1
+
+
+        std::cout << "Populate the data" << std::endl;
+
+        auto connectivityPortal = nbor_connectivity_auto.WritePortal();
+        auto offsetsPortal = nbor_offsets_auto.WritePortal();
+
+        // Populate the data
+        vtkm::Id offset_counter = 0;
+        offsetsPortal.Set(0, offset_counter); // initial offset is always 0
+
+
+
+        for (vtkm::Id i = 0; i < num_datapoints; ++i)
+        {
+            for (auto elem : adjacency_list[i])
+            {
+                connectivityPortal.Set(offset_counter++, elem);
+            }
+            offsetsPortal.Set(i + 1, offset_counter); // offset for next datapoint starts here
+        }
+
+    }
 
 
 
 
-    DelaunayMesh delmesh = parseDelaunayASCII(filename);
-    // Get CONNECTIVITY
-    vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity =
-      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_connectivity, vtkm::CopyFlag::Off);
-    std::cout << "nbor_connectivity num vals: " << nbor_connectivity.GetNumberOfValues() << "\n";
-    // Get OFFSETS
-    vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets =
-      vtkm::cont::make_ArrayHandle(delmesh.std_nbor_offsets, vtkm::CopyFlag::Off);
-    std::cout << "nbor_offsets num vals: " << nbor_offsets.GetNumberOfValues() << "\n";
+
+
+
+
+
+
+
     // Get VALUES
     //    std::vector<int> std_actual_values;
     std::vector<vtkm::Float64> std_actual_values;
@@ -513,8 +652,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //    vtkm::worklet::contourtree_augmented::ContourTreeMesh<int> mesh(ctSortOrder,
     vtkm::worklet::contourtree_augmented::ContourTreeMesh<vtkm::Float64> mesh(ctSortOrder, // const IdArrayType& nodes,
                             //arcs_list,
-                              nbor_connectivity,                                           // const IdArrayType& inNborConnectivity
-                              nbor_offsets,                                                // const IdArrayType& inNborOffsets
+                              nbor_connectivity_auto,                                           // const IdArrayType& inNborConnectivity
+                              nbor_offsets_auto,                                                // const IdArrayType& inNborOffsets
                               ctSortOrder,                                                 // const IdArrayType& inSortOrder
                               // doesnt work out of the box:
                               // fieldArray, // testing fieldArray instead of manual actual_value
@@ -652,13 +791,14 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         }
 
         // Compute an isosurface for the whole data set
-//        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputData, {branchIsovalue}, fieldName);
-        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputDataVTK, {branchIsovalue}, fieldName);
+        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputData, {branchIsovalue}, fieldName);
+//        cont::ArrayHandle<cv1k::Triangle> mcTriangles = cv1k::mc::getMarchingCubeTriangles(inputDataVTK, {branchIsovalue}, fieldName);
 
         // Compute the superarc ID of all the triangles (now confirmed correct)
 //         cv1k::filter::computeTriangleIds(ct, mesh, extrema, inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(), mcTriangles, branchIsovalue);
         cv1k::filter::computeTriangleIds(ct, mesh, extrema,
-                                         inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+                                         inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+                                         /*inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),*/
                                          mcTriangles, branchIsovalue);
         //
         // Compute the superarc from the current branch sits at that isovalue 
@@ -693,7 +833,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 endpoints,
 //                    inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<Float64>>(),
                     // use VTK data:
-                    inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+//                    inputDataVTK.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
+                    inputData.GetField(fieldName).GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(),
                 isovalueArray,
                 mesh.SortOrder, // (input)
                 mesh.SortIndices, // (input)

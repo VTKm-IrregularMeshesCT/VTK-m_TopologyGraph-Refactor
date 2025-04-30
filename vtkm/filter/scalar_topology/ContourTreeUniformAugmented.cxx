@@ -272,7 +272,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
       printMemoryUsage("BEFORE READING IN VTK");
 
-      // PACTBD-EDIT
+      // PACTBD-EDIT-FIXED
       // reading the file in the main applet now, TO-REMOVE
 //      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
 
@@ -285,16 +285,6 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
       // (the scoping deletes the reader right after populating the cont::DataSet)
       {
-          // TO-REMOVE
-//          vtkm::io::VTKDataSetReader reader(filename_vtk);
-//          // read the data from a VTK file:
-//          reader.PrintSummary(std::cout);
-//          cont::DataSet inputDataVTK = reader.ReadDataSet();
-//          std::cout << "Done!" << std::endl;
-//          reader.PrintSummary(std::cout);
-
-
-//          num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
           num_datapoints = input.GetPointField("var").GetNumberOfValues();
 
           // Explicitly interpret as tetrahedral cell set

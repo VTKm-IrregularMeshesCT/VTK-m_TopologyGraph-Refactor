@@ -131,7 +131,8 @@ public:
   // Print the branch decomposition
   void PrintBranchDecomposition(std::ostream& os, std::string::size_type indent = 0) const;
   //  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles, std::string::size_type indent = 0); // = std::vector<vtkm::Id>());
-  void PrintDotBranchDecomposition(std::ostream& os, std::vector<vtkm::Id>& saddles,
+  void PrintDotBranchDecomposition(const vtkm::cont::DataSet& input,
+                                   std::ostream& os, std::vector<vtkm::Id>& saddles,
                                    std::vector<vtkm::Id>& local_branches,
                                    std::vector<vtkm::Id>& depth,
                                    std::vector<vtkm::FloatDefault>& branch_weights,
@@ -1215,7 +1216,8 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
 
 template <typename T>
 // print the graph in dot (.gv) format
-void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
+void Branch<T>::PrintDotBranchDecomposition(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
+                                            std::ostream& os,
                                             std::vector<vtkm::Id>& saddles,
                                             std::vector<vtkm::Id>& local_branches,
                                             std::vector<vtkm::Id>& depth,
@@ -1230,66 +1232,12 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 { // PrintBranchDecomposition()
 
 
-
-
-
-
-
-    // NEW: use the data values passed into the field here:
-    // NEW PACTBD-EDIT
-//        int num_datapoints = 101;
-//        int num_datapoints = 1001;
-//        int num_datapoints = 10001;
-//        int num_datapoints = 99972;
-        int num_datapoints = 200001;
-//        int num_datapoints = 985181;
-//        int num_datapoints = 2160930;
-//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-field.txt";
-    const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-field.txt";
-//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-field.txt";
-//      const std::string field_filename = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-field-sorted.txt";
-
-    // ARCHER2
-//    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/10k-field.txt";
-//    const std::string field_filename = "/work/e710/e710/ddilys/PACTBD/data/100k-field.txt";
-
-
-    std::ifstream field_input(field_filename);
-    vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
-    fakeFieldArray.Allocate(num_datapoints);
-    auto fakeFieldArrayWritePortal = fakeFieldArray.WritePortal();
-    auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
-
-
-
-    std::vector<vtkm::Float64> std_field;
-    if(field_input.is_open())
-    {
-        std::string line;
-        int i = 0;
-        while(getline(field_input, line))
-        {
-            std_field.push_back(static_cast<vtkm::Float64>(std::stof(line)));
-        }
-
-        for(vtkm::Id i = 0; i < num_datapoints; i++)
-        {
-          fakeFieldArrayWritePortal.Set(i, std_field[i]);
-        }
-    }
-    else
-    {
-        std::cerr << "Unable to open file: " << field_filename << "\n";
-    }
-    field_input.close();
-
-
-
-
-
-
-
-
+  // NEW: use the data values passed into the field here:
+  // NEW PACTBD-EDIT-FIXED
+  vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
+  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
+  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+  auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
 
 
   std::string tab = "\t";
@@ -1322,7 +1270,7 @@ void Branch<T>::PrintDotBranchDecomposition(std::ostream& os,
 
     for (Branch<T>* c : Children)
     {
-      c->PrintDotBranchDecomposition(os, saddles, local_branches, depth, branch_weights, branch_weights_write, main_branch_flags, depths_write,
+      c->PrintDotBranchDecomposition(input, os, saddles, local_branches, depth, branch_weights, branch_weights_write, main_branch_flags, depths_write,
                                      SaddleVal, ExtremumVal, iteration+1, indent + 4);
     }
 #if DEBUG_PRINT_PACTBD

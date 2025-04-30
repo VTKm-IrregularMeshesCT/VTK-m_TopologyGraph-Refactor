@@ -3528,7 +3528,8 @@ public:
 
 
     // 2024-11-25 COMPUTE THE STRUCT COEFFICIENTS VERSION OF THE WEIGHTS WITH COEFFICIENTS
-    void static ComputeVolumeWeightsSerialStructCoefficients(const ContourTree& contourTree,
+    void static ComputeVolumeWeightsSerialStructCoefficients(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
+                                                const ContourTree& contourTree,
                                                 const vtkm::Id nIterations,
                                                 vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff,
                                                 vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff,
@@ -3567,12 +3568,12 @@ public:
         // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
         // Files for 3D experiments of Contour Tree Branch volume-based weight computations
-        // PACTBD-EDIT
+        // PACTBD-EDIT-FIXED
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
 //        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-COORDINATES.txt";
-        // PACTBD-EDIT
+        // PACTBD-EDIT-FIXED
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-TETS.txt";
 //        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-TETS.txt";
@@ -3647,56 +3648,102 @@ public:
         //  ... where we then assign A = 3, B = 5, C = 6, D = 7)
         //  (we do not keep track of the original ordering X, Y, Z, W) ...
         std::ofstream file("ContourTreeGraph--recreate-TETS.txt");
-        // PACTBD-EDIT
-        const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+        // PACTBD-EDIT-FIXED
+//        const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
         // (the scoping deletes the reader right after populating the cont::DataSet)
         vtkm::cont::ArrayHandle<vtkm::Id> tet_connectivity;
         cont::ArrayHandle<vtkm::Vec3f> coordinatesVTK;
 //        cont::ArrayHandle<Coordinates> coordinatesVTK;
 //        cont::ArrayHandle<vtkm::Vec<long double, 3>> coordinatesVTK;
+
+
+
+
+
+
+        coordinatesVTK = input.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec3f>>();
+
+        // Explicitly interpret as tetrahedral cell set
+        using TetCellSet = vtkm::cont::CellSetSingleType<>;
+        if (!input.GetCellSet().IsType<TetCellSet>())
         {
-            vtkm::io::VTKDataSetReader reader(filename_vtk);
-            // read the data from a VTK file:
-            reader.PrintSummary(std::cout);
-            cont::DataSet inputDataVTK = reader.ReadDataSet();
-            std::cout << "Done!" << std::endl;
-            reader.PrintSummary(std::cout);
-
-            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec3f>>();
-//            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<Coordinates>>();
-//            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec<long double, 3>>>();
-            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
-            std::cout << coordinatesVTK.ReadPortal().Get(0)[0] << std::endl;
-            std::cout << coordinatesVTK.ReadPortal().Get(0)[1] << std::endl;
-            std::cout << coordinatesVTK.ReadPortal().Get(0)[2] << std::endl;
-            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
-
-
-//            num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
-
-            // Explicitly interpret as tetrahedral cell set
-            using TetCellSet = vtkm::cont::CellSetSingleType<>;
-            if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
-            {
-                std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
-            }
-
-            // Safe cast to CellSetSingleType
-            const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
-
-            // Check the cell shape explicitly if you like:
-            if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
-            {
-                std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
-            }
-
-      //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
-      //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
-
-            // Now safely access connectivity data (moving them up to avoid memory duplication)
-            // GET TETS
-            tet_connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+            std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
         }
+        // Safe cast to CellSetSingleType
+        const TetCellSet &tet_cells = input.GetCellSet().AsCellSet<TetCellSet>();
+
+        // Check the cell shape explicitly if you like:
+        if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+        {
+            std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+        }
+
+          //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
+          //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
+
+        // Now safely access connectivity data (moving them up to avoid memory duplication)
+        // GET TETS
+        tet_connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+
+
+
+
+//        {
+//            vtkm::io::VTKDataSetReader reader(filename_vtk);
+//            // read the data from a VTK file:
+//            reader.PrintSummary(std::cout);
+//            cont::DataSet inputDataVTK = reader.ReadDataSet();
+//            std::cout << "Done!" << std::endl;
+//            reader.PrintSummary(std::cout);
+
+//            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec3f>>();
+////            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<Coordinates>>();
+////            coordinatesVTK = inputDataVTK.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec<long double, 3>>>();
+//            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
+//            std::cout << coordinatesVTK.ReadPortal().Get(0)[0] << std::endl;
+//            std::cout << coordinatesVTK.ReadPortal().Get(0)[1] << std::endl;
+//            std::cout << coordinatesVTK.ReadPortal().Get(0)[2] << std::endl;
+//            std::cout << "FIRST COORDINATE:::::::::::::::::::::::::::::::" << std::endl;
+
+
+////            num_datapoints = inputDataVTK.GetPointField("var").GetNumberOfValues();
+
+//            // Explicitly interpret as tetrahedral cell set
+//            using TetCellSet = vtkm::cont::CellSetSingleType<>;
+//            if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
+//            {
+//                std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
+//            }
+
+//            // Safe cast to CellSetSingleType
+//            const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
+
+//            // Check the cell shape explicitly if you like:
+//            if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
+//            {
+//                std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
+//            }
+
+//      //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
+//      //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
+
+//            // Now safely access connectivity data (moving them up to avoid memory duplication)
+//            // GET TETS
+//            tet_connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
+//        }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         std::ofstream fileCoords("ContourTreeGraph--recreate-COORDINATES.txt");
