@@ -690,6 +690,7 @@ vtkm::cont::UnknownArrayHandle VTKDataSetReaderBase::DoReadArrayVariant(
   }
   else
   {
+    std::cout << "vtkm::cont::UnknownArrayHandle VTKDataSetReaderBase::DoReadArrayVariant --> reading in a type: " << dataType << std::endl;
     vtkm::io::internal::DataType typeId = vtkm::io::internal::DataTypeId(dataType);
     vtkm::io::internal::SelectTypeAndCall(
       typeId, ReadArrayVariant(this, association, numElements, numComponents, data));

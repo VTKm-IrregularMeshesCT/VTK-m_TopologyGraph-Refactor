@@ -3755,7 +3755,9 @@ public:
         for(int i = 0; i < coordinatesVTK.GetNumberOfValues(); i++)
         {
 //            fileCoords << coordlist3D[i].x << " " << coordlist3D[i].y << " " << coordlist3D[i].z << std::endl;
-            fileCoords << coordinatesAutoVTK.Get(i)[0] << " " << coordinatesAutoVTK.Get(i)[1] << " " << coordinatesAutoVTK.Get(i)[2] << std::endl;
+            fileCoords << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[0] << " "
+                       << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[1] << " "
+                       << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[2] << std::endl;
 
 //            coordlist3D.emplace_back((long double)coordinatesAutoVTK.Get(i)[0],
 //                                     (long double)coordinatesAutoVTK.Get(i)[1],
