@@ -74,6 +74,9 @@ VTKM_THIRDPARTY_POST_INCLUDE
 #include <sys/resource.h>
 #include <unistd.h>
 
+#define WRITE_FILES 0
+
+
 namespace vtkm
 {
 namespace filter
@@ -407,7 +410,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       std::cout << "Summary done!" << std::endl;
       // VTK FILE
 
-
+#if WRITE_FILES
       std::ofstream file("ContourTreeGraph--recreate-CONNECTIONS.txt");
 
       vtkm::Id globalNbrID = 0;
@@ -432,6 +435,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
           file << std::endl;
       }
       file.close();
+#endif
 
 //       Using the 'TopologyGraph' constructor here ...
 //       ... (to be moved to a separate class eventually)

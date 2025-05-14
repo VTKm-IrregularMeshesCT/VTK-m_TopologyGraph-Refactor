@@ -103,6 +103,7 @@
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
 #define PROFILING_PACTBD 1
+#define WRITE_FILES 0
 
 
 namespace process_contourtree_inc_ns =
@@ -3647,7 +3648,7 @@ public:
         //  ... and refer to vertices as A, B, C, D
         //  ... where we then assign A = 3, B = 5, C = 6, D = 7)
         //  (we do not keep track of the original ordering X, Y, Z, W) ...
-        std::ofstream file("ContourTreeGraph--recreate-TETS.txt");
+
         // PACTBD-EDIT-FIXED
 //        const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
         // (the scoping deletes the reader right after populating the cont::DataSet)
@@ -3745,8 +3746,9 @@ public:
 
 
 
-
+#if WRITE_FILES
         std::ofstream fileCoords("ContourTreeGraph--recreate-COORDINATES.txt");
+#endif
         auto coordinatesAutoVTK = coordinatesVTK.ReadPortal();
 
         coordlist3D.reserve(coordinatesVTK.GetNumberOfValues());
@@ -3754,10 +3756,12 @@ public:
 //        for(int i = 0; i < coordlist3D.size(); i++)
         for(int i = 0; i < coordinatesVTK.GetNumberOfValues(); i++)
         {
+#if WRITE_FILES
 //            fileCoords << coordlist3D[i].x << " " << coordlist3D[i].y << " " << coordlist3D[i].z << std::endl;
             fileCoords << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[0] << " "
                        << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[1] << " "
                        << std::fixed << std::setprecision(13) << coordinatesAutoVTK.Get(i)[2] << std::endl;
+#endif
 
 //            coordlist3D.emplace_back((long double)coordinatesAutoVTK.Get(i)[0],
 //                                     (long double)coordinatesAutoVTK.Get(i)[1],
@@ -3768,11 +3772,13 @@ public:
 //            fileCoords << coordinatesAutoVTK.Get(i).x << " " << coordinatesAutoVTK.Get(i).y << " " << coordinatesAutoVTK.Get(i).z << std::endl;
 
         }
+#if WRITE_FILES
         fileCoords.close();
+#endif
 
-
-
-
+#if WRITE_FILES
+        std::ofstream fileTets("ContourTreeGraph--recreate-TETS.txt");
+#endif
         std::cout << "num. of tets: " << tet_connectivity.GetNumberOfValues()/4 << std::endl;
         // Vertices of the tet are given as sort IDs and there are 4 of them:
         std::vector<std::vector<int>> tetlistSorted(tet_connectivity.GetNumberOfValues()/4,
@@ -3786,14 +3792,18 @@ public:
         auto tet_connectivityRead = tet_connectivity.ReadPortal();
         for (int i = 0; i < tet_connectivity.GetNumberOfValues(); i+=4)
         {
-            file << tet_connectivityRead.Get(i)    << " " << tet_connectivityRead.Get(i+1)  << " "
+#if WRITE_FILES
+            fileTets << tet_connectivityRead.Get(i)    << " " << tet_connectivityRead.Get(i+1)  << " "
                  << tet_connectivityRead.Get(i+2)  << " " << tet_connectivityRead.Get(i+3)  << std::endl;
+#endif
             tetlistSorted[i/4][0] = tet_connectivityRead.Get(i);
             tetlistSorted[i/4][1] = tet_connectivityRead.Get(i+1);
             tetlistSorted[i/4][2] = tet_connectivityRead.Get(i+2);
             tetlistSorted[i/4][3] = tet_connectivityRead.Get(i+3);
         }
-        file.close();
+#if WRITE_FILES
+        fileTets.close();
+#endif
 
         // old - reading from a -TETS.txt file
 //        for (int i = 0; i < tetlist.size(); i++)
@@ -3802,9 +3812,9 @@ public:
 //            tetlistSorted[i][1] = tetlist[i].p2;
 //            tetlistSorted[i][2] = tetlist[i].p3;
 //            tetlistSorted[i][3] = tetlist[i].p4;
-////            file << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
+////            fileTets << tetlist[i].p1 << " " << tetlist[i].p2 << " " << tetlist[i].p3 << " " << tetlist[i].p4 << std::endl;
 //        }
-////        file.close();
+////        fileTets.close();
 
         for (int i = 0; i < tet_connectivity.GetNumberOfValues()/4; i++)
         {// for each tet

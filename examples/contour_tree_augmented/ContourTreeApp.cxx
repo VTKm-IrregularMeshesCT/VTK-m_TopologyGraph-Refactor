@@ -110,7 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
-#define WRITE_FILES 1
+#define WRITE_FILES 0
 
 //using vtkm::FloatDefault = vtkm::Float64;
 
@@ -294,6 +294,16 @@ inline vtkm::cont::DataSet CreateSubDataSet(const vtkm::cont::DataSet& ds,
 // Compute and render an isosurface for a uniform grid example
 int main(int argc, char* argv[])
 {
+    /////////////////////////////////////////////////
+    // START MAIN-0 Initialise VTK-m (totalTime) //
+    /////////////////////////////////////////////////
+
+    std::cout << std::endl;
+    std::cout << "///////////////////////////////////////////////" << std::endl;
+    std::cout << "// START MAIN-0 Initialise VTK-m (totalTime) //" << std::endl;
+    std::cout << "///////////////////////////////////////////////" << std::endl;
+    std::cout << std::endl;
+
 #ifdef WITH_MPI
   // Setup the MPI environment.
   MPI_Init(&argc, &argv);
@@ -325,43 +335,76 @@ int main(int argc, char* argv[])
 #endif
 
   // Setup timing
-  vtkm::Float64 prevTime = 0; // TIMING: Start-up (begin)
-  vtkm::Float64 currTime = 0; // TIMING: Start-up (begin)
+  ///TIMING///////////////////////////////////////////////////////
   vtkm::cont::Timer totalTime;
-
   totalTime.Start();
+  ////////////////////////////////////////////////////////////////
+  // Red text formatting for highlighting some console output:
+  const std::string RED = "\033[31m";  // Start red text
+  const std::string RESET = "\033[0m"; // End red text
 
-  ////////////////////////////////////////////
-  // Parse the command line options
-  ////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////
+  // MAIN-1 Parse the command line options (startUpTimeDisplay) //
+  /////////////////////////////////////////////////////////
+
+  std::cout << std::endl;
+  std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-1 Parse the command line options (startUpTimeDisplay) //" << std::endl;
+  std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << std::endl;
+
+  ///TIMING///////////////////////////////////////////////////////
+  // initialise the time here, from 0:
+  vtkm::Float64 currTime = 0; // TIMING: start time here from 0
+  vtkm::Float64 prevTime = 0; // TIMING: no other previous yet
+  // first timed category will be the Start-up (parsing arguments)
+  vtkm::Float64 startUpTimeDisplay;// startUpTimeDisplay timer begins
+  ////////////////////////////////////////////////////////////////
+
+
+  // Create the command-line parser object and get the input filename
   ParseCL parser;
   parser.parse(argc, argv);
   std::string filename = parser.getOptions().back();
-  unsigned int computeRegularStructure = 1; // 1=fully augmented
-  bool useMarchingCubes = false;
-  bool computeBranchDecomposition = true;
-  bool printContourTree = false;
+  // some flags will be true by default and the command-line will be just to override them
+  unsigned int augmentComputeRegularStructure = 1; // 1=fully augmented, augment by default,
+                                                   // REQUIRED for the branch decomposition
+  bool useMarchingCubes = false;                   // use Freudenthal by default (on regular data) TODO: deprecate for irregular grids
+  bool computeBranchDecomposition = true;          // Requires --augmentTree (Default=True)
+  bool printContourTree = false;                   // Print the contour tree. (Default=False)
+  bool printDebug       = true;                    // Print debug information (Default=True)
+
+  // start parsing arguments
   if (parser.hasOption("--augmentTree"))
-    computeRegularStructure =
-      static_cast<unsigned int>(std::stoi(parser.getOption("--augmentTree")));
+  { //      --augmentTree     1 = compute the fully augmented contour tree (Default)
+    //                        2 = compute the boundary augmented contour tree
+    //                        0 = no augmentation. NOTE: When using MPI, local ranks use
+    augmentComputeRegularStructure = static_cast<unsigned int>(std::stoi(parser.getOption("--augmentTree")));
+  }
   if (parser.hasOption("--mc"))
-    useMarchingCubes = true;
+  {// TOGGLE ONLY
+   // Use marching cubes interpolation for contour tree calculation. (Default=False)
+      useMarchingCubes = true;
+  }
   if (parser.hasOption("--printCT"))
-    printContourTree = true;
+  {// TOGGLE ONLY
+   // --printCT         Print the contour tree. (Default=False)
+      printContourTree = true;
+  }
   if (parser.hasOption("--branchDecomp"))
+  {// BOOLEAN 1 or 0 only
+   // Compute the volume branch decomposition for the contour tree. Requires --augmentTree (Default=True)
     computeBranchDecomposition = std::stoi(parser.getOption("--branchDecomp"));
+  }
   // We need the fully augmented tree to compute the branch decomposition
-  if (computeBranchDecomposition && (computeRegularStructure != 1))
+  if (computeBranchDecomposition && (augmentComputeRegularStructure != 1))
   {
     VTKM_LOG_S(vtkm::cont::LogLevel::Warn,
                "Regular structure is required for branch decomposition."
                " Disabling branch decomposition");
     computeBranchDecomposition = false;
   }
-
-  // PhD - 2024-05-28 compute branch decomposition
-  computeBranchDecomposition = true; //false; // true;
-  computeRegularStructure = 1; //0; //1;
 
   // Iso value selection parameters
   // Approach to be used to select contours based on the tree
@@ -463,8 +506,9 @@ int main(int argc, char* argv[])
                << "    filename=" << filename << std::endl
                << "    device=" << device.GetName() << std::endl
                << "    mc=" << useMarchingCubes << std::endl
-               << "    augmentTree=" << computeRegularStructure << std::endl
+               << "    augmentTree=" << augmentComputeRegularStructure << std::endl
                << "    branchDecomp=" << computeBranchDecomposition << std::endl
+               << "    printCT=" << printContourTree << std::endl
                <<
 #ifdef WITH_MPI
       "    nblocks=" << numBlocks << std::endl
@@ -484,10 +528,7 @@ int main(int argc, char* argv[])
                     << "    mc=" << useMarchingCubes << std::endl
                     << "    use" << (usePersistenceSorter ? "PersistenceSorter" : "VolumeSorter"));
   }
-  currTime = totalTime.GetElapsedTime();
-  // TIMING: Start-up (finish)
-  vtkm::Float64 startUpTime = currTime - prevTime;
-  prevTime = currTime; // TIMING: Data Read (begin)
+
 
 
 // Redirect stdout to file if we are using MPI with Debugging
@@ -527,14 +568,30 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-  ///////////////////////////////////////////////
-  // Read the input data
-  ///////////////////////////////////////////////
+  //////////////////////////////////////////////////////
+  // MAIN-2 Read the input data (dataReadTimeDisplay) //
+  //////////////////////////////////////////////////////
+
+  std::cout << std::endl;
+  std::cout << "//////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-2 Read the input data (dataReadTimeDisplay) //" << std::endl;
+  std::cout << "//////////////////////////////////////////////////////" << std::endl;
+  std::cout << std::endl;
+
+  ///TIMING///////////////////////////////////////////////////////
+  currTime = totalTime.GetElapsedTime();
+  // TIMING: Start-up (finish) - timing saved to 'startUpTimeDisplay'
+  startUpTimeDisplay = currTime - prevTime;
+  // TIMING: Data Read (begin) - timing saved to 'dataReadTimeDisplay'
+  //                             ... and 'buildDatasetTimeDisplay'
+  // ('read in' from file and 'build'/parse to VTK-m format)
+  vtkm::Float64 dataReadTimeDisplay = 0;
+  vtkm::Float64 buildDatasetTimeDisplay = 0;
+  prevTime = currTime;
+  ////////////////////////////////////////////////////////////////
 
   std::cout << "Read the input data" << std::endl;
 
-  vtkm::Float64 dataReadTime = 0;
-  vtkm::Float64 buildDatasetTime = 0;
   std::vector<vtkm::Float32>::size_type nDims = 0;
   vtkm::cont::DataSet inDataSet;
   std::vector<ValueType> values;
@@ -544,13 +601,14 @@ int main(int argc, char* argv[])
     vtkm::io::BOVDataSetReader reader(filename);
     inDataSet = reader.ReadDataSet();
     nDims = 3;
+    ///TIMING///////////////////////////////////////////////////////
     currTime = totalTime.GetElapsedTime();
-    dataReadTime = currTime - prevTime;
-    prevTime = currTime;
+    dataReadTimeDisplay = currTime - prevTime;
+    prevTime = currTime; // 'buildDatasetTimeDisplay' starts now
+    ////////////////////////////////////////////////////////////////
   }
-  // Read binary data input
   else if (filename.compare(filename.length() - 3, 3, "bin") == 0)
-  {
+  {// Read binary data input
       std::cout << "BINARY INPUT\n";
       std::ifstream inFile(filename, std::ios::in | std::ios::binary);
       if (!inFile)
@@ -590,15 +648,18 @@ int main(int argc, char* argv[])
           return 0;
       }
 
+      // file reading completed, close it to free up some memory:
       inFile.close();
 
-      // ----------------------------------------- //
+      // ---------------------------------------------------------- //
 
+      ///TIMING///////////////////////////////////////////////////////
       currTime = totalTime.GetElapsedTime();
-      // TIMING: Data Read (finish)
-      dataReadTime = currTime - prevTime;
-      // TIMING: Build VTKM Dataset (begin)
-      prevTime = currTime;
+      dataReadTimeDisplay = currTime - prevTime;
+      prevTime = currTime; // 'buildDatasetTimeDisplay' starts now
+      ////////////////////////////////////////////////////////////////
+
+      // parse the raw data into VTK-m format (building the dataset):
 
       // swap dims order
       std::swap(dims[0], dims[1]);
@@ -629,7 +690,6 @@ int main(int argc, char* argv[])
 
       // DEBUG SLEEP std::this_thread::sleep_for(std::chrono::seconds(10));
   }
-
   else if (filename.compare(filename.length() - 3, 3, "vtk") == 0)
   {
       std::cout << "VTK file (a Delaunay output by TetGen expected): " << filename << std::endl;
@@ -639,6 +699,12 @@ int main(int argc, char* argv[])
       // read the data from a VTK file:
       reader.PrintSummary(std::cout);
       inDataSet = reader.ReadDataSet();
+
+      ///TIMING///////////////////////////////////////////////////////
+      currTime = totalTime.GetElapsedTime();
+      dataReadTimeDisplay = currTime - prevTime;
+      prevTime = currTime; // 'buildDatasetTimeDisplay' starts now
+      ////////////////////////////////////////////////////////////////
 
       // Explicitly interpret as tetrahedral cell set
       // Expecting only single type (tetrahedral) cells from the TetGen Delaunay tetrahedralisation ...
@@ -650,10 +716,15 @@ int main(int argc, char* argv[])
       }
 
   }
-
   else if (filename.compare(filename.length() - 3, 3, "foo") == 0)
   {
     std::cout << "Foo file: " << filename << "\n";
+    // fake file, no file reading:
+    ///TIMING///////////////////////////////////////////////////////
+    currTime = totalTime.GetElapsedTime();
+    dataReadTimeDisplay = currTime - prevTime;
+    prevTime = currTime; // 'buildDatasetTimeDisplay' starts now
+    ////////////////////////////////////////////////////////////////
 
     // build the input dataset
     vtkm::cont::DataSetBuilderUniform dsb;
@@ -673,7 +744,6 @@ int main(int argc, char* argv[])
     /// DEBUG PRINT std::cout << "inDataSet ASCII summary\n";
     inDataSet.PrintSummary(std::cout);
   }
-
   else // Read ASCII data input
   {
     std::cout << "Reading file: " << filename << "\n";
@@ -719,14 +789,18 @@ int main(int argc, char* argv[])
       inFile >> values[vertex];
     }
 
-    // finish reading the data
+    // file reading completed, close it to free up some memory:
     inFile.close();
 
+
+    ///TIMING///////////////////////////////////////////////////////
     currTime = totalTime.GetElapsedTime();
-    // TIMING: Data Read (finish)
-    dataReadTime = currTime - prevTime;
-    // TIMING: Build VTKM Dataset (begin)
-    prevTime = currTime;
+    dataReadTimeDisplay = currTime - prevTime;
+    prevTime = currTime; // 'buildDatasetTimeDisplay' starts now
+    ////////////////////////////////////////////////////////////////
+
+
+    // parse the raw data into VTK-m format (building the dataset):
 
     // swap dims order
     std::swap(dims[0], dims[1]);
@@ -837,20 +911,31 @@ int main(int argc, char* argv[])
 #endif // WITH_MPI construct input dataset
 
 
+  int file_io_counter = 0;
 
-  const std::string RED = "\033[31m";
-   const std::string RESET = "\033[0m";
-
-   int file_io_counter = 0;
-
+  ///TIMING///////////////////////////////////////////////////////
   currTime = totalTime.GetElapsedTime();
-  // TIMING: Build VTKM Dataset (finish)
-  buildDatasetTime = currTime - prevTime;
-  prevTime = currTime; // TIMING: Compute Contour Tree (begin)
+  // TIMING: Build VTKM Dataset (finish) - timing saved to 'buildDatasetTimeDisplay'
+  buildDatasetTimeDisplay = currTime - prevTime;
+  // TIMING: Compute Contour Tree (begin) - timing will be saved to 'computeContourTreeTimeDisplay'
+  vtkm::Float64 computeContourTreeTimeDisplay = 0;
+  prevTime = currTime;
+  ////////////////////////////////////////////////////////////////
+
+
+  /////////////////////////////////////////////////////////////////
+  // MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //
+  /////////////////////////////////////////////////////////////////
+
+  std::cout << std::endl;
+  std::cout << "/////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //" << std::endl;
+  std::cout << "/////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << std::endl;
 
   // Convert the mesh of values into contour tree, pairs of vertex ids
   vtkm::filter::scalar_topology::ContourTreeAugmented filter(useMarchingCubes,
-                                                             computeRegularStructure);
+                                                             augmentComputeRegularStructure);
 
 #ifdef WITH_MPI
   filter.SetBlockIndices(blocksPerDim, localBlockIndices);
@@ -860,31 +945,18 @@ int main(int argc, char* argv[])
 
   // Execute the contour tree analysis. NOTE: If MPI is used the result  will be
   // a vtkm::cont::PartitionedDataSet instead of a vtkm::cont::DataSet
-  /// DEBUG PRINT std::cout << "{Ready to execute Contour Tree Augmented filter}\n";
-
-  // Time branch decompostion
-  vtkm::cont::Timer contourTreeTimer;
-  contourTreeTimer.Start();
-
-
   std::cout << "FILTER.EXECUTE(useDataSet) ... \n";
   auto result = filter.Execute(useDataSet);
   std::cout << "... DONE: FILTER.EXECUTE(useDataSet) ... \n";
 
+  ///TIMING///////////////////////////////////////////////////////
   currTime = totalTime.GetElapsedTime();
-  // TIMING: Compute Contour Tree (finish)
-  vtkm::Float64 computeContourTreeTime = currTime - prevTime;
-  // TIMING: Compute Branch Decomposition (begin)
+  // TIMING: Compute Contour Tree (finish) - timing saved to 'computeContourTreeTimeDisplay'
+  computeContourTreeTimeDisplay = currTime - prevTime;
+  // TIMING: Compute Branch Decomposition (begin) - timing will be saved to 'computeSimplifyBranchDecompTimeDisplay'
+  vtkm::Float64 computeSimplifyBranchDecompTimeDisplay = 0;
   prevTime = currTime;
-
-  // Record the timings for the branch decomposition
-  std::stringstream timingsStream; // Use a string stream to log in one message
-  timingsStream << std::endl;
-  timingsStream << "    --------------- Contour Tree Timings " << rank
-                << " --------------" << std::endl;
-  timingsStream << "    " << std::setw(38) << std::left << "Compute Contour Tree"
-                << ": " << RED << contourTreeTimer.GetElapsedTime() << " seconds" << RESET << std::endl;
-
+  ////////////////////////////////////////////////////////////////
 
 #ifdef WITH_MPI
 #ifdef DEBUG_PRINT
@@ -901,21 +973,21 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-  ////////////////////////////////////////////
-  // Compute the branch decomposition
-  ////////////////////////////////////////////
-  ///
-  /// Declare the variable here since we do some file IO in the if statement too
-  vtkm::Float64 computeBranchDecompTime;
-  ///
-  if (rank == 0 && computeBranchDecomposition && computeRegularStructure)
+  //////////////////////////////////////////////////////////////////////////////////////
+  // MAIN-4 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  std::cout << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-4 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //" << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << std::endl;
+
+  if (rank == 0 && computeBranchDecomposition && augmentComputeRegularStructure)
   {
-
-    /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition\n";
-
-    // Time branch decompostion
-    vtkm::cont::Timer branchDecompTimer;
-    branchDecompTimer.Start();
+    // Time branch decompostion: Volume Weight Computation:
+    vtkm::cont::Timer computeVolumeWeightsTimeDisplay;
+    computeVolumeWeightsTimeDisplay.Start();
 
     // ---------------------------- FLOAT WEIGHTS ---------------------------- //
 
@@ -932,12 +1004,7 @@ int main(int argc, char* argv[])
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
-    std::cout << "\n\n\n\n[STAGE 1c Start - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
-
-//    auto hypernodesPortal = filter.GetContourTree().Hypernodes.ReadPortal();
-    std::cout << "number of arcs:"      << filter.GetContourTree().Arcs.GetNumberOfValues() << std::endl;
-    std::cout << "number of superarcs:" << filter.GetContourTree().Superarcs.GetNumberOfValues() << std::endl;
-    std::cout << "number of hyperarcs:" << filter.GetContourTree().Hyperarcs.GetNumberOfValues() << std::endl;
+    std::cout << "[STAGE 4.1 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ...\n\n\n\n" << std::endl;
 #if SLEEP_ON
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
@@ -967,7 +1034,7 @@ int main(int argc, char* argv[])
 //    CALLGRIND_STOP_INSTRUMENTATION;
 //    CALLGRIND_DUMP_STATS;
 
-    std::cout << "[STAGE 1c End - IDTHD] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
+    std::cout << "[STAGE 4.1 End - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
 
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
@@ -975,15 +1042,18 @@ int main(int argc, char* argv[])
 
     // ---------------------------- FLOAT WEIGHTS ---------------------------- //
 
-
-    // Record the timings for the branch decomposition
-//    std::stringstream timingsStream; // Use a string stream to log in one message
+    std::stringstream timingsStream; // Use a string stream to log in one message
     timingsStream << std::endl;
     timingsStream << "    --------------- Branch Decomposition Timings " << rank
                   << " --------------" << std::endl;
-    timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Weights"
-                  << ": " << RED << branchDecompTimer.GetElapsedTime() << " seconds" << RESET << std::endl;
-    branchDecompTimer.Start();
+    timingsStream << "    " << std::setw(50) << std::left << "Compute Volume Weights"
+                  << ": " << RED << computeVolumeWeightsTimeDisplay.GetElapsedTime() << " seconds" << RESET << std::endl;
+
+    VTKM_LOG_S(vtkm::cont::LogLevel::Warn, timingsStream.str());
+
+    // Time branch decompostion 2/3: Branch Decomposition:
+    vtkm::cont::Timer computeBranchDecompositionTimeDisplay;
+    computeBranchDecompositionTimeDisplay.Start();
 
     // compute the branch decomposition by volume
     ctaug_ns::IdArrayType whichBranch;
@@ -997,7 +1067,7 @@ int main(int argc, char* argv[])
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
 
-    std::cout << "\n\n\n\n[STAGE 2f Start - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
+    std::cout << "\n\n\n\n[STAGE 4.2 Start - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
 
     ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(filter.GetContourTree(),
                                                                               superarcDependentWeightNEW,
@@ -1008,7 +1078,7 @@ int main(int argc, char* argv[])
                                                                               branchSaddle,  // (output)
                                                                               branchParent); // (output)
 
-    std::cout << "[STAGE 2f End - BD] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n" << std::endl;
+    std::cout << "[STAGE 4.2 End - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n" << std::endl;
 
     std::cout << "num. of branches: " << branchSaddle.GetNumberOfValues() << std::endl;
 
@@ -1040,26 +1110,24 @@ int main(int argc, char* argv[])
 
 
     // Record and log the branch decompostion timings
-    timingsStream << "    " << std::setw(38) << std::left << "Compute Volume Branch Decomposition"
-                  << ": " << branchDecompTimer.GetElapsedTime() << " seconds" << std::endl;
+    timingsStream << "    " << std::setw(50) << std::left << "Compute Volume Branch Decomposition"
+                  << ": " << computeBranchDecompositionTimeDisplay.GetElapsedTime() << " seconds" << std::endl;
 //    VTKM_LOG_S(vtkm::cont::LogLevel::Info, timingsStream.str());
     VTKM_LOG_S(vtkm::cont::LogLevel::Warn, timingsStream.str());
 
-    currTime = totalTime.GetElapsedTime();
-    // TIMING: Compute Branch Decomposition (finish)
-    //      vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
-    computeBranchDecompTime = currTime - prevTime;
-    prevTime = currTime;
+
 
     /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: LOGGING DONE\n";
 
     //----main branch decompostion end
     //----Isovalue seleciton start
 
-    std::cout << "(ContourTreeApp.cxx) NUM LEVELS: " << numLevels << std::endl;
-    numLevels = 1;
     if (numLevels > 0) // if compute isovalues
     {
+        // Time branch decompostion 2/3: Branch Decomposition:
+        vtkm::cont::Timer computeIsovaluesFromBranchDecompositionTimeDisplay;
+        computeIsovaluesFromBranchDecompositionTimeDisplay.Start();
+
       // Get the data values for computing the explicit branch decomposition
 //      vtkm::cont::ArrayHandle<ValueType> dataField;
 #ifdef WITH_MPI
@@ -1116,6 +1184,8 @@ int main(int argc, char* argv[])
 
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
+      std::cout << "\n\n\n\n[STAGE 4.3 Start - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() START ..." << std::endl;
+
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
@@ -1137,14 +1207,7 @@ int main(int argc, char* argv[])
 
       // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
-
-      currTime = totalTime.GetElapsedTime();
-      // TIMING: Compute Branch Decomposition (finish)
-//      vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
-      computeBranchDecompTime = currTime - prevTime;
-      prevTime = currTime;
-
-      std::cout << std::endl;
+      std::cout << "[STAGE 4.3 End - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() ... END" << std::endl;
 
       /// DEBUG PRINT
 #if DEBUG_PRINT_PACTBD
@@ -1201,8 +1264,8 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 
       usePersistenceSorter = false;
 //      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
-      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
-//       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
+//      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
+       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       /// DEBUG PRINT
 
 #if WRITE_FILES
@@ -1294,13 +1357,26 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 // FILE IO END
 #endif
 
+      timingsStream << "    " << std::setw(50) << std::left << "Compute Isovalues from Branch Decomposition"
+                    << ": " << computeIsovaluesFromBranchDecompositionTimeDisplay.GetElapsedTime() << " seconds" << std::endl;
+  //    VTKM_LOG_S(vtkm::cont::LogLevel::Info, timingsStream.str());
+      VTKM_LOG_S(vtkm::cont::LogLevel::Warn, timingsStream.str());
+
     } //end if compute isovalue
+
+    ///TIMING///////////////////////////////////////////////////////
+    currTime = totalTime.GetElapsedTime();
+    // TIMING: Compute Branch Decomposition (finish) - timing saved to 'computeSimplifyBranchDecompTimeDisplay'
+    computeSimplifyBranchDecompTimeDisplay = currTime - prevTime;
+    prevTime = currTime;
+    ////////////////////////////////////////////////////////////////
+
   }
 
   // previously getting branch time here, need to move it above before FILE IO
 //  currTime = totalTime.GetElapsedTime();
 //  // TIMING: Compute Branch Decomposition (finish)
-//  vtkm::Float64 computeBranchDecompTime = currTime - prevTime;
+//  vtkm::Float64 computeSimplifyBranchDecompTimeDisplay = currTime - prevTime;
 //  prevTime = currTime;
 
   //vtkm::cont::Field resultField =  result.GetField();
@@ -1402,21 +1478,15 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
   currTime = totalTime.GetElapsedTime();
   //VTKM_LOG_S(vtkm::cont::LogLevel::Info,
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn,
-             std::endl
-               << "    -------------------------- Totals " << rank
-               << " -----------------------------" << std::endl
-               << std::setw(42) << std::left << "    Start-up"
-               << ": " << startUpTime << " seconds" << std::endl
-               << std::setw(42) << std::left << "    Data Read"
-               << ": " << dataReadTime << " seconds" << std::endl
-               << std::setw(42) << std::left << "    Build VTKM Dataset"
-               << ": " << buildDatasetTime << " seconds" << std::endl
-               << std::setw(42) << std::left << "    Compute Contour Tree"
-               << ": " << computeContourTreeTime << " seconds" << std::endl
-               << std::setw(42) << std::left << "    Compute Branch Decomposition"
-               << ": " << computeBranchDecompTime << " seconds" << std::endl
-               << std::setw(42) << std::left << "    Total Time"
-               << ": " << currTime << " seconds");
+         std::endl
+           << "    -------------------------- Totals " << rank
+           << " -----------------------------" << std::endl
+           << std::setw(42) << std::left << "    Start-up"                      << ": " << std::setw(8) << std::left << startUpTimeDisplay             << std::setw(12) << std::left << " seconds" << "(startUpTimeDisplay)"  << std::endl
+           << std::setw(42) << std::left << "    Data Read"                     << ": " << std::setw(8) << std::left << dataReadTimeDisplay            << std::setw(12) << std::left << " seconds" << "(dataReadTimeDisplay)" << std::endl
+           << std::setw(42) << std::left << "    Build VTKM Dataset"            << ": " << std::setw(8) << std::left << buildDatasetTimeDisplay        << std::setw(12) << std::left << " seconds" << "(buildDatasetTimeDisplay)" << std::endl
+           << std::setw(42) << std::left << "    Compute Contour Tree"          << ": " << std::setw(8) << std::left << computeContourTreeTimeDisplay  << std::setw(12) << std::left << " seconds" << "(computeContourTreeTimeDisplay)" << std::endl
+           << std::setw(42) << std::left << "    Compute Branch Decomposition"  << ": " << std::setw(8) << std::left << computeSimplifyBranchDecompTimeDisplay << std::setw(12) << std::left << " seconds" << "(computeSimplifyBranchDecompTimeDisplay)" << std::endl
+           << std::setw(42) << std::left << "    Total Time"                    << ": " << std::setw(8) << std::left << currTime                << std::setw(12) << std::left << " seconds" << "(currTime)");
 
   const ctaug_ns::ContourTree& ct = filter.GetContourTree();
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
