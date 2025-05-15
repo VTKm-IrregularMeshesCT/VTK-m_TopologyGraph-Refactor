@@ -290,6 +290,18 @@ inline vtkm::cont::DataSet CreateSubDataSet(const vtkm::cont::DataSet& ds,
   }
 }
 
+void static printMemoryUsage(const std::string& message)
+{
+    // Red text formatting for highlighting some console output:
+    const std::string ORANGE = "\033[38;2;255;165;0m";  // Start red text
+    const std::string LIGHT_BLUE = "\033[38;5;117m";  // Light blue in 256-color
+    const std::string RESET = "\033[0m"; // End red text
+
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+
+    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
+}
 
 // Compute and render an isosurface for a uniform grid example
 int main(int argc, char* argv[])
@@ -320,33 +332,31 @@ int main(int argc, char* argv[])
 #endif
 
   // initialize vtkm-m (e.g., logging via -v and device via the -d option)
-  vtkm::cont::InitializeOptions vtkm_initialize_options =
-    vtkm::cont::InitializeOptions::RequireDevice;
-  vtkm::cont::InitializeResult vtkm_config =
-    vtkm::cont::Initialize(argc, argv, vtkm_initialize_options);
-  auto device = vtkm_config.Device;
+  vtkm::cont::InitializeOptions vtkm_initialize_options = vtkm::cont::InitializeOptions::RequireDevice;
+  vtkm::cont::InitializeResult vtkm_config = vtkm::cont::Initialize(argc, argv, vtkm_initialize_options);
+  auto device = vtkm_config.Device; // gets the device from --vtkm-device command line argument (mandatory)
 
 #ifdef WITH_MPI
   VTKM_LOG_IF_S(vtkm::cont::LogLevel::Info, rank == 0, "Running with MPI. #ranks=" << size);
 #else
-//  VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Single node run");
-  VTKM_LOG_S(vtkm::cont::LogLevel::Warn, "Single node run");
+  VTKM_LOG_S(vtkm::cont::LogLevel::Info, "Single node run");
   int rank = 0;
 #endif
 
-  // Setup timing
+  // Setup timing for the whole program (for performance runs)
   ///TIMING///////////////////////////////////////////////////////
   vtkm::cont::Timer totalTime;
   totalTime.Start();
   ////////////////////////////////////////////////////////////////
+
   // Red text formatting for highlighting some console output:
   const std::string RED = "\033[31m";  // Start red text
   const std::string RESET = "\033[0m"; // End red text
 
 
-  /////////////////////////////////////////////////////////
-  // MAIN-1 Parse the command line options (startUpTimeDisplay) //
-  /////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////
+  // START MAIN-1 Parse the command line options (startUpTimeDisplay) //
+  //////////////////////////////////////////////////////////////////////
 
   std::cout << std::endl;
   std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
@@ -354,8 +364,8 @@ int main(int argc, char* argv[])
   std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
   std::cout << std::endl;
 
+  // Time how long parsing command line arguments takes:
   ///TIMING///////////////////////////////////////////////////////
-  // initialise the time here, from 0:
   vtkm::Float64 currTime = 0; // TIMING: start time here from 0
   vtkm::Float64 prevTime = 0; // TIMING: no other previous yet
   // first timed category will be the Start-up (parsing arguments)
@@ -368,9 +378,10 @@ int main(int argc, char* argv[])
   parser.parse(argc, argv);
   std::string filename = parser.getOptions().back();
   // some flags will be true by default and the command-line will be just to override them
-  unsigned int augmentComputeRegularStructure = 1; // 1=fully augmented, augment by default,
-                                                   // REQUIRED for the branch decomposition
-  bool useMarchingCubes = false;                   // use Freudenthal by default (on regular data) TODO: deprecate for irregular grids
+  unsigned int augmentComputeRegularStructure = 1; // 1=fully augmented, augment by default, ...
+                                                   // ... required for the branch decomposition
+  bool useMarchingCubes = false;                   // use Freudenthal by default (on regular data) ...
+                                                   // ... TODO: deprecate for irregular grids
   bool computeBranchDecomposition = true;          // Requires --augmentTree (Default=True)
   bool printContourTree = false;                   // Print the contour tree. (Default=False)
   bool printDebug       = true;                    // Print debug information (Default=True)
@@ -393,11 +404,12 @@ int main(int argc, char* argv[])
       printContourTree = true;
   }
   if (parser.hasOption("--branchDecomp"))
-  {// BOOLEAN 1 or 0 only
-   // Compute the volume branch decomposition for the contour tree. Requires --augmentTree (Default=True)
+  {// BOOLEAN 1 or 0 only (Default=True)
+   // Compute the volume branch decomposition for the contour tree.
+   // (Requires --augmentTree, which is Default=True)
     computeBranchDecomposition = std::stoi(parser.getOption("--branchDecomp"));
   }
-  // We need the fully augmented tree to compute the branch decomposition
+  // We need the fully augmented tree to compute the branch decomposition, check that here:
   if (computeBranchDecomposition && (augmentComputeRegularStructure != 1))
   {
     VTKM_LOG_S(vtkm::cont::LogLevel::Warn,
@@ -568,17 +580,22 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-  //////////////////////////////////////////////////////
-  // MAIN-2 Read the input data (dataReadTimeDisplay) //
-  //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////
+  // END MAIN-1 Parse the command line options (startUpTimeDisplay) //
+  //////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////
+  // START MAIN-2 Read the input data (buildDatasetTimeDisplay) //
+  ////////////////////////////////////////////////////////////
 
   std::cout << std::endl;
-  std::cout << "//////////////////////////////////////////////////////" << std::endl;
-  std::cout << "// MAIN-2 Read the input data (dataReadTimeDisplay) //" << std::endl;
-  std::cout << "//////////////////////////////////////////////////////" << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-2 Read the input data (buildDatasetTimeDisplay) //" << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////" << std::endl;
   std::cout << std::endl;
 
-  ///TIMING///////////////////////////////////////////////////////
+  // Finish timing the 'start-up time', begin timing 'input data reading-in'
+  ///TIMING/////////////////////////////////////////////////////////////////
   currTime = totalTime.GetElapsedTime();
   // TIMING: Start-up (finish) - timing saved to 'startUpTimeDisplay'
   startUpTimeDisplay = currTime - prevTime;
@@ -587,15 +604,21 @@ int main(int argc, char* argv[])
   // ('read in' from file and 'build'/parse to VTK-m format)
   vtkm::Float64 dataReadTimeDisplay = 0;
   vtkm::Float64 buildDatasetTimeDisplay = 0;
+  // (for .vtk files the 'dataReadTimeDisplay' time will be same as 'buildDatasetTimeDisplay' ...
+  // ... because the dataset gets read-in as an internal vtk data structure already, ...
+  // ... unlike ASCII files where we have to store the raw values to a newly created vtk data object)
   prevTime = currTime;
-  ////////////////////////////////////////////////////////////////
-
-  std::cout << "Read the input data" << std::endl;
+  //////////////////////////////////////////////////////////////////////////
 
   std::vector<vtkm::Float32>::size_type nDims = 0;
   vtkm::cont::DataSet inDataSet;
   std::vector<ValueType> values;
+  // TODO: for ContourTreeDelaunayApp.cxx only support irregular meshes, ...
+  // ... do not check dimensions / disable marching cubes as a parameter
   std::vector<vtkm::Id> dims;
+
+  printMemoryUsage("[ContourTreeApp.cxx] BEFORE READING IN VTK");
+
   if (filename.compare(filename.length() - 3, 3, "bov") == 0)
   {
     vtkm::io::BOVDataSetReader reader(filename);
@@ -834,33 +857,6 @@ int main(int argc, char* argv[])
   } // END ASCII Read
 
 
-// HACK - CHANGE IN ANOTHER APPLET ContourTreeDelaunayApp.cxx
-//  // Print the mesh metadata
-//  if (rank == 0)
-//  {
-//    VTKM_LOG_S(vtkm::cont::LogLevel::Info,
-//               std::endl
-//                 << "    ---------------- Input Mesh Properties --------------" << std::endl
-//                 << "    Number of dimensions: " << nDims);
-//  }
-
-//  // Check if marching cubes is enabled for non 3D data
-//  bool invalidMCOption = (useMarchingCubes && nDims != 3);
-//  VTKM_LOG_IF_S(vtkm::cont::LogLevel::Error,
-//                invalidMCOption && (rank == 0),
-//                "The input mesh is "
-//                  << nDims << "D. "
-//                  << "Contour tree using marching cubes is only supported for 3D data.");
-
-//  // If we found any errors in the setttings than finalize MPI and exit the execution
-//  if (invalidMCOption)
-//  {
-//#ifdef WITH_MPI
-//    MPI_Finalize();
-//#endif
-//    return EXIT_SUCCESS;
-//  }
-
 #ifndef WITH_MPI                              // construct regular, single-block VTK-M input dataset
   vtkm::cont::DataSet useDataSet = inDataSet; // Single block dataset
 #else  // Create a multi-block dataset for multi-block DIY-paralle processing
@@ -910,9 +906,14 @@ int main(int argc, char* argv[])
   }
 #endif // WITH_MPI construct input dataset
 
+  printMemoryUsage("[ContourTreeApp.cxx] AFTER READING IN VTK");
 
-  int file_io_counter = 0;
+  ////////////////////////////////////////////////////////////
+  // END MAIN-2 Read the input data (buildDatasetTimeDisplay) //
+  ////////////////////////////////////////////////////////////
 
+  // Wrap up the timing of building the dataset, ...
+  // ... start the contour tree timer for the next stage
   ///TIMING///////////////////////////////////////////////////////
   currTime = totalTime.GetElapsedTime();
   // TIMING: Build VTKM Dataset (finish) - timing saved to 'buildDatasetTimeDisplay'
@@ -922,9 +923,8 @@ int main(int argc, char* argv[])
   prevTime = currTime;
   ////////////////////////////////////////////////////////////////
 
-
   /////////////////////////////////////////////////////////////////
-  // MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //
+  // START MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //
   /////////////////////////////////////////////////////////////////
 
   std::cout << std::endl;
@@ -1009,7 +1009,7 @@ int main(int argc, char* argv[])
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
 
-//    CALLGRIND_START_INSTRUMENTATION;
+    //    CALLGRIND_START_INSTRUMENTATION;
     ctaug_ns::ProcessContourTree::ComputeVolumeWeightsSerialStructCoefficients(useDataSet,
                                                                               filter.GetContourTree(),
                                                                               filter.GetNumIterations(),
@@ -1031,8 +1031,8 @@ int main(int argc, char* argv[])
                                                                               supernodeTransferWeightNEW,  // (output)
                                                                               hyperarcDependentWeightNEW); // (output)
 
-//    CALLGRIND_STOP_INSTRUMENTATION;
-//    CALLGRIND_DUMP_STATS;
+    //    CALLGRIND_STOP_INSTRUMENTATION;
+    //    CALLGRIND_DUMP_STATS;
 
     std::cout << "[STAGE 4.1 End - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
 
@@ -1088,6 +1088,8 @@ int main(int argc, char* argv[])
 #endif
 
 #if WRITE_FILES
+
+    int file_io_counter = 0;
 
     auto whichBranchPortal   = whichBranch.ReadPortal();
     auto branchMinimumPortal = branchMinimum.ReadPortal();

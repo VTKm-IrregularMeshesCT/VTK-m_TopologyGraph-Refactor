@@ -126,9 +126,15 @@ vtkm::Id ContourTreeAugmented::GetNumIterations() const
 
 void static printMemoryUsage(const std::string& message)
 {
+    // Red text formatting for highlighting some console output:
+    const std::string ORANGE = "\033[38;2;255;165;0m";  // Start red text
+    const std::string LIGHT_BLUE = "\033[38;5;117m";  // Light blue in 256-color
+    const std::string RESET = "\033[0m"; // End red text
+
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
-    std::cout << message << " - Memory usage: " << usage.ru_maxrss << " KB" << std::endl;
+
+    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
 }
 
 // Define type aliases for clarity:
@@ -223,20 +229,8 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   vtkm::cont::Timer timer;
   timer.Start();
 
-//  // Check that the field is Ok
-//  const auto& field = this->GetFieldFromDataSet(input);
-//  if (!field.IsPointField())
-//  {
-//    throw vtkm::cont::ErrorFilterExecution("Point field expected.");
-//  }
-
-//  // Use the GetPointDimensions struct defined in the header to collect the meshSize information
-//  vtkm::Id3 meshSize;
-//  const auto& cells = input.GetCellSet();
-//  cells.CastAndCallForTypes<VTKM_DEFAULT_CELL_SET_LIST_STRUCTURED>(
-//    vtkm::worklet::contourtree_augmented::GetPointDimensions(), meshSize);
-
-//  std::cout << "mesh size: " << meshSize[0] << "x" << meshSize[1] << "x" << meshSize[2] << std::endl;
+  // Input dataset is expected as a tetrahedral cell set (single cell type), ...
+  // ... and irregular (no dimensions)
 
   // TODO blockIndex needs to change if we have multiple blocks per MPI rank and DoExecute is called for multiple blocks
   std::size_t blockIndex = 0;
@@ -255,125 +249,73 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
     }
   }
 
+  printMemoryUsage("[ContourTreeUniformAugmented.cxx] BEFORE Creating Adjacency List");
+
   // Create the result object
   vtkm::cont::DataSet result;
 
   // FIXME: reduce the size of lambda.
-  auto resolveType = [&](const auto& concrete) {
+  auto resolveType = [&](const auto& concrete)
+  {// lambda start "auto resolveType = [&](const auto& concrete)"
     using T = typename std::decay_t<decltype(concrete)>::ValueType;
 
+    // PACTBD-EDIT-FIXED
+    // reading the file in the main applet now, TO-REMOVE
+    //      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
 
+    int num_datapoints;
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
+    vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+    // Obtain portals to write data directly:
 
+    // (the scoping deletes the reader right after populating the cont::DataSet)
+    {
+      num_datapoints = input.GetPointField("var").GetNumberOfValues();
 
+      // Explicitly interpret as tetrahedral cell set
+      // (already checking in the main applet)
+      using TetCellSet = vtkm::cont::CellSetSingleType<>;
+      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(/* connectivity */
+                         input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
+                                                                                                /* offsets */
+                         input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
 
+      // std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyTetrahedron(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
 
+      printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER MakeAdjacencyTetrahedron");
 
-
-
-
-
-
-      printMemoryUsage("BEFORE READING IN VTK");
-
-      // PACTBD-EDIT-FIXED
-      // reading the file in the main applet now, TO-REMOVE
-//      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
-
-      int num_datapoints;
-      vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
-      vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
-      // Obtain portals to write data directly:
-
-//      auto this->GetFieldFromDataSet(input);
-
-      // (the scoping deletes the reader right after populating the cont::DataSet)
+      // First, compute total sizes:
+      vtkm::Id total_nbors = 0;
+      for (vtkm::Id i = 0; i < num_datapoints; ++i)
       {
-          num_datapoints = input.GetPointField("var").GetNumberOfValues();
-
-          // Explicitly interpret as tetrahedral cell set
-          // (already checking in the main applet)
-          using TetCellSet = vtkm::cont::CellSetSingleType<>;
-//          if (!inputDataVTK.GetCellSet().IsType<TetCellSet>())
-          if (!input.GetCellSet().IsType<TetCellSet>())
-          {
-              std::cerr << "Dataset is NOT CellSetSingleType. Check input!" << std::endl;
-          }
-
-          // Safe cast to CellSetSingleType
-//          const TetCellSet &tet_cells = inputDataVTK.GetCellSet().AsCellSet<TetCellSet>();
-          const TetCellSet &tet_cells = input.GetCellSet().AsCellSet<TetCellSet>();
-
-          // Check the cell shape explicitly if you like:
-          if (tet_cells.GetCellShape(0) != vtkm::CELL_SHAPE_TETRA)
-          {
-              std::cerr << "Expected tetrahedral cells. Check input!" << std::endl;
-          }
-
-    //      int num_values_from_file = inputDataVTK.GetPointField("var").GetNumberOfValues();
-    //      std::cout << "0) Number of Values: " << num_values_from_file << std::endl;
-
-          // Now safely access connectivity data (moving them up to avoid memory duplication)
-          vtkm::cont::ArrayHandle<vtkm::Id> connectivity = tet_cells.GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
-          vtkm::cont::ArrayHandle<vtkm::Id, vtkm::cont::StorageTagCounting> offsets = tet_cells.GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{});
-
-          std::cout << "1) Connectivity array size: " << connectivity.GetNumberOfValues() << std::endl;
-          std::cout << "1) Offsets array size: " << offsets.GetNumberOfValues() << std::endl;
-
-          std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(connectivity, offsets);
-                  // MakeAdjacencyTetrahedron(connectivity);
-
-          std::cout << "Printing adjacency for '" << adjacency_list.begin()->first << "'" << std::endl;
-
-          // First, compute total sizes:
-          vtkm::Id total_nbors = 0;
-          for (vtkm::Id i = 0; i < num_datapoints; ++i)
-          {
-              total_nbors += adjacency_list[i].size();
-          }
-          std::cout << "total_nbors " << total_nbors << std::endl;
-          // Allocate ArrayHandles directly:
-//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
-          nbor_connectivity_auto.Allocate(total_nbors);
-          std::cout << "num_datapoints+1 " << num_datapoints+1 << std::endl;
-//          vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
-          nbor_offsets_auto.Allocate(num_datapoints + 1); // offsets array has size num_points + 1
-
-
-          std::cout << "Populate the data" << std::endl;
-
-          auto connectivityPortal = nbor_connectivity_auto.WritePortal();
-          auto offsetsPortal = nbor_offsets_auto.WritePortal();
-
-          // Populate the data
-          vtkm::Id offset_counter = 0;
-          offsetsPortal.Set(0, offset_counter); // initial offset is always 0
-
-
-
-          for (vtkm::Id i = 0; i < num_datapoints; ++i)
-          {
-              for (auto elem : adjacency_list[i])
-              {
-                  connectivityPortal.Set(offset_counter++, elem);
-              }
-              offsetsPortal.Set(i + 1, offset_counter); // offset for next datapoint starts here
-          }
-
+          total_nbors += adjacency_list[i].size();
       }
 
-      printMemoryUsage("AFTER READING IN VTK");
+      nbor_connectivity_auto.Allocate(total_nbors);
+      // offsets array has size num_points + 1 because ...
+      // ... it includes the offset after the last position
+      nbor_offsets_auto.Allocate(num_datapoints + 1);
 
-      std::cout << "0) Number of Datapoints: " << num_datapoints  << std::endl;
+      auto connectivityPortal = nbor_connectivity_auto.WritePortal();
+      auto offsetsPortal = nbor_offsets_auto.WritePortal();
 
+      // Populate the data
+      vtkm::Id offset_counter = 0;
+      offsetsPortal.Set(0, offset_counter); // initial offset is always 0
 
+      for (vtkm::Id i = 0; i < num_datapoints; ++i)
+      {
+          for (auto elem : adjacency_list[i])
+          {
+              connectivityPortal.Set(offset_counter++, elem);
+          }
+          // offset for next datapoint starts here
+          offsetsPortal.Set(i + 1, offset_counter);
+      }
 
+    }
 
-
-
-
-
-
-
+    printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER Populating 'connectivity' and 'offsets' arrays");
 
 
       // populate 'freeby' arrays:
@@ -404,10 +346,6 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
         vtkm::cont::make_ArrayHandle(std_global_inds, vtkm::CopyFlag::Off);
       // ------------------------------------------------------------------------------- //
 
-      std::cout << "2) Connectivity array size: " << nbor_connectivity_auto.GetNumberOfValues() << std::endl;
-      std::cout << "2) Offsets array size: " << nbor_offsets_auto.GetNumberOfValues() << std::endl;
-
-      std::cout << "Summary done!" << std::endl;
       // VTK FILE
 
 #if WRITE_FILES
@@ -439,7 +377,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
 //       Using the 'TopologyGraph' constructor here ...
 //       ... (to be moved to a separate class eventually)
-      std::cout << "USING PACT (unoptimized)...\n";
+      std::cout << "[ContourTreeUniformAugmented.cxx] Constructing a 'ContourTreeMesh' (future 'TopologyGraph')\n";
       vtkm::worklet::contourtree_augmented::ContourTreeMesh<int> mesh(nodes_sorted,
                               //arcs_list,
                                 nbor_connectivity_auto, //nbor_connectivity,
@@ -450,30 +388,12 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
                                 actual_values,
                                 //nodes_sorted,
                                 global_inds);
+      std::cout << "[ContourTreeUniformAugmented.cxx] 'ContourTreeMesh' Constructed\n";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    // NOTE: The TopologyGraph ContourTree worklet no longer uses meshSize and this->useMarchingCubes
+    // (because the mesh is irregular and does not have inherent dimensions/connectivity)
     vtkm::worklet::ContourTreeAugmented worklet;
+    // Using the new TopologyGraph ContourTree worklet:
     worklet.Run(concrete,                                                                   // fieldArray?
                 mesh,
                 MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
@@ -482,62 +402,6 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
                                      : this->MeshSortOrder,                                 // sortOrder
                 this->NumIterations,                                                        // nIterations
                 compRegularStruct);                                                         // computeRegularStructure
-    // Run the worklet (old)
-//    worklet.Run(concrete,                                                                   // fieldArray?
-//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalContourTrees[blockIndex]  //
-//                                     : this->ContourTreeData,                               // contourTree
-//                MultiBlockTreeHelper ? MultiBlockTreeHelper->LocalSortOrders[blockIndex]    //
-//                                     : this->MeshSortOrder,                                 // sortOrder
-//                this->NumIterations,                                                        // nIterations
-//                meshSize,                                                                   // meshSize
-//                this->UseMarchingCubes,                                                     // useMarchingCubes
-//                compRegularStruct);                                                         // computeRegularStructure
-
-
-
-
-
-
-
-
-
-
-
-//    std::ofstream outFile("CT-full.gv");
-
-//    vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-//                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
-//                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
-//                            | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
-////                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-////                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
-////                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
-////                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-////                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
-
-
-//    // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
-//    outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
-//        "Contour Tree Super Dot",         // label/title
-//        mesh,                             // mesh (re)constructed above
-//        fakeFieldArray, //fieldArray,     // scalar data array handle
-//        contourTree,                      // computed contour tree structure
-//        detailedMask,                     // detailed output with all info
-//        vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
-
-
-//    outFile.close();
-
-
-
-
-
-
-
-
-
-
 
 
     // If we run in parallel but with only one global block, then we need set our outputs correctly
@@ -578,12 +442,12 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
         this->CreateResultFieldPoint(input, this->GetOutputFieldName(), ContourTreeData.Arcs);
       //  return CreateResultFieldPoint(input, ContourTreeData.Arcs, this->GetOutputFieldName());
     }
-  };
+  }; // lambda end "auto resolveType = [&](const auto& concrete)"
 
   const auto& field = this->GetFieldFromDataSet(input); // Added new 2025-04-16
-  this->CastAndCallScalarField(field, resolveType);
+  this->CastAndCallScalarField(field, resolveType); // call the above lambda function
 
-  VTKM_LOG_S(vtkm::cont::LogLevel::Perf,
+  VTKM_LOG_S(vtkm::cont::LogLevel::Warn,//vtkm::cont::LogLevel::Perf,
              std::endl
                << "    " << std::setw(38) << std::left << "Contour Tree Filter DoExecute"
                << ": " << timer.GetElapsedTime() << " seconds");
