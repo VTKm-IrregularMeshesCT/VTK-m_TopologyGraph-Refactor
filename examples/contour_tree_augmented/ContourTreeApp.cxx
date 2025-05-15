@@ -110,7 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
-#define WRITE_FILES 0
+#define WRITE_FILES 1
 
 //using vtkm::FloatDefault = vtkm::Float64;
 
@@ -315,6 +315,10 @@ int main(int argc, char* argv[])
     std::cout << "// START MAIN-0 Initialise VTK-m (totalTime) //" << std::endl;
     std::cout << "///////////////////////////////////////////////" << std::endl;
     std::cout << std::endl;
+
+#if WRITE_FILES
+    int file_io_counter = 0;
+#endif
 
 #ifdef WITH_MPI
   // Setup the MPI environment.
@@ -1004,7 +1008,7 @@ int main(int argc, char* argv[])
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
-    std::cout << "[STAGE 4.1 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ...\n\n\n\n" << std::endl;
+    std::cout << "[STAGE 4.1 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
 #if SLEEP_ON
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
@@ -1067,7 +1071,7 @@ int main(int argc, char* argv[])
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
 
-    std::cout << "\n\n\n\n[STAGE 4.2 Start - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
+    std::cout << "[STAGE 4.2 Start - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
 
     ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(filter.GetContourTree(),
                                                                               superarcDependentWeightNEW,
@@ -1078,10 +1082,7 @@ int main(int argc, char* argv[])
                                                                               branchSaddle,  // (output)
                                                                               branchParent); // (output)
 
-    std::cout << "[STAGE 4.2 End - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n\n\n\n" << std::endl;
-
-    std::cout << "num. of branches: " << branchSaddle.GetNumberOfValues() << std::endl;
-
+    std::cout << "[STAGE 4.2 End - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END" << std::endl;
 
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
@@ -1089,15 +1090,13 @@ int main(int argc, char* argv[])
 
 #if WRITE_FILES
 
-    int file_io_counter = 0;
-
     auto whichBranchPortal   = whichBranch.ReadPortal();
     auto branchMinimumPortal = branchMinimum.ReadPortal();
     auto branchMaximumPortal = branchMaximum.ReadPortal();
     auto branchSaddlePortal  = branchSaddle.ReadPortal();
     auto branchParentPortal  = branchParent.ReadPortal();
 
-    std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition:\n" << std::endl;
+    std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition to 'ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt'" << std::endl;
     std::cout << "(ContourTreeApp.cxx) whichBranch:";
 
     std::ofstream file("ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt");
@@ -1186,7 +1185,7 @@ int main(int argc, char* argv[])
 
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
-      std::cout << "\n\n\n\n[STAGE 4.3 Start - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() START ..." << std::endl;
+      std::cout << "[STAGE 4.3 Start - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() START ..." << std::endl;
 
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
@@ -1396,22 +1395,6 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
     std::cout << "ctaug_ns::PrintEdgePairArrayColumnLayout(saddlePeak, std::cout);" << std::endl;
     //ctaug_ns::PrintEdgePairArrayColumnLayout(saddlePeak, std::cout);
     std::cout << "NOTE: ... skipped printing to cout, only printing to the file" << std::endl;
-    // Writing to a file
-//    std::ofstream file("ContourTreeGraph-270985-parcels-128x2M-D3d.txt");
-//    std::ofstream file("ContourTreeGraph-270985-grid-384-freud3D.txt");
-//    std::ofstream file("ContourTreeGraph-270985-grid-192-freud3D.txt");
-//    std::ofstream file("ContourTreeGraph-270985-grid-96-freud3D.txt");
-//    std::ofstream file("ContourTreeGraph-270985-grid-48-freud3D.txt");
-//    std::ofstream file("ContourTreeGraph-270985-grid-24-freud3D.txt");
-//      std::ofstream file("ContourTreeGraph-270985-parcels-LT2M-PACT.gv");
-//      std::ofstream file("ContourTreeGraph-90k-PACT-TEST-1-duplicated.gv");
-//      std::ofstream file("ContourTreeGraph-cleanedup-parcels-LT2M-PACT.gv");
-//      std::ofstream file("ContourTreeGraph-29K-branch-decomposition-fullCT-ColumnFormat.txt");
-
-//      std::ofstream file("ContourTreeGraph-13k-original-fullCT-ColumnFormat.txt");
-//      std::ofstream file("ContourTreeGraph-56M-original-fullCT-ColumnFormat.txt");
-//      std::ofstream file("ContourTreeGraph--1024--original-fullCT-ColumnFormat.txt");
-//      std::ofstream file("ContourTreeGraph--NastyW-16--original-fullCT-ColumnFormat.txt");
 
 #if WRITE_FILES
 // FILE IO START
@@ -1440,22 +1423,6 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
                        << file_io_counter << ") WRITING: ContourTreeGraph--original-fullCT.gv" << std::endl);
 
     std::cout << "Saving the Contour Tree As Dot GraphViz File .gv" << std::endl;
-    //    std::ofstream filegv("ContourTreeGraph-270985-parcels-128x2M-D3d.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-grid-384-freud3D.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-grid-192-freud3D.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-grid-96-freud3D.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-grid-48-freud3D.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-grid-24-freud3D.gv");
-    //    std::ofstream filegv("ContourTreeGraph-270985-parcels-LT2M-PACT.gv");
-        //std::ofstream filegv("ContourTreeGraph-90k-PACT-TEST-1-duplicated.gv"); // ContourTreeGraph-70-PACT-TEST-1
-    //    std::ofstream filegv("ContourTreeGraph-cleanedup-parcels-LT2M-PACT.gv");
-    //    std::ofstream filegv("ContourTreeGraph-29K-branch-decomposition-fullCT.gv");
-
-    //    std::ofstream filegv("ContourTreeGraph-13k-original-fullCT.gv");
-    //    std::ofstream filegv("ContourTreeGraph-56M-original-fullCT.gv");
-    //    std::ofstream filegv("ContourTreeGraph--1024--original-fullCT.gv");
-
-    //    std::ofstream filegv("ContourTreeGraph--NastyW-16--original-fullCT.gv");
     std::ofstream filegv("ContourTreeGraph--original-fullCT.gv");
     filter.GetContourTree().PrintDotSuperStructure(filegv);
     std::cout << " Finished PrintDotSuperStructure " << std::endl;

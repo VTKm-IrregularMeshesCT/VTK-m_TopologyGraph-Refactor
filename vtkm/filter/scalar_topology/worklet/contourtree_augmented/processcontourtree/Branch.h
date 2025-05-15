@@ -529,13 +529,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const FloatArrayType& superarcDependentWeight)
 { // C)omputeBranchDecomposition()
 
-  std::cout << "ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())" << std::endl;
-
-  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
-  std::cout << "##################################################################" << std::endl;
-  std::cout << "############################# START ##############################" << std::endl;
-  std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
-  std::cout << "##################################################################" << std::endl;
+  std::cout << "[ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] START" << std::endl;
 
   auto branchMinimumPortal = branchMinimum.ReadPortal();
   auto branchMaximumPortal = branchMaximum.ReadPortal();
@@ -964,13 +958,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
     root->removeSymbolicPerturbation();
   }
 
-  std::cout << "##################################################################" << std::endl;
-  std::cout << "############################ FINISH ##############################" << std::endl;
-  std::cout << "############# !MODIFIED! Branch.H Decomposition ##################" << std::endl;
-  std::cout << "##################################################################" << std::endl;
-  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
-
-  std::cout << "ContourTreeApp->ProcessContourTree->(Branch.h->ComputeBranchDecomposition())" << std::endl;
+  std::cout << "[ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] END" << std::endl;
 
   return root;
 } // ComputeBranchDecomposition()

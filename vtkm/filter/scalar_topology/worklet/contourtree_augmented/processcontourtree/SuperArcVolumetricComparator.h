@@ -111,7 +111,7 @@ using ValueType = vtkm::Float64; //vtkm::FloatDefault;
     weightFloatPortal = WeightFloat.PrepareForInput(device, token);
     superarcListPortal = SuperarcList.PrepareForInput(device, token);
 
-    std::cout << "FloatArrayType Comparator Implementation" << std::endl;
+//    std::cout << "FloatArrayType Comparator Implementation" << std::endl;
 
   } // constructor
 
@@ -238,7 +238,7 @@ public:
     , SuperArcList(superArcList)
     , PairsAtLowEnd(pairsAtLowEnd)
   {
-      std::cout << "FloatArrayType Comparator Constructor" << std::endl;
+    //      std::cout << "FloatArrayType Comparator Constructor" << std::endl;
   }
 
   VTKM_CONT SuperArcVolumetricComparatorImpl PrepareForExecution(vtkm::cont::DeviceAdapterId device,
@@ -248,9 +248,9 @@ public:
       int intLen = this->Weight.GetNumberOfValues();
       int floatLen = this->WeightFloat.GetNumberOfValues();
 
-      std::cout << "SuperArcVolumetricComparatorImpl" << std::endl;
-      std::cout << "\tid    len: " << this->Weight.GetNumberOfValues() << std::endl;
-      std::cout << "\tfloat len: " << this->WeightFloat.GetNumberOfValues() << std::endl;
+      //      std::cout << "SuperArcVolumetricComparatorImpl" << std::endl;
+      //      std::cout << "\tid    len: " << this->Weight.GetNumberOfValues() << std::endl;
+      //      std::cout << "\tfloat len: " << this->WeightFloat.GetNumberOfValues() << std::endl;
 
       if (intLen > floatLen)
       {

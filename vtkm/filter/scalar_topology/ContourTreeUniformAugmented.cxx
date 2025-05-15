@@ -123,6 +123,28 @@ vtkm::Id ContourTreeAugmented::GetNumIterations() const
   return this->NumIterations;
 }
 
+// Returns current memory usage in KB
+size_t getCurrentRSS_linux()
+{
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+
+    while(std::getline(status_file, line))
+    {
+        if(line.find("VmRSS:") == 0)
+        {
+            std::istringstream iss(line);
+            std::string key;
+            size_t memory; // memory value in kB
+            std::string unit;
+
+            iss >> key >> memory >> unit;
+            return memory; // return in KB
+        }
+    }
+    return 0; // Not found
+}
+
 
 void static printMemoryUsage(const std::string& message)
 {
@@ -134,7 +156,8 @@ void static printMemoryUsage(const std::string& message)
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
 
-    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
+    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage (peak): " << usage.ru_maxrss
+              << " KB | (current) " << getCurrentRSS_linux() << " KB" << RESET << std::endl;
 }
 
 // Define type aliases for clarity:
@@ -315,7 +338,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
     }
 
-    printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER Populating 'connectivity' and 'offsets' arrays");
+    printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER 'connectivity & offsets'");
 
 
       // populate 'freeby' arrays:
@@ -444,8 +467,11 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
     }
   }; // lambda end "auto resolveType = [&](const auto& concrete)"
 
+
   const auto& field = this->GetFieldFromDataSet(input); // Added new 2025-04-16
   this->CastAndCallScalarField(field, resolveType); // call the above lambda function
+
+  printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER resolveType lambda scope");
 
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn,//vtkm::cont::LogLevel::Perf,
              std::endl
