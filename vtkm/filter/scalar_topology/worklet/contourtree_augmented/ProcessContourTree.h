@@ -556,8 +556,12 @@ public:
             }
         }
 
-        std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage (peak): " << usage.ru_maxrss
+//        std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage (peak): " << usage.ru_maxrss
+//                  << " KB | (current) " << current_usage << " KB" << RESET << std::endl;
+
+        std::cout << LIGHT_BLUE << message << " - Memory usage (peak): " << usage.ru_maxrss
                   << " KB | (current) " << current_usage << " KB" << RESET << std::endl;
+
     }
 
 
@@ -568,16 +572,16 @@ public:
     void static ComputeVolumeWeightsSerialStructCoefficients(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
                                                 const ContourTree& contourTree,
                                                 const vtkm::Id nIterations,
-                                                vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff,
-                                                vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff,
-                                                vtkm::cont::ArrayHandle<Coefficients>& supernodeTransferWeightCoeff,
-                                                vtkm::cont::ArrayHandle<Coefficients>& hyperarcDependentWeightCoeff,
+                                                vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff, // (output)
+                                                vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff, // (output)
+                                                vtkm::cont::ArrayHandle<Coefficients>& supernodeTransferWeightCoeff, // (output)
+                                                vtkm::cont::ArrayHandle<Coefficients>& hyperarcDependentWeightCoeff, // (output)
                                                 // Added 2025-01-30
                                                 // We use simple weights for the branch decomposition
-                                                FloatArrayType& superarcIntrinsicWeight,
-                                                FloatArrayType& superarcDependentWeight,
-                                                FloatArrayType& supernodeTransferWeight,
-                                                FloatArrayType& hyperarcDependentWeight)
+                                                FloatArrayType& superarcIntrinsicWeight, // (output)
+                                                FloatArrayType& superarcDependentWeight, // (output)
+                                                FloatArrayType& supernodeTransferWeight, // (output)
+                                                FloatArrayType& hyperarcDependentWeight) // (output)
     // 2) COEFFICIENTS:
     { // ContourTreeMaker::ComputeWeights()
       // START ComputeVolumeWeightsSerialStructCoefficients
@@ -606,15 +610,9 @@ public:
 
         // Files for 3D experiments of Contour Tree Branch volume-based weight computations
         // PACTBD-EDIT-FIXED
-//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
-//        const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-COORDINATES.txt";
+        // const std::string filename3D1 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-COORDINATES.txt";
         // PACTBD-EDIT-FIXED
-//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/101-from-2M-sampled-excel-sorted.1-TETS.txt";
-//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/200k-from-2M-sampled-excel-sorted.1-TETS.txt";
-//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/1M-from-2M-sampled-excel-sorted.1-TETS.txt";
-//        const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-TETS.txt";
+        // const std::string filename3D2 = "/home/sc17dd/modules/HCTC2024/VTK-m-topology/vtkm-build/2M-parcels-20250225-sorted.1-valued-TETS.txt";
 
         // get the total number of values to be swept ...
         // ... this will be one more than the total number of datapoints ...
@@ -623,13 +621,11 @@ public:
         //  ... because of the simulation of simplicity, which ensures ever data point has a unique value)
         int num_sweep_values = contourTree.Arcs.GetNumberOfValues() + 1;
 
+        // initialise the intrinsic weight array:
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {// for each sortedNode
             vtkm::Id sortID = nodesPortal.Get(sortedNode);
             vtkm::Id superparent = superparentsPortal.Get(sortID);
-
-            // initialise the intrinsic weight array counter:
-            // superarcIntrinsicWeightPortal.Set(superparent, 0);
             superarcIntrinsicWeightPortal.Set(superparent, 0.f);
         }// for each sortedNode
 
@@ -644,16 +640,6 @@ public:
         timer.Start();
         // /\/\/\ Timing and performance profiling /\/\/\ //
 
-//        // Vertices of the tet are given as sort IDs and there are 4 of them:
-//        std::vector<std::vector<int>> tetlistSorted(tetlist.size(),
-//                                                    std::vector<int> (4, 0));
-
-//        std::cout << "    " << RED << std::setw(38) << std::left << "tetlistSorted allocation"
-//                      << ": " << timer.GetElapsedTime() << " seconds" << RESET << std::endl;
-
-//        timer.Start();
-
-
         // Keep track of all tetrahedra vertices in a sorted list:
         //  ... for example a tet X, Y, Z, W might have vertices with sort IDs:
         //      X=6, Y=5, Z=3, W=7
@@ -663,14 +649,13 @@ public:
         //  (we do not keep track of the original ordering X, Y, Z, W) ...
 
         // PACTBD-EDIT-FIXED
-//        const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+        // const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
 
         cont::ArrayHandle<vtkm::Vec3f> coordinatesVTK;
         coordinatesVTK = input.GetPointField("coordinates").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Vec3f>>();
 
-        // Explicitly interpret as tetrahedral cell set
+        // Explicitly interpret as a tetrahedral cell set
         using TetCellSet = vtkm::cont::CellSetSingleType<>;
-        // Now safely access connectivity data (moving them up to avoid memory duplication)
         // Get the tetrahedral connectivity array
         // NOTE: At this point it is assumed that the file is 'CellSetSingleType' ...
         //       ... with 'input.GetCellSet().IsType<TetCellSet>()'
@@ -732,6 +717,8 @@ public:
         fileTets.close();
 #endif
 
+        //  Sort connected tetrahedral vertices in increasing order
+        // (then we can assume the first vertex of the tet holds the lowest value)
         for (int i = 0; i < tet_connectivity.GetNumberOfValues()/4; i++)
         {// for each tet
             std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
@@ -906,26 +893,6 @@ public:
             long double d_h1h2_down = ( ( -a_h1h2 * pow(tetlistSorted[i][1], 3) - b_h1h2 * pow(tetlistSorted[i][1], 2) - c_h1h2 * tetlistSorted[i][1] ) -
                                        (-a_h2h3 * pow(tetlistSorted[i][1], 3) - b_h2h3 * pow(tetlistSorted[i][1], 2) - c_h2h3 * tetlistSorted[i][1] - d_h2h3_down) );
 
-//            // Then directly add to accumulation
-//            tet_down_deltas_pfix[tetlistSorted[i][0]][0] += a_h1h2;
-//            tet_down_deltas_pfix[tetlistSorted[i][0]][1] += b_h1h2;
-//            tet_down_deltas_pfix[tetlistSorted[i][0]][2] += c_h1h2;
-//            tet_down_deltas_pfix[tetlistSorted[i][0]][3] += full_tet_vol+d_h1h2_down;
-
-//            tet_down_deltas_pfix[tetlistSorted[i][1]][0] += -a_h1h2+a_h2h3;
-//            tet_down_deltas_pfix[tetlistSorted[i][1]][1] += -b_h1h2+b_h2h3;
-//            tet_down_deltas_pfix[tetlistSorted[i][1]][2] += -c_h1h2+c_h2h3;
-//            tet_down_deltas_pfix[tetlistSorted[i][1]][3] += -d_h1h2_down+d_h2h3_down;
-
-//            tet_down_deltas_pfix[tetlistSorted[i][2]][0] += -a_h2h3+a_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][2]][1] += -b_h2h3+b_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][2]][2] += -c_h2h3+c_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][2]][3] += -d_h2h3_down+d_h3h4;
-
-//            tet_down_deltas_pfix[tetlistSorted[i][3]][0] += -a_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][3]][1] += -b_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][3]][2] += -c_h3h4;
-//            tet_down_deltas_pfix[tetlistSorted[i][3]][3] += -d_h3h4;
 
             // Directly accumulate, NO extra memory needed
             vx_delta_h1_sum[tetlistSorted[i][0]] += a_h1h2;
@@ -949,20 +916,6 @@ public:
             vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
 
         }
-
-//        for (vtkm::Id i = 0; i < num_sweep_values; i++)
-//        {
-//            vx_delta_h1_sum.push_back(tet_down_deltas_pfix[i][0]);
-//            vx_delta_h2_sum.push_back(tet_down_deltas_pfix[i][1]);
-//            vx_delta_h3_sum.push_back(tet_down_deltas_pfix[i][2]);
-//            vx_delta_h4_sum.push_back(tet_down_deltas_pfix[i][3]);
-//        }
-
-
-
-
-
-
 
 
 

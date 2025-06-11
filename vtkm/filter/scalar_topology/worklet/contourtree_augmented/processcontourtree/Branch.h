@@ -1000,15 +1000,6 @@ static void PrintBranchInformation(Branch<T>* root)
 template <typename T>
 void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 { // SimplifyToSize()
-
-  std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl << std::endl;
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~ START ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-  std::cout << "~~~~~~~~~~~~~~~~~~~ Branch.h SimplifyToSize ~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-
-
-
   std::cout << "-Branch.h-> Calling: SimplifyToSize() with targetSize = " << targetSize << std::endl;
 
   if (targetSize <= 1)

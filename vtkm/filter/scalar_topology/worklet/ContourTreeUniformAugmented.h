@@ -102,6 +102,7 @@
 #include <unistd.h>
 
 #define PACT_DEBUG 0
+#define WRITE_FILES 1
 
 using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
 
@@ -563,32 +564,33 @@ AdjacencyList MakeAdjacencyWithOffsets(
                          computeRegularStructure,
                          mesh.GetMeshBoundaryExecutionObject());
 
+#if WRITE_FILES
+          std::ofstream outFile("CT-full-superdot.gv");
 
-//          std::ofstream outFile("CT-full.gv");
-
-//          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
-
-
-//          // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
-//          outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
-//              "Contour Tree Super Dot",         // label/title
-//              mesh,                             // mesh (re)constructed above
-//              fakeFieldArray, //fieldArray,     // scalar data array handle
-//              contourTree,                      // computed contour tree structure
-//              detailedMask,                     // detailed output with all info
-//              vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
 
-//          outFile.close();
+          // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):
+          outFile << vtkm::worklet::contourtree_distributed::ContourTreeDotGraphPrintSerial(
+              "Contour Tree Super Dot",         // label/title
+              mesh,                             // mesh (re)constructed above
+              fieldArray, //fakeFieldArray, //fieldArray,     // scalar data array handle
+              contourTree,                      // computed contour tree structure
+              detailedMask,                     // detailed output with all info
+              vtkm::cont::ArrayHandle<vtkm::Id>()); // global ids
+
+
+          outFile.close();
+#endif
 
           return;
     }

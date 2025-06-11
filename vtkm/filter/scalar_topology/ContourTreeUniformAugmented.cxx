@@ -156,7 +156,9 @@ void static printMemoryUsage(const std::string& message)
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
 
-    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage (peak): " << usage.ru_maxrss
+//    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage (peak): " << usage.ru_maxrss
+//              << " KB | (current) " << getCurrentRSS_linux() << " KB" << RESET << std::endl;
+    std::cout << LIGHT_BLUE << message << " - Memory usage (peak): " << usage.ru_maxrss
               << " KB | (current) " << getCurrentRSS_linux() << " KB" << RESET << std::endl;
 }
 

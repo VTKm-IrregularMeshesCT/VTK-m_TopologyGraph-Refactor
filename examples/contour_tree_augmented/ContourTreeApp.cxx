@@ -300,21 +300,27 @@ void static printMemoryUsage(const std::string& message)
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
 
-    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
+//    std::cout << ORANGE << message << LIGHT_BLUE << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
+    std::cout << LIGHT_BLUE << message << " - Memory usage: " << usage.ru_maxrss << " KB" << RESET << std::endl;
 }
 
 // Compute and render an isosurface for a uniform grid example
 int main(int argc, char* argv[])
 {
+    // Red text formatting for highlighting some console output:
+    const std::string RED = "\033[31m";  // Start red text
+    const std::string ORANGE = "\033[38;2;255;165;0m";  // Start red text
+    const std::string YELLOW = "\033[38;2;240;240;13m";  // Warm, readable yellow
+    const std::string RESET = "\033[0m"; // End red text
     /////////////////////////////////////////////////
     // START MAIN-0 Initialise VTK-m (totalTime) //
     /////////////////////////////////////////////////
 
-    std::cout << std::endl;
+    std::cout << ORANGE << std::endl;
     std::cout << "///////////////////////////////////////////////" << std::endl;
     std::cout << "// START MAIN-0 Initialise VTK-m (totalTime) //" << std::endl;
     std::cout << "///////////////////////////////////////////////" << std::endl;
-    std::cout << std::endl;
+    std::cout << RESET << std::endl;
 
 #if WRITE_FILES
     int file_io_counter = 0;
@@ -353,20 +359,16 @@ int main(int argc, char* argv[])
   totalTime.Start();
   ////////////////////////////////////////////////////////////////
 
-  // Red text formatting for highlighting some console output:
-  const std::string RED = "\033[31m";  // Start red text
-  const std::string RESET = "\033[0m"; // End red text
-
 
   //////////////////////////////////////////////////////////////////////
   // START MAIN-1 Parse the command line options (startUpTimeDisplay) //
   //////////////////////////////////////////////////////////////////////
 
-  std::cout << std::endl;
+  std::cout << ORANGE << std::endl;
   std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
   std::cout << "// MAIN-1 Parse the command line options (startUpTimeDisplay) //" << std::endl;
   std::cout << "////////////////////////////////////////////////////////////////" << std::endl;
-  std::cout << std::endl;
+  std::cout << RESET << std::endl;
 
   // Time how long parsing command line arguments takes:
   ///TIMING///////////////////////////////////////////////////////
@@ -592,11 +594,11 @@ int main(int argc, char* argv[])
   // START MAIN-2 Read the input data (buildDatasetTimeDisplay) //
   ////////////////////////////////////////////////////////////
 
-  std::cout << std::endl;
+  std::cout << ORANGE << std::endl;
   std::cout << "//////////////////////////////////////////////////////////" << std::endl;
   std::cout << "// MAIN-2 Read the input data (buildDatasetTimeDisplay) //" << std::endl;
   std::cout << "//////////////////////////////////////////////////////////" << std::endl;
-  std::cout << std::endl;
+  std::cout << RESET << std::endl;
 
   // Finish timing the 'start-up time', begin timing 'input data reading-in'
   ///TIMING/////////////////////////////////////////////////////////////////
@@ -931,11 +933,11 @@ int main(int argc, char* argv[])
   // START MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //
   /////////////////////////////////////////////////////////////////
 
-  std::cout << std::endl;
+  std::cout << ORANGE << std::endl;
   std::cout << "/////////////////////////////////////////////////////////////////" << std::endl;
   std::cout << "// MAIN-3 Compute Contour Tree (computeContourTreeTimeDisplay) //" << std::endl;
   std::cout << "/////////////////////////////////////////////////////////////////" << std::endl;
-  std::cout << std::endl;
+  std::cout << RESET << std::endl;
 
   // Convert the mesh of values into contour tree, pairs of vertex ids
   vtkm::filter::scalar_topology::ContourTreeAugmented filter(useMarchingCubes,
@@ -981,11 +983,11 @@ int main(int argc, char* argv[])
   // MAIN-4 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //
   //////////////////////////////////////////////////////////////////////////////////////
 
-  std::cout << std::endl;
+  std::cout << ORANGE << std::endl;
   std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
   std::cout << "// MAIN-4 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //" << std::endl;
   std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
-  std::cout << std::endl;
+  std::cout << RESET << std::endl;
 
   if (rank == 0 && computeBranchDecomposition && augmentComputeRegularStructure)
   {
@@ -1008,7 +1010,7 @@ int main(int argc, char* argv[])
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
-    std::cout << "[STAGE 4.1 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << std::endl;
+    std::cout << YELLOW << "\n[STAGE 4.1 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << RESET << std::endl;
 #if SLEEP_ON
     std::this_thread::sleep_for(std::chrono::seconds(3));
 #endif
@@ -1038,7 +1040,7 @@ int main(int argc, char* argv[])
     //    CALLGRIND_STOP_INSTRUMENTATION;
     //    CALLGRIND_DUMP_STATS;
 
-    std::cout << "[STAGE 4.1 End - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n\n\n\n" << std::endl;
+    std::cout << YELLOW << "[STAGE 4.1 End - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n" << RESET << std::endl;
 
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
@@ -1071,7 +1073,7 @@ int main(int argc, char* argv[])
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 #endif
 
-    std::cout << "[STAGE 4.2 Start - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << std::endl;
+    std::cout << YELLOW << "\n[STAGE 4.2 Start - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() START ..." << RESET << std::endl;
 
     ctaug_ns::ProcessContourTree::ComputeVolumeBranchDecompositionSerialFloat(filter.GetContourTree(),
                                                                               superarcDependentWeightNEW,
@@ -1082,7 +1084,7 @@ int main(int argc, char* argv[])
                                                                               branchSaddle,  // (output)
                                                                               branchParent); // (output)
 
-    std::cout << "[STAGE 4.2 End - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END" << std::endl;
+    std::cout << YELLOW << "[STAGE 4.2 End - Branch Decomposition Arrays] ContourTreeApp.cxx:ComputeVolumeBranchDecompositionSerialFloat() ... END\n" << RESET << std::endl;
 
 #if DEBUG_PRINT_PACTBD
     std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
@@ -1185,7 +1187,7 @@ int main(int argc, char* argv[])
 
       /// DEBUG PRINT std::cout << "... Computing the Branch Decomposition: create explicit representation of the branch decompostion from the array representation\n";
 
-      std::cout << "[STAGE 4.3 Start - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() START ..." << std::endl;
+      std::cout << YELLOW << "\n[STAGE 4.3 Start - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() START ..." << RESET << std::endl;
 
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
@@ -1208,7 +1210,7 @@ int main(int argc, char* argv[])
 
       // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
-      std::cout << "[STAGE 4.3 End - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() ... END" << std::endl;
+      std::cout << YELLOW << "[STAGE 4.3 End - Explicit Branch Decomposition Aggregate Volume Weights] ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>() ... END\n" << RESET << std::endl;
 
       /// DEBUG PRINT
 #if DEBUG_PRINT_PACTBD
@@ -1262,12 +1264,17 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
       std::cout << std::endl;
       std::cout << "(ContourTreeApp) APPLYING BRANCH SIMPLIFICATION (BrS):\n";
 
+      std::cout << YELLOW << "\n[STAGE 4.4 Start - Simplifying to N branches] ContourTreeApp.cxx:branchDecompostionRoot->SimplifyToSize() START ..." << RESET << std::endl;
+
+
+
 
       usePersistenceSorter = false;
 //      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
 //      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
        branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       /// DEBUG PRINT
+       std::cout << YELLOW << "[STAGE 4.4 End - Simplifying to N branches] ContourTreeApp.cxx:branchDecompostionRoot->SimplifyToSize() ... END\n" << RESET << std::endl;
 
 #if WRITE_FILES
 // FILE IO START
