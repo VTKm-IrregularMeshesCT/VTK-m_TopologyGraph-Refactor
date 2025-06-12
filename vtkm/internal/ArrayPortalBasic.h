@@ -11,6 +11,10 @@
 #define vtk_m_internal_ArrayPortalBasic_h
 
 #include <vtkm/Assert.h>
+
+// NOTE: For release mode, ...
+//       ... VTKM_ASSERT_BOUNDS is not defined
+
 #include <vtkm/Types.h>
 
 #ifdef VTKM_CUDA
@@ -61,9 +65,13 @@ public:
 
   VTKM_EXEC_CONT ValueType Get(vtkm::Id index) const
   {
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, >=, 0);
+#endif
     VTKM_ASSERT(index >= 0);
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
+#endif
     VTKM_ASSERT(index < this->NumberOfValues);
 
     return detail::ArrayPortalBasicReadGet(this->Array + index);
@@ -104,20 +112,28 @@ public:
   VTKM_EXEC_CONT ValueType Get(vtkm::Id index) const
   {
 //    std::cout << index << " -vs- " << this->NumberOfValues << "\n";
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, >=, 0);
+#endif
     VTKM_ASSERT(index >= 0);
 //    VTKM_ASSERT(index < this->NumberOfValues);
 //    VTKM_ASSERT(index < this->NumberOfValues);
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
+#endif
 
     return detail::ArrayPortalBasicWriteGet(this->Array + index);
   }
 
   VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, >=, 0);
+#endif
     VTKM_ASSERT(index >= 0);
+#ifdef VTKM_ASSERT_BOUNDS
     VTKM_ASSERT_BOUNDS(index, <, this->NumberOfValues);
+#endif
 //    VTKM_ASSERT(index < this->NumberOfValues);
 
     detail::ArrayPortalBasicWriteSet(this->Array + index, value);
