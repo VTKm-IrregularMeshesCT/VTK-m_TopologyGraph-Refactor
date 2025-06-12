@@ -274,7 +274,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
     }
   }
 
-  printMemoryUsage("[ContourTreeUniformAugmented.cxx] BEFORE Creating Adjacency List");
+
 
   // Create the result object
   vtkm::cont::DataSet result;
@@ -300,10 +300,60 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       // Explicitly interpret as tetrahedral cell set
       // (already checking in the main applet)
       using TetCellSet = vtkm::cont::CellSetSingleType<>;
-      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(/* connectivity */
-                         input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
-                                                                                                /* offsets */
-                         input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
+      printMemoryUsage("[ContourTreeUniformAugmented.cxx] BEFORE Creating Adjacency List");
+//      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(/* connectivity */
+//                         input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
+//                                                                                                /* offsets */
+//                         input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
+
+
+
+
+
+
+
+
+
+
+
+      std::unordered_map<vtkm::Id, std::set<vtkm::Id>> adjacency_list;
+
+      auto connPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
+      auto offsetPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
+
+      vtkm::Id numCells = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).GetNumberOfValues() - 1;
+
+      for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+      {
+          vtkm::Id start = offsetPortal.Get(cellId);
+          vtkm::Id end = offsetPortal.Get(cellId+1);
+
+          // Iterate through vertices in the cell:
+          for (vtkm::Id i = start; i < end; ++i)
+          {
+              vtkm::Id vi = connPortal.Get(i);
+              auto &neighbors = adjacency_list[vi];
+
+              for (vtkm::Id j = start; j < end; ++j)
+              {
+                  vtkm::Id vj = connPortal.Get(j);
+                  if(vi == vj) continue;
+                  neighbors.insert(vj);
+              }
+          }
+      }
+
+
+
+
+
+
+
+
+
+
+
+
 
       // std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyTetrahedron(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
 
