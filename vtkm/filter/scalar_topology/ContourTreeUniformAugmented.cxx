@@ -77,6 +77,286 @@ VTKM_THIRDPARTY_POST_INCLUDE
 #define WRITE_FILES 0
 
 
+// New includes for writing the VTK-m parallel adjacency builder
+// (add here)
+#include <vtkm/worklet/WorkletMapTopology.h>
+
+#include <vtkm/cont/DataSet.h>
+#include <vtkm/cont/Field.h>
+#include <vtkm/cont/Algorithm.h>
+//#include <vtkm/worklet/FieldMap.h>
+
+// Output type: vector of sets or similar (proxy for per-point neighbor sets)
+using AdjacencyList = vtkm::cont::ArrayHandle<std::set<vtkm::Id>>;
+
+class BuildAdjacencyWorklet : public vtkm::worklet::WorkletVisitPointsWithCells
+{
+public:
+  using ControlSignature = void(CellSetIn cellSet,
+                                FieldOut adjacencyList);
+  using ExecutionSignature = void(WorkIndex, CellIndices, _2);
+  using InputDomain = _1;
+
+    template<typename CellIndicesVecType, typename OutSetType>
+    VTKM_EXEC void operator()(vtkm::Id pointId,
+                              const CellIndicesVecType& cellIndices,
+                              OutSetType& outputSet) const
+    {
+      std::set<vtkm::Id> neighbors;
+
+      for (vtkm::IdComponent c = 0; c < cellIndices.GetNumberOfComponents(); ++c)
+      {
+        auto cell = cellIndices[c];
+        for (vtkm::IdComponent j = 0; j < cell.GetNumberOfComponents(); ++j)
+        {
+          vtkm::Id neighborId = cell[j];
+          if (neighborId != pointId) // ← now correctly using point ID
+          {
+            neighbors.insert(neighborId);
+          }
+        }
+      }
+
+      outputSet = neighbors;
+    }
+};
+
+
+
+class BuildFlatAdjacencyWorklet : public vtkm::worklet::WorkletVisitPointsWithCells
+{
+public:
+  using ControlSignature = void(CellSetIn cellSet,
+                                WholeArrayOut neighbors,
+                                WholeArrayOut counts);
+  using ExecutionSignature = void(CellIndices, _2, _3, WorkIndex);
+  using InputDomain = _1;
+
+  template<typename CellIndicesVecType, typename NeighborsArrayType, typename CountArrayType>
+  VTKM_EXEC void operator()(const CellIndicesVecType& cellIndices,
+                            NeighborsArrayType& neighbors,
+                            CountArrayType& counts,
+                            /* WorkIndex */ vtkm::Id pointId) const
+  {
+    vtkm::Id neighborCount = 0;
+    const vtkm::Id maxNeighbors = 32; // Set an upper bound for stack buffer
+    vtkm::Id temp[maxNeighbors];
+    vtkm::Id tempCount = 0;
+
+    for (vtkm::IdComponent c = 0; c < cellIndices.GetNumberOfComponents(); ++c)
+    {
+      auto cell = cellIndices[c];
+      for (vtkm::IdComponent j = 0; j < cell.GetNumberOfComponents(); ++j)
+      {
+        vtkm::Id neighborId = cell[j];
+        if (neighborId != pointId)
+        {
+          bool duplicate = false;
+          for (vtkm::IdComponent k = 0; k < tempCount; ++k)
+          {
+            if (temp[k] == neighborId)
+            {
+              duplicate = true;
+              break;
+            }
+          }
+          if (!duplicate && tempCount < maxNeighbors)
+          {
+            temp[tempCount++] = neighborId;
+          }
+        }
+      }
+    }
+
+    counts.Set(pointId, tempCount);
+    for (vtkm::IdComponent i = 0; i < tempCount; ++i)
+    {
+      neighbors.Set(pointId * maxNeighbors + i, temp[i]);
+    }
+  }
+};
+
+//class CountNeighbors : public vtkm::worklet::WorkletVisitCellsWithPoints
+//{
+//public:
+//  using ControlSignature = void(CellSetIn, AtomicArrayInOut counts);
+//  using ExecutionSignature = void(PointCount, PointIndices, _2);
+//  using InputDomain = _1;
+
+//  template <typename PointIndexVec, typename CountArray>
+//  VTKM_EXEC void operator()(vtkm::IdComponent numPointsInCell,
+//                            const PointIndexVec& pointIndices,
+//                            CountArray& counts) const
+//  {
+//    for (vtkm::IdComponent i = 0; i < 4; ++i)
+////        for (vtkm::IdComponent i = 0; i < numPointsInCell; ++i)
+//    {
+//      // Each point is connected to all others in the same cell, except itself
+//      vtkm::Id pointId = pointIndices[i];
+////    vtkm::AtomicAdd(&counts.GetPortal().Get(pointId), numPointsInCell - 1);
+////      vtkm::AtomicAdd(&counts, pointId, static_cast<vtkm::Id>(numPointsInCell - 1));
+////      counts.Set(pointId, numPointsInCell - 1);
+////      counts.Add(pointId, numPointsInCell - 1);
+//      counts.Add(pointId, 1);
+//    }
+//  }
+//};
+
+class CountNeighborsWorklet : public vtkm::worklet::WorkletVisitPointsWithCells
+{
+public:
+  using ControlSignature = void(CellSetIn cellSet, WholeArrayOut count);
+  using ExecutionSignature = void(CellIndices, _2, WorkIndex);
+  using InputDomain = _1;
+
+  template <typename CellIndicesVecType, typename CountPortalType>
+  VTKM_EXEC void operator()(const CellIndicesVecType& cellIndices,
+                            CountPortalType& count,
+                            vtkm::Id pointId) const
+  {
+    // Use a local fixed-size buffer to deduplicate small numbers of neighbors
+    constexpr vtkm::IdComponent maxLocal = 64;
+    vtkm::Id local[maxLocal];
+    vtkm::IdComponent localCount = 0;
+
+    for (vtkm::IdComponent i = 0; i < cellIndices.GetNumberOfComponents(); ++i)
+    {
+      auto cell = cellIndices[i];
+      for (vtkm::IdComponent j = 0; j < cell.GetNumberOfComponents(); ++j)
+      {
+        vtkm::Id n = cell[j];
+        if (n != pointId)
+        {
+          // Check for duplicates
+          bool duplicate = false;
+          for (vtkm::IdComponent k = 0; k < localCount; ++k)
+          {
+            if (local[k] == n)
+            {
+              duplicate = true;
+              break;
+            }
+          }
+          if (!duplicate && localCount < maxLocal)
+          {
+            local[localCount++] = n;
+          }
+        }
+      }
+    }
+
+    count.Set(pointId, localCount);
+  }
+};
+
+
+class FillNeighborsWorklet : public vtkm::worklet::WorkletVisitPointsWithCells
+{
+public:
+  using ControlSignature = void(CellSetIn cellSet,
+                                WholeArrayIn offsets,
+                                WholeArrayOut neighbors);
+  using ExecutionSignature = void(CellIndices, _2, _3, WorkIndex);
+  using InputDomain = _1;
+
+  template <typename CellIndicesVecType,
+            typename OffsetsPortalType,
+            typename NeighborPortalType>
+  VTKM_EXEC void operator()(const CellIndicesVecType& cellIndices,
+                            const OffsetsPortalType& offsets,
+                            NeighborPortalType& flatNeighbors,
+                            vtkm::Id pointId) const
+  {
+    constexpr vtkm::IdComponent maxLocal = 64;
+    vtkm::Id local[maxLocal];
+    vtkm::IdComponent localCount = 0;
+
+    for (vtkm::IdComponent i = 0; i < cellIndices.GetNumberOfComponents(); ++i)
+    {
+      auto cell = cellIndices[i];
+      for (vtkm::IdComponent j = 0; j < cell.GetNumberOfComponents(); ++j)
+      {
+        vtkm::Id n = cell[j];
+        if (n != pointId)
+        {
+          bool duplicate = false;
+          for (vtkm::IdComponent k = 0; k < localCount; ++k)
+          {
+            if (local[k] == n)
+            {
+              duplicate = true;
+              break;
+            }
+          }
+          if (!duplicate && localCount < maxLocal)
+          {
+            local[localCount++] = n;
+          }
+        }
+      }
+    }
+
+    vtkm::Id offset = offsets.Get(pointId);
+    for (vtkm::IdComponent i = 0; i < localCount; ++i)
+    {
+      flatNeighbors.Set(offset + i, local[i]);
+    }
+  }
+};
+
+
+
+class EmitEdges : public vtkm::worklet::WorkletMapField
+{
+public:
+  using ControlSignature = void(FieldIn cellId,
+                                WholeArrayIn conn,
+                                WholeArrayIn offsets,
+                                WholeArrayOut edgeStarts,
+                                WholeArrayOut edgeEnds);
+  using ExecutionSignature = void(_1, _2, _3, _4, _5);
+
+  template <typename ConnPortal, typename OffsetPortal, typename OutPortal>
+  VTKM_EXEC void operator()(vtkm::Id cellId,
+                            const ConnPortal& conn,
+                            const OffsetPortal& offsets,
+                            OutPortal& edgeStarts,
+                            OutPortal& edgeEnds) const
+  {
+    const vtkm::Id start = offsets.Get(cellId);
+    const vtkm::Id v[4] = {
+      conn.Get(start),
+      conn.Get(start + 1),
+      conn.Get(start + 2),
+      conn.Get(start + 3)
+    };
+
+    // Emit all 6 undirected edges
+    const vtkm::Id edgePairs[6][2] = {
+      {0, 1}, {0, 2}, {0, 3},
+      {1, 2}, {1, 3}, {2, 3}
+    };
+
+    for (vtkm::Id i = 0; i < 6; ++i)
+    {
+      vtkm::Id u = v[edgePairs[i][0]];
+      vtkm::Id w = v[edgePairs[i][1]];
+      if (u > w)
+      {
+          vtkm::Id tmp = u;
+          u = w;
+          w = tmp;
+      }
+
+      vtkm::Id outIdx = cellId * 6 + i;
+      edgeStarts.Set(outIdx, u);
+      edgeEnds.Set(outIdx, w);
+    }
+  }
+};
+
+
+
 namespace vtkm
 {
 namespace filter
@@ -251,8 +531,18 @@ AdjacencyList MakeAdjacencyWithOffsets(
 vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& input)
 {
   std::cout << "{sc_tp/ContourTreeUniformAugmented.cxx - ContourTreeAugmented::DoExecute() Version for Point Clouds / Irregular Meshes\n";
+  // Global benchmark timer for the whole ContourTreeAugmented::DoExecute() function
   vtkm::cont::Timer timer;
   timer.Start();
+
+  // Local profiling timers to find the bottlenecks:
+  vtkm::cont::Timer profiling1;
+  vtkm::cont::Timer profiling2;
+  vtkm::cont::Timer profiling3;
+  vtkm::cont::Timer profiling4;
+  vtkm::cont::Timer profiling5;
+  vtkm::cont::Timer profiling6;
+  profiling1.Start();
 
   // Input dataset is expected as a tetrahedral cell set (single cell type), ...
   // ... and irregular (no dimensions)
@@ -274,8 +564,6 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
     }
   }
 
-
-
   // Create the result object
   vtkm::cont::DataSet result;
 
@@ -285,12 +573,17 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
     using T = typename std::decay_t<decltype(concrete)>::ValueType;
 
     // PACTBD-EDIT-FIXED
-    // reading the file in the main applet now, TO-REMOVE
+    // Tetrahedral connections used to be read from a file here:
     //      const std::string filename_vtk = "/home/sc17dd/modules/HCTC2024/VTK-m-topology-refactor/VTK-m_TopologyGraph-Refactor/examples/contour-visualiser/delaunay-parcels/200k-from-2M-sampled-excel-sorted.1-withvalues-manual.vtk";
+    // ... the .vtk input is now read from the main applet (such as examples/ContourTreeApp.cxx) ...
+    // ... and accessed from the parameter 'input' in DoExecute(const vtkm::cont::DataSet& input)
 
     int num_datapoints;
     vtkm::cont::ArrayHandle<vtkm::Id> nbor_connectivity_auto;
     vtkm::cont::ArrayHandle<vtkm::Id> nbor_offsets_auto;
+
+    vtkm::cont::ArrayHandle<vtkm::Id> flatNeighbors;
+    vtkm::cont::ArrayHandle<vtkm::Id> neighborOffsets;
     // Obtain portals to write data directly:
 
     // (the scoping deletes the reader right after populating the cont::DataSet)
@@ -301,48 +594,165 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       // (already checking in the main applet)
       using TetCellSet = vtkm::cont::CellSetSingleType<>;
       printMemoryUsage("[ContourTreeUniformAugmented.cxx] BEFORE Creating Adjacency List");
-//      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(/* connectivity */
-//                         input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
-//                                                                                                /* offsets */
-//                         input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
+      std::cout << "\t\t (1) Time-to-here: " << profiling1.GetElapsedTime() << " seconds" << std::endl;
+      profiling2.Start();
+
+////      /// START: Testing the new parallel worklet:
+
+      vtkm::cont::CellSetSingleType<> cellSet =
+          input.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
+
+//      vtkm::cont::Invoker invoke;
+//      vtkm::cont::ArrayHandle<std::set<vtkm::Id>> adjacencyList;
+//      invoke(BuildAdjacencyWorklet{}, cellSet, adjacencyList);
+
+      vtkm::Id numPoints = num_datapoints;
+
+      vtkm::Id numCells = cellSet.GetNumberOfCells();
+      vtkm::Id numEdges = numCells * 6;
+
+      // Step 1: Get connectivity and offsets
+      auto conn = cellSet.GetConnectivityArray(
+                    vtkm::TopologyElementTagCell{},
+                    vtkm::TopologyElementTagPoint{});
+      auto offsets = cellSet.GetOffsetsArray(
+                       vtkm::TopologyElementTagCell{},
+                       vtkm::TopologyElementTagPoint{});
+
+      // Step 2: Prepare edge output arrays
+      vtkm::cont::ArrayHandle<vtkm::Id> edgeStarts, edgeEnds;
+      edgeStarts.Allocate(numEdges);
+      edgeEnds.Allocate(numEdges);
+
+      // Step 3: Generate cell IDs [0, 1, ..., numCells-1]
+      vtkm::cont::ArrayHandleCounting<vtkm::Id> cellIds(0, 1, numCells);
+
+      // Step 4: Dispatch EmitEdges
+      vtkm::worklet::DispatcherMapField<EmitEdges> emitDispatcher;
+      emitDispatcher.Invoke(cellIds, conn, offsets, edgeStarts, edgeEnds);
+
+      // Step 5: Zip, sort, and deduplicate
+      auto edgePairs = vtkm::cont::make_ArrayHandleZip(edgeStarts, edgeEnds);
+      vtkm::cont::Algorithm::Sort(edgePairs);
+      vtkm::cont::Algorithm::Unique(edgePairs);
 
 
+      using EdgePairArray = vtkm::cont::ArrayHandleZip<vtkm::cont::ArrayHandle<vtkm::Id>,
+                                                       vtkm::cont::ArrayHandle<vtkm::Id>>;
 
-
-
-
-
-
-
-
-
-      std::unordered_map<vtkm::Id, std::set<vtkm::Id>> adjacency_list;
-
-      auto connPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
-      auto offsetPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
-
-      vtkm::Id numCells = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).GetNumberOfValues() - 1;
-
-      for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+      // Step 1: For each edge (u, v), emit two entries: (u → v) and (v → u)
+      vtkm::cont::ArrayHandle<vtkm::Id> srcs, dsts;
       {
-          vtkm::Id start = offsetPortal.Get(cellId);
-          vtkm::Id end = offsetPortal.Get(cellId+1);
+        auto numEdges = edgePairs.GetNumberOfValues();
+        srcs.Allocate(numEdges * 2);
+        dsts.Allocate(numEdges * 2);
 
-          // Iterate through vertices in the cell:
-          for (vtkm::Id i = start; i < end; ++i)
-          {
-              vtkm::Id vi = connPortal.Get(i);
-              auto &neighbors = adjacency_list[vi];
+        auto edgePortal = edgePairs.ReadPortal();
+        auto srcPortal = srcs.WritePortal();
+        auto dstPortal = dsts.WritePortal();
 
-              for (vtkm::Id j = start; j < end; ++j)
-              {
-                  vtkm::Id vj = connPortal.Get(j);
-                  if(vi == vj) continue;
-                  neighbors.insert(vj);
-              }
-          }
+        for (vtkm::Id i = 0; i < numEdges; ++i)
+        {
+          auto edge = edgePortal.Get(i);
+          vtkm::Id u = edge.first;
+          vtkm::Id v = edge.second;
+
+          srcPortal.Set(2 * i,     u);  dstPortal.Set(2 * i,     v);
+          srcPortal.Set(2 * i + 1, v);  dstPortal.Set(2 * i + 1, u);
+        }
       }
 
+      // Step 2: Sort by source vertex (to group neighbors together)
+      auto neighborPairs = vtkm::cont::make_ArrayHandleZip(srcs, dsts);
+      vtkm::cont::Algorithm::SortByKey(srcs, dsts); // now dsts are grouped by srcs
+
+//      // Step 3: Build CSR offsets
+      vtkm::Id numVertices = numPoints + 1; // maxVertexId from your mesh
+//      vtkm::cont::ArrayHandle<vtkm::Id> neighborOffsets;
+//      vtkm::cont::Algorithm::UpperBounds(srcs, vtkm::cont::ArrayHandleCounting<vtkm::Id>(0, 1, numVertices), neighborOffsets);
+//      // Step 1: Count neighbors per vertex
+//      vtkm::cont::ArrayHandle<vtkm::Id> neighborCounts;
+//      vtkm::cont::Algorithm::UpperBounds(
+//          srcs,
+//          vtkm::cont::ArrayHandleCounting<vtkm::Id>(0, 1, numVertices),
+//          neighborCounts);
+
+//      // Step 2: Convert counts to offsets with exclusive scan
+//      vtkm::cont::ArrayHandle<vtkm::Id> neighborOffsets;
+//      vtkm::cont::Algorithm::ScanExclusive(neighborCounts, neighborOffsets);
+
+//      vtkm::cont::ArrayHandle<vtkm::Id> neighborOffsets;
+      vtkm::cont::Algorithm::UpperBounds(
+          srcs,
+          vtkm::cont::ArrayHandleCounting<vtkm::Id>(-1, 1, numVertices),
+//                  vtkm::cont::ArrayHandleCounting<vtkm::Id>(-1, 1, numVertices + 1), old, didn't start from 0
+          neighborOffsets);
+
+      // Step 4: The dsts array is your flat neighbor list
+//      vtkm::cont::ArrayHandle<vtkm::Id>
+              flatNeighbors = dsts;
+
+      std::cout << "flatNeighbors&neighborOffsets IN PARALLEL! :" << std::endl;
+      vtkm::cont::printSummary_ArrayHandle(flatNeighbors, std::cout);
+      vtkm::cont::printSummary_ArrayHandle(neighborOffsets, std::cout);
+
+
+      // Now edgePairs contains all unique undirected edges (u < v)
+
+
+////      /// END: Testing the new parallel worklet:
+
+//      // From the input file, which we get from TetGen, we get a tet-mesh ...
+//      // ... and the .vtk format gives us the connectivity and offset arrays.
+//      // For each tet, the four vertex indices are given that make up the tet
+//      // However, for the topology graph mesh abstraction ...
+//      // ... we later require an adjacency list, namely:
+//      // vertex_id[i] = vertex_neighbourhood_list
+//      // The following takes connectivity and offset arrays and computes an adjacency list
+
+
+////      std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyWithOffsets(/* connectivity */
+////                         input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
+////                                                                                                /* offsets */
+////                         input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
+
+
+
+//      std::unordered_map<vtkm::Id, std::set<vtkm::Id>> adjacency_list;
+
+//      auto connPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
+//      auto offsetPortal = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).ReadPortal();
+
+////      vtkm::Id numCells = input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}).GetNumberOfValues() - 1;
+
+//      for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+//      {
+//          vtkm::Id start = offsetPortal.Get(cellId);
+//          vtkm::Id end = offsetPortal.Get(cellId+1);
+
+//          // Iterate through vertices in the cell:
+//          for (vtkm::Id i = start; i < end; ++i)
+//          {
+//              vtkm::Id vi = connPortal.Get(i);
+//              auto &neighbors = adjacency_list[vi];
+
+//              for (vtkm::Id j = start; j < end; ++j)
+//              {
+//                  vtkm::Id vj = connPortal.Get(j);
+//                  if(vi == vj) continue;
+//                  neighbors.insert(vj);
+//              }
+//          }
+//      }
+
+
+
+
+//      std::cout << "From data nbor{_connectivity/_offsets_}auto:" << std::endl;
+//      vtkm::cont::printSummary_ArrayHandle(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
+//                                           std::cout);
+//      vtkm::cont::printSummary_ArrayHandle(input.GetCellSet().AsCellSet<TetCellSet>().GetOffsetsArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}),
+//                                           std::cout);
 
 
 
@@ -352,46 +762,56 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 
 
 
+//      // std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyTetrahedron(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
 
+//      printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER MakeAdjacencyTetrahedron");
+//      std::cout << "\t\t (2) Time-to-here: " << profiling2.GetElapsedTime() << " seconds" << std::endl;
+      profiling3.Start();
 
+//      // First, compute total sizes:
+//      vtkm::Id total_nbors = 0;
+//      for (vtkm::Id i = 0; i < num_datapoints; ++i)
+//      {
+//          total_nbors += adjacency_list[i].size();
+////          total_nbors += adjacencyList[i].size();
+//      }
 
-      // std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyTetrahedron(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
+//      nbor_connectivity_auto.Allocate(total_nbors);
+//      // offsets array has size num_points + 1 because ...
+//      // ... it includes the offset after the last position
+//      nbor_offsets_auto.Allocate(num_datapoints + 1);
 
-      printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER MakeAdjacencyTetrahedron");
+//      auto connectivityPortal = nbor_connectivity_auto.WritePortal();
+//      auto offsetsPortal = nbor_offsets_auto.WritePortal();
 
-      // First, compute total sizes:
-      vtkm::Id total_nbors = 0;
-      for (vtkm::Id i = 0; i < num_datapoints; ++i)
-      {
-          total_nbors += adjacency_list[i].size();
-      }
+//      // Populate the data
+//      vtkm::Id offset_counter = 0;
+//      offsetsPortal.Set(0, offset_counter); // initial offset is always 0
 
-      nbor_connectivity_auto.Allocate(total_nbors);
-      // offsets array has size num_points + 1 because ...
-      // ... it includes the offset after the last position
-      nbor_offsets_auto.Allocate(num_datapoints + 1);
+//      for (vtkm::Id i = 0; i < num_datapoints; ++i)
+//      {
+//          for (auto elem : adjacency_list[i])
+////          for (auto elem : adjacencyList[i])
+//          {
+//              connectivityPortal.Set(offset_counter++, elem);
+//          }
+//          // offset for next datapoint starts here
+//          offsetsPortal.Set(i + 1, offset_counter);
+//      }
 
-      auto connectivityPortal = nbor_connectivity_auto.WritePortal();
-      auto offsetsPortal = nbor_offsets_auto.WritePortal();
-
-      // Populate the data
-      vtkm::Id offset_counter = 0;
-      offsetsPortal.Set(0, offset_counter); // initial offset is always 0
-
-      for (vtkm::Id i = 0; i < num_datapoints; ++i)
-      {
-          for (auto elem : adjacency_list[i])
-          {
-              connectivityPortal.Set(offset_counter++, elem);
-          }
-          // offset for next datapoint starts here
-          offsetsPortal.Set(i + 1, offset_counter);
-      }
+//      std::cout << "Real nbor{_connectivity/_offsets_}auto:" << std::endl;
+//      vtkm::cont::printSummary_ArrayHandle(nbor_connectivity_auto, std::cout);
+//      vtkm::cont::printSummary_ArrayHandle(nbor_offsets_auto, std::cout);
 
     }
 
-    printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER 'connectivity & offsets'");
 
+
+
+
+    printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER 'connectivity & offsets'");
+    std::cout << "\t\t (3) Time-to-here: " << profiling3.GetElapsedTime() << " seconds" << std::endl;
+    profiling4.Start();
 
       // populate 'freeby' arrays:
       // nodes_sorted - just a list of the nodes going from 0-to-N, ...
@@ -455,8 +875,8 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
       std::cout << "[ContourTreeUniformAugmented.cxx] Constructing a 'ContourTreeMesh' (future 'TopologyGraph')\n";
       vtkm::worklet::contourtree_augmented::ContourTreeMesh<int> mesh(nodes_sorted,
                               //arcs_list,
-                                nbor_connectivity_auto, //nbor_connectivity,
-                                nbor_offsets_auto,//nbor_offsets,
+                                flatNeighbors, //nbor_connectivity_auto, //nbor_connectivity,
+                                neighborOffsets, //nbor_offsets_auto,//nbor_offsets,
                                 nodes_sorted,
                                 // doesnt work out of the box:
                                 // fieldArray, // testing fieldArray instead of manual actual_value
@@ -464,6 +884,9 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
                                 //nodes_sorted,
                                 global_inds);
       std::cout << "[ContourTreeUniformAugmented.cxx] 'ContourTreeMesh' Constructed\n";
+
+      std::cout << "\t\t (4) Time-to-here: " << profiling4.GetElapsedTime() << " seconds" << std::endl;
+      profiling5.Start();
 
     // NOTE: The TopologyGraph ContourTree worklet no longer uses meshSize and this->useMarchingCubes
     // (because the mesh is irregular and does not have inherent dimensions/connectivity)
@@ -478,6 +901,9 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
                 this->NumIterations,                                                        // nIterations
                 compRegularStruct);                                                         // computeRegularStructure
 
+    std::cout << "[ContourTreeUniformAugmented.cxx] 'ContourTreeAugmented worklet' Finished\n";
+    std::cout << "\t\t (5) Time-to-here: " << profiling5.GetElapsedTime() << " seconds" << std::endl;
+    profiling6.Start();
 
     // If we run in parallel but with only one global block, then we need set our outputs correctly
     // here to match the expected behavior in parallel
@@ -524,6 +950,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
   this->CastAndCallScalarField(field, resolveType); // call the above lambda function
 
   printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER resolveType lambda scope");
+  std::cout << "\t\t (6) Time-to-here: " << profiling6.GetElapsedTime() << " seconds" << std::endl;
 
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn,//vtkm::cont::LogLevel::Perf,
              std::endl
