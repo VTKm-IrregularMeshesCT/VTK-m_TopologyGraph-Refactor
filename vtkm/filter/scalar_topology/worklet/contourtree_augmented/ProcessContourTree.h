@@ -96,6 +96,8 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <float.h>
+
 // file IO
 #include <vtkm/io/VTKDataSetReader.h>
 #include <vtkm/io/VTKDataSetWriter.h>
@@ -104,6 +106,35 @@
 #define SLEEP_ON 0
 #define PROFILING_PACTBD 1
 #define WRITE_FILES 0
+#define ENABLE_DEBUG_MINMAX 1
+
+#define UPDATE_MINMAX(val, min_var, max_var) \
+    do {                                     \
+        if ((val) < (min_var)) (min_var) = (val); \
+        if ((val) > (max_var)) (max_var) = (val); \
+    } while(0)
+
+#define UPDATE_MINMAX_ABS(val, min_var, max_var)     \
+    do {                                             \
+        long double abs_val = fabsl(val);            \
+        if (abs_val < (min_var)) (min_var) = abs_val; \
+        if (abs_val > (max_var)) (max_var) = abs_val; \
+    } while(0)
+
+#define UPDATE_MINMAX_ABS_NONZERO(val, min_var, max_var)       \
+    do {                                                       \
+        long double abs_val = fabsl(val);                      \
+        if (abs_val > 0.0L) {                                  \
+            if (abs_val < (min_var)) (min_var) = abs_val;      \
+            if (abs_val > (max_var)) (max_var) = abs_val;      \
+        }                                                      \
+    } while(0)
+
+#ifdef ENABLE_DEBUG_MINMAX
+#define TRACK_MINMAX(val, minv, maxv) UPDATE_MINMAX_ABS_NONZERO(val, minv, maxv) //UPDATE_MINMAX(val, minv, maxv)
+#else
+#define TRACK_MINMAX(val, minv, maxv) // nothing
+#endif
 
 
 namespace process_contourtree_inc_ns =
@@ -755,6 +786,11 @@ public:
         long double min_volume = 38358000.0l;
         long double max_volume = 0.0l;
 
+        long double max_a, max_b, max_c, max_d;
+        max_a = max_b = max_c = max_d = 0.0l; // -LDBL_MAX;
+        long double min_a, min_b, min_c, min_d;
+        min_a = min_b = min_c = min_d = LDBL_MAX;
+
         // Preallocation
         // not using the 2D array, writing directly to vx_delta arrays:
 //        std::vector<std::vector<long double>> tet_down_deltas_pfix(num_sweep_values, std::vector<long double>(4, 0.0l));
@@ -765,6 +801,8 @@ public:
         vx_delta_h3_sum.assign(num_sweep_values, 0.0l);
         vx_delta_h4_sum.assign(num_sweep_values, 0.0l);
 
+
+        #pragma omp parallel for
         for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
         {
             // Step 1
@@ -915,7 +953,87 @@ public:
             vx_delta_h3_sum[tetlistSorted[i][3]] += (-c_h3h4);
             vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
 
+//            long double tmp;
+
+//            // Vertex 0
+//            tmp = a_h1h2;
+//            TRACK_MINMAX(tmp, min_a, max_a);
+//            vx_delta_h1_sum[tetlistSorted[i][0]] += tmp;
+
+//            tmp = b_h1h2;
+//            TRACK_MINMAX(tmp, min_b, max_b);
+//            vx_delta_h2_sum[tetlistSorted[i][0]] += tmp;
+
+//            tmp = c_h1h2;
+//            TRACK_MINMAX(tmp, min_c, max_c);
+//            vx_delta_h3_sum[tetlistSorted[i][0]] += tmp;
+
+//            tmp = full_tet_vol + d_h1h2_down;
+//            TRACK_MINMAX(tmp, min_d, max_d);
+//            vx_delta_h4_sum[tetlistSorted[i][0]] += tmp;
+
+//            // Vertex 1
+//            tmp = -a_h1h2 + a_h2h3;
+//            TRACK_MINMAX(tmp, min_a, max_a);
+//            vx_delta_h1_sum[tetlistSorted[i][1]] += tmp;
+
+//            tmp = -b_h1h2 + b_h2h3;
+//            TRACK_MINMAX(tmp, min_b, max_b);
+//            vx_delta_h2_sum[tetlistSorted[i][1]] += tmp;
+
+//            tmp = -c_h1h2 + c_h2h3;
+//            TRACK_MINMAX(tmp, min_c, max_c);
+//            vx_delta_h3_sum[tetlistSorted[i][1]] += tmp;
+
+//            tmp = -d_h1h2_down + d_h2h3_down;
+//            TRACK_MINMAX(tmp, min_d, max_d);
+//            vx_delta_h4_sum[tetlistSorted[i][1]] += tmp;
+
+//            // Vertex 2
+//            tmp = -a_h2h3 + a_h3h4;
+//            TRACK_MINMAX(tmp, min_a, max_a);
+//            vx_delta_h1_sum[tetlistSorted[i][2]] += tmp;
+
+//            tmp = -b_h2h3 + b_h3h4;
+//            TRACK_MINMAX(tmp, min_b, max_b);
+//            vx_delta_h2_sum[tetlistSorted[i][2]] += tmp;
+
+//            tmp = -c_h2h3 + c_h3h4;
+//            TRACK_MINMAX(tmp, min_c, max_c);
+//            vx_delta_h3_sum[tetlistSorted[i][2]] += tmp;
+
+//            tmp = -d_h2h3_down + d_h3h4;
+//            TRACK_MINMAX(tmp, min_d, max_d);
+//            vx_delta_h4_sum[tetlistSorted[i][2]] += tmp;
+
+//            // Vertex 3
+//            tmp = -a_h3h4;
+//            TRACK_MINMAX(tmp, min_a, max_a);
+//            vx_delta_h1_sum[tetlistSorted[i][3]] += tmp;
+
+//            tmp = -b_h3h4;
+//            TRACK_MINMAX(tmp, min_b, max_b);
+//            vx_delta_h2_sum[tetlistSorted[i][3]] += tmp;
+
+//            tmp = -c_h3h4;
+//            TRACK_MINMAX(tmp, min_c, max_c);
+//            vx_delta_h3_sum[tetlistSorted[i][3]] += tmp;
+
+//            tmp = -d_h3h4;
+//            TRACK_MINMAX(tmp, min_d, max_d);
+//            vx_delta_h4_sum[tetlistSorted[i][3]] += tmp;
+
         }
+
+//        printf("Dynamic range A: %Le - %Le\n", max_a, min_a);
+//        printf("Dynamic range B: %Le - %Le\n", max_b, min_b);
+//        printf("Dynamic range C: %Le - %Le\n", max_c, min_c);
+//        printf("Dynamic range D: %Le - %Le\n", max_d, min_d);
+
+//        printf("Dynamic range A: %Le\n", fabsl(max_a) / fabsl(min_a));
+//        printf("Dynamic range B: %Le\n", fabsl(max_b) / fabsl(min_b));
+//        printf("Dynamic range C: %Le\n", fabsl(max_c) / fabsl(min_c));
+//        printf("Dynamic range D: %Le\n", fabsl(max_d) / fabsl(min_d));
 
 
 
