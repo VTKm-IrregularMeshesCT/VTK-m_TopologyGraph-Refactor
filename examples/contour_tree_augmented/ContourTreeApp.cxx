@@ -110,7 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
-#define WRITE_FILES 1
+#define WRITE_FILES 0
 
 //using vtkm::FloatDefault = vtkm::Float64;
 

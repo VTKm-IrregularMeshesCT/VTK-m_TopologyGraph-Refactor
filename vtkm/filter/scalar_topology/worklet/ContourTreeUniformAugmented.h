@@ -102,7 +102,7 @@
 #include <unistd.h>
 
 #define PACT_DEBUG 0
-#define WRITE_FILES 1
+#define WRITE_FILES 0
 
 using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
 
@@ -716,7 +716,7 @@ private:
     // Stage 1: Load the data into the mesh. This is done in the Run() method above and accessible
     //          here via the mesh parameter. The actual data load is performed outside of the
     //          worklet in the example contour tree app (or whoever uses the worklet)
-    /// DEBUG PRINT std::cout << "S1. {worklet/ContourTreeUniformAugmented.h : RunContourTree}\n";
+    std::cout << "S1. {worklet/ContourTreeUniformAugmented.h : RunContourTree}\n";
     // Stage 2 : Sort the data on the mesh to initialize sortIndex & indexReverse on the mesh
     // Start the timer for the mesh sort
     /// DEBUG PRINT std::cout << "S2\n";
@@ -863,7 +863,10 @@ private:
 
     // Log the collected timing results in one coherent log entry
     this->TimingsLogString = timingsStream.str();
-    if (this->TimingsLogLevel != vtkm::cont::LogLevel::Off)
+
+    std::cout << this->TimingsLogString << std::endl;
+
+//    if (this->TimingsLogLevel != vtkm::cont::LogLevel::Off) ALWAYS LOG CONTOUR TREE PARCEL BASED
     {
       VTKM_LOG_S(this->TimingsLogLevel,
                  std::endl
