@@ -765,7 +765,7 @@ vtkm::cont::DataSet ContourTreeAugmented::DoExecute(const vtkm::cont::DataSet& i
 //      // std::unordered_map<vtkm::Id, std::set<vtkm::Id>>adjacency_list = MakeAdjacencyTetrahedron(input.GetCellSet().AsCellSet<TetCellSet>().GetConnectivityArray(vtkm::TopologyElementTagCell{}, vtkm::TopologyElementTagPoint{}));
 
 //      printMemoryUsage("[ContourTreeUniformAugmented.cxx] AFTER MakeAdjacencyTetrahedron");
-//      std::cout << "\t\t (2) Time-to-here: " << profiling2.GetElapsedTime() << " seconds" << std::endl;
+      std::cout << "\t\t (2) Time-to-here: " << profiling2.GetElapsedTime() << " seconds" << std::endl;
       profiling3.Start();
 
 //      // First, compute total sizes:
