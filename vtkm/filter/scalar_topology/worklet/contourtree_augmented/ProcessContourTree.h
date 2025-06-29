@@ -2208,6 +2208,197 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
   } // ComputeVolumeBranchDecomposition()
 
+
+
+  // routine to compute the volume for each hyperarc and superarc
+  void static ComputeVolumeWeightsSerial(const ContourTree& contourTree,
+                                         const vtkm::Id nIterations,
+                                         IdArrayType& superarcIntrinsicWeight,
+                                         IdArrayType& superarcDependentWeight,
+                                         IdArrayType& supernodeTransferWeight,
+                                         IdArrayType& hyperarcDependentWeight)
+  { // ContourTreeMaker::ComputeWeights()
+    // start by storing the first sorted vertex ID for each superarc
+    IdArrayType firstVertexForSuperparent;
+    firstVertexForSuperparent.Allocate(contourTree.Superarcs.GetNumberOfValues());
+    superarcIntrinsicWeight.Allocate(contourTree.Superarcs.GetNumberOfValues());
+    auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.WritePortal();
+    auto firstVertexForSuperparentPortal = firstVertexForSuperparent.WritePortal();
+    auto superparentsPortal = contourTree.Superparents.ReadPortal();
+    auto hyperparentsPortal = contourTree.Hyperparents.ReadPortal();
+    auto hypernodesPortal = contourTree.Hypernodes.ReadPortal();
+    auto hyperarcsPortal = contourTree.Hyperarcs.ReadPortal();
+    // auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+    auto nodesPortal = contourTree.Nodes.ReadPortal();
+    // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
+    for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+    { // per node in sorted order
+      vtkm::Id sortID = nodesPortal.Get(sortedNode);
+      vtkm::Id superparent = superparentsPortal.Get(sortID);
+      if (sortedNode == 0)
+        firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+      else if (superparent != superparentsPortal.Get(nodesPortal.Get(sortedNode - 1)))
+        firstVertexForSuperparentPortal.Set(superparent, sortedNode);
+    } // per node in sorted order
+    // now we use that to compute the intrinsic weights
+    for (vtkm::Id superarc = 0; superarc < contourTree.Superarcs.GetNumberOfValues(); superarc++)
+      if (superarc == contourTree.Superarcs.GetNumberOfValues() - 1)
+        superarcIntrinsicWeightPortal.Set(superarc,
+                                          contourTree.Arcs.GetNumberOfValues() -
+                                            firstVertexForSuperparentPortal.Get(superarc));
+      else
+        superarcIntrinsicWeightPortal.Set(superarc,
+                                          firstVertexForSuperparentPortal.Get(superarc + 1) -
+                                            firstVertexForSuperparentPortal.Get(superarc));
+
+    // now initialise the arrays for transfer & dependent weights
+    vtkm::cont::ArrayCopy(
+      vtkm::cont::ArrayHandleConstant<vtkm::Id>(0, contourTree.Superarcs.GetNumberOfValues()),
+      superarcDependentWeight);
+    vtkm::cont::ArrayCopy(
+      vtkm::cont::ArrayHandleConstant<vtkm::Id>(0, contourTree.Supernodes.GetNumberOfValues()),
+      supernodeTransferWeight);
+    vtkm::cont::ArrayCopy(
+      vtkm::cont::ArrayHandleConstant<vtkm::Id>(0, contourTree.Hyperarcs.GetNumberOfValues()),
+      hyperarcDependentWeight);
+
+    // set up the array which tracks which supernodes to deal with on which iteration
+    auto firstSupernodePerIterationPortal = contourTree.FirstSupernodePerIteration.ReadPortal();
+    auto firstHypernodePerIterationPortal = contourTree.FirstHypernodePerIteration.ReadPortal();
+    auto supernodeTransferWeightPortal = supernodeTransferWeight.WritePortal();
+    auto superarcDependentWeightPortal = superarcDependentWeight.WritePortal();
+    auto hyperarcDependentWeightPortal = hyperarcDependentWeight.WritePortal();
+
+    /*
+    vtkm::cont::ArrayCopy(vtkm::cont::ArrayHandleConstant<vtkm::Id>(0, nIterations + 1),
+                          firstSupernodePerIteration);
+    auto firstSupernodePerIterationPortal = firstSupernodePerIteration.WritePortal();
+    for (vtkm::Id supernode = 0; supernode < contourTree.Supernodes.GetNumberOfValues();
+         supernode++)
+    { // per supernode
+      vtkm::Id when = MaskedIndex(whenTransferredPortal.Get(supernode));
+      if (supernode == 0)
+      { // zeroth supernode
+        firstSupernodePerIterationPortal.Set(when, supernode);
+      } // zeroth supernode
+      else if (when != MaskedIndex(whenTransferredPortal.Get(supernode - 1)))
+      { // non-matching supernode
+        firstSupernodePerIterationPortal.Set(when, supernode);
+      } // non-matching supernode
+    }   // per supernode
+    for (vtkm::Id iteration = 1; iteration < nIterations; ++iteration)
+      if (firstSupernodePerIterationPortal.Get(iteration) == 0)
+        firstSupernodePerIterationPortal.Set(iteration,
+                                             firstSupernodePerIterationPortal.Get(iteration + 1));
+
+    // set the sentinel at the end of the array
+    firstSupernodePerIterationPortal.Set(nIterations, contourTree.Supernodes.GetNumberOfValues());
+
+    // now use that array to construct a similar array for hypernodes
+    IdArrayType firstHypernodePerIteration;
+    firstHypernodePerIteration.Allocate(nIterations + 1);
+    auto firstHypernodePerIterationPortal = firstHypernodePerIteration.WritePortal();
+    auto supernodeTransferWeightPortal = supernodeTransferWeight.WritePortal();
+    auto superarcDependentWeightPortal = superarcDependentWeight.WritePortal();
+    auto hyperarcDependentWeightPortal = hyperarcDependentWeight.WritePortal();
+    for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+      firstHypernodePerIterationPortal.Set(
+        iteration, hyperparentsPortal.Get(firstSupernodePerIterationPortal.Get(iteration)));
+    firstHypernodePerIterationPortal.Set(nIterations, contourTree.Hypernodes.GetNumberOfValues());
+    */
+
+    // now iterate, propagating weights inwards
+    for (vtkm::Id iteration = 0; iteration < nIterations; iteration++)
+    { // per iteration
+      // pull the array bounds into register
+      vtkm::Id firstSupernode = firstSupernodePerIterationPortal.Get(iteration);
+      vtkm::Id lastSupernode = firstSupernodePerIterationPortal.Get(iteration + 1);
+      vtkm::Id firstHypernode = firstHypernodePerIterationPortal.Get(iteration);
+      vtkm::Id lastHypernode = firstHypernodePerIterationPortal.Get(iteration + 1);
+
+      // Recall that the superarcs are sorted by (iteration, hyperarc), & that all superarcs for a given hyperarc are processed
+      // in the same iteration.  Assume therefore that:
+      //      i. we now have the intrinsic weight assigned for each superarc, and
+      // ii. we also have the transfer weight assigned for each supernode.
+      //
+      // Suppose we have a sequence of superarcs
+      //                      s11 s12 s13 s14 s21 s22 s23 s31
+      // with transfer weights at their origins and intrinsic weights along them
+      //      sArc                     s11 s12 s13 s14 s21 s22 s23 s31
+      //      transfer wt               0   1   2   1   2   3   1   0
+      //      intrinsic wt              1   2   1   5   2   6   1   1
+      //
+      //  now, if we do a prefix sum on each of these and add the two sums together, we get:
+      //      sArc                                  s11 s12 s13 s14 s21 s22 s23 s31
+      //      hyperparent sNode ID                  s11 s11 s11 s11 s21 s21 s21 s31
+      //      transfer weight                       0   1   2   1   2   3   1   0
+      //      intrinsic weight                      1   2   1   5   2   6   1   1
+      //      sum(xfer + intrinsic)                 1   3   3   6   4   9   2   1
+      //  prefix sum (xfer + int)                   1   4   7  13  17  26  28  29
+      //  prefix sum (xfer + int - previous hArc)   1   4   7  13  4   13  15  16
+
+      // so, step 1: add xfer + int & store in dependent weight
+      for (vtkm::Id supernode = firstSupernode; supernode < lastSupernode; supernode++)
+      {
+        superarcDependentWeightPortal.Set(supernode,
+                                          supernodeTransferWeightPortal.Get(supernode) +
+                                            superarcIntrinsicWeightPortal.Get(supernode));
+      }
+
+      // step 2: perform prefix sum on the dependent weight range
+      for (vtkm::Id supernode = firstSupernode + 1; supernode < lastSupernode; supernode++)
+        superarcDependentWeightPortal.Set(supernode,
+                                          superarcDependentWeightPortal.Get(supernode) +
+                                            superarcDependentWeightPortal.Get(supernode - 1));
+
+      // step 3: subtract out the dependent weight of the prefix to the entire hyperarc. This will be a transfer, but for now, it's easier
+      // to show it in serial. NB: Loops backwards so that computation uses the correct value
+      // As a bonus, note that we test > firstsupernode, not >=.  This is because we've got unsigned integers, & otherwise it will not terminate
+      // But the first is always correct anyway (same reason as the short-cut termination on hyperparent), so we're fine
+      for (vtkm::Id supernode = lastSupernode - 1; supernode > firstSupernode; supernode--)
+      { // per supernode
+        // retrieve the hyperparent & convert to a supernode ID
+        vtkm::Id hyperparent = hyperparentsPortal.Get(supernode);
+        vtkm::Id hyperparentSuperID = hypernodesPortal.Get(hyperparent);
+
+        // if the hyperparent is the first in the sequence, dependent weight is already correct
+        if (hyperparent == firstHypernode)
+          continue;
+
+        // otherwise, subtract out the dependent weight *immediately* before the hyperparent's supernode
+        superarcDependentWeightPortal.Set(
+          supernode,
+          superarcDependentWeightPortal.Get(supernode) -
+            superarcDependentWeightPortal.Get(hyperparentSuperID - 1));
+      } // per supernode
+
+      // step 4: transfer the dependent weight to the hyperarc's target supernode
+      for (vtkm::Id hypernode = firstHypernode; hypernode < lastHypernode; hypernode++)
+      { // per hypernode
+        // last superarc for the hyperarc
+        vtkm::Id lastSuperarc;
+        // special case for the last hyperarc
+        if (hypernode == contourTree.Hypernodes.GetNumberOfValues() - 1)
+          // take the last superarc in the array
+          lastSuperarc = contourTree.Supernodes.GetNumberOfValues() - 1;
+        else
+          // otherwise, take the next hypernode's ID and subtract 1
+          lastSuperarc = hypernodesPortal.Get(hypernode + 1) - 1;
+
+        // now, given the last superarc for the hyperarc, transfer the dependent weight
+        hyperarcDependentWeightPortal.Set(hypernode,
+                                          superarcDependentWeightPortal.Get(lastSuperarc));
+
+        // note that in parallel, this will have to be split out as a sort & partial sum in another array
+        vtkm::Id hyperarcTarget = MaskedIndex(hyperarcsPortal.Get(hypernode));
+        supernodeTransferWeightPortal.Set(hyperarcTarget,
+                                          supernodeTransferWeightPortal.Get(hyperarcTarget) +
+                                            hyperarcDependentWeightPortal.Get(hypernode));
+      } // per hypernode
+    }   // per iteration
+  }     // ContourTreeMaker::ComputeWeights()
+
+
   // routine to compute the branch decomposition by volume
   void static ComputeBranchData(const ContourTree& contourTree,
                                 IdArrayType& whichBranch,       // (output)
