@@ -88,6 +88,11 @@
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/HypersweepWorklets.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/processcontourtree/PointerDoubling.h>
 
+
+// For 2025-10 2025 October Betti Insertion:
+// wrong #include <vtkm/filter/scalar_topology/worklet/contourtree_distributed/hierarchical_augmenter/ResizeArraysBuildNewSupernodeIdsWorklet.h>
+#include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/Types.h> // actually defined the ResizeVector
+
 // for sleeping
 #include <chrono>
 #include <thread>
@@ -188,6 +193,18 @@ struct Tetrahedron
     int p4;
 };
 
+
+struct BettiCoefficients
+{
+    long num_vtx;
+    long num_edg;
+    long num_fac;
+    long num_tet;
+
+    long betti0;
+    long betti1;
+    long betti3;
+};
 
 struct Coefficients
 {
@@ -599,6 +616,756 @@ public:
 
 
 
+
+
+
+
+
+
+
+    // Hash and equality for 3-vertex faces
+    struct FaceHash {
+        std::size_t operator()(const std::array<vtkm::Id, 3>& f) const noexcept {
+            return std::hash<vtkm::Id>()(f[0]) ^ (std::hash<vtkm::Id>()(f[1]) << 1) ^ (std::hash<vtkm::Id>()(f[2]) << 2);
+        }
+    };
+    struct FaceEq {
+        bool operator()(const std::array<vtkm::Id, 3>& a, const std::array<vtkm::Id, 3>& b) const noexcept {
+            return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+        }
+    };
+
+    struct TriangleFace {
+        vtkm::Id v0, v1, v2;
+        bool boundary;
+    };
+
+    std::vector<TriangleFace> static GetTrianglesWithBoundary(const vtkm::cont::DataSet& input,
+                                                       bool onlyBoundary = false)
+    {
+        using TetCellSet = vtkm::cont::CellSetSingleType<>;
+
+        const auto& unknown = input.GetCellSet();
+        if (!unknown.IsType<TetCellSet>()) {
+            throw std::runtime_error("Error: Dataset does not contain CellSetSingleType<> (tets).");
+        }
+
+        const auto& cellSet = unknown.AsCellSet<TetCellSet>();
+        vtkm::Id numCells = cellSet.GetNumberOfCells();
+
+        std::unordered_map<std::array<vtkm::Id, 3>, int, FaceHash, FaceEq> faceCounter;
+
+        // Loop over all tets and count their faces
+        for (vtkm::Id cellId = 0; cellId < numCells; ++cellId) {
+            vtkm::Id ptIds[4];
+            cellSet.GetCellPointIds(cellId, ptIds);
+
+            // Each tetrahedron has 4 triangular faces
+            std::array<std::array<vtkm::Id, 3>, 4> faces = {{
+                {ptIds[0], ptIds[1], ptIds[2]},
+                {ptIds[0], ptIds[1], ptIds[3]},
+                {ptIds[0], ptIds[2], ptIds[3]},
+                {ptIds[1], ptIds[2], ptIds[3]}
+            }};
+
+            for (auto& f : faces) {
+                std::sort(f.begin(), f.end()); // canonical order
+                faceCounter[f]++;
+            }
+        }
+
+        // Build result
+        std::vector<TriangleFace> result;
+        result.reserve(faceCounter.size());
+
+        for (const auto& [f, count] : faceCounter) {
+            bool isBoundary = (count == 1);
+            if (onlyBoundary && !isBoundary)
+                continue;
+
+            result.push_back({f[0], f[1], f[2], isBoundary});
+        }
+
+        // Sort by vertex indices for deterministic output
+        std::sort(result.begin(), result.end(),
+                  [](const TriangleFace& a, const TriangleFace& b) {
+                      if (a.v0 != b.v0) return a.v0 < b.v0;
+                      if (a.v1 != b.v1) return a.v1 < b.v1;
+                      return a.v2 < b.v2;
+                  });
+
+        return result;
+    }
+
+
+
+
+
+
+
+    // Hash and equality for 2-vertex edges
+    struct EdgeHash {
+        std::size_t operator()(const std::array<vtkm::Id, 2>& e) const noexcept {
+            return std::hash<vtkm::Id>()(e[0]) ^ (std::hash<vtkm::Id>()(e[1]) << 1);
+        }
+    };
+    struct EdgeEq {
+        bool operator()(const std::array<vtkm::Id, 2>& a, const std::array<vtkm::Id, 2>& b) const noexcept {
+            return a[0] == b[0] && a[1] == b[1];
+        }
+    };
+
+    // A simple edge struct for clarity
+    struct Edge {
+        vtkm::Id v0, v1;
+    };
+
+    std::vector<Edge> static GetEdgesFromVTK(const vtkm::cont::DataSet& input)
+    {
+        using TetCellSet = vtkm::cont::CellSetSingleType<>;
+
+        const auto& unknown = input.GetCellSet();
+        if (!unknown.IsType<TetCellSet>()) {
+            throw std::runtime_error("Error: Dataset does not contain CellSetSingleType<> (expected tetrahedra).");
+        }
+
+        const auto& cellSet = unknown.AsCellSet<TetCellSet>();
+        vtkm::Id numCells = cellSet.GetNumberOfCells();
+
+        std::unordered_set<std::array<vtkm::Id, 2>, EdgeHash, EdgeEq> edgeSet;
+
+        for (vtkm::Id cellId = 0; cellId < numCells; ++cellId) {
+            vtkm::Id ptIds[4];
+            cellSet.GetCellPointIds(cellId, ptIds);
+
+            // Ensure each tetrahedron's vertex order is canonical
+            std::sort(ptIds, ptIds + 4);
+
+            // Add all 6 unique edges per tetrahedron
+            std::array<std::array<vtkm::Id, 2>, 6> edges = {{
+                {ptIds[0], ptIds[1]},
+                {ptIds[0], ptIds[2]},
+                {ptIds[0], ptIds[3]},
+                {ptIds[1], ptIds[2]},
+                {ptIds[1], ptIds[3]},
+                {ptIds[2], ptIds[3]}
+            }};
+
+            for (auto& e : edges) {
+                std::sort(e.begin(), e.end());
+                edgeSet.insert(e);
+            }
+        }
+
+        // Move to a sorted vector for deterministic output
+        std::vector<Edge> result;
+        result.reserve(edgeSet.size());
+        for (const auto& e : edgeSet)
+            result.push_back({e[0], e[1]});
+
+        std::sort(result.begin(), result.end(),
+                  [](const Edge& a, const Edge& b) {
+                      return (a.v0 < b.v0) || (a.v0 == b.v0 && a.v1 < b.v1);
+                  });
+
+        return result;
+    }
+
+
+
+
+    void static LUstars(// INPUTS
+                        int numVertices, // in sort order, enough to have the total number, since we start from 0 incrementing by 1 up to N
+                        std::vector<Edge>&              edges,
+                        std::vector<TriangleFace>&      triangles,
+                        std::vector<std::vector<int>>&  tetrahedra,
+                        // OUTPUTS
+                        std::vector<int>& lowerStars,
+                        std::vector<int>& upperStars,
+                        std::vector<int>& deltaBoundary)
+    {
+        // 1. initialise LU, US, dB:
+        lowerStars.resize(numVertices, 1);
+        upperStars.resize(numVertices, 1);
+        deltaBoundary.resize(numVertices, 0);
+        std::cout << "LU\tUS\tdB:" << std::endl;
+        for(int i = 0; i < numVertices; i++)
+        {
+            std::cout << i << "\t" << lowerStars[i] << "\t" << upperStars[i] << "\t" << deltaBoundary[i] << std::endl;
+        }
+
+        // 2. for each edge:
+        int i,j;
+        for(int it = 0; it < edges.size(); it++)
+        {
+            i = edges[it].v0;
+            j = edges[it].v1;
+            if(i < j)
+            {
+                lowerStars[j]--;
+                upperStars[i]--;
+            }
+        }
+
+        std::cout << "(Edge)LU\tUS\tdB:" << std::endl;
+        for(int i = 0; i < numVertices; i++)
+        {
+            std::cout << i << "\t" << lowerStars[i] << "\t" << upperStars[i] << "\t" << deltaBoundary[i] << std::endl;
+        }
+
+        // 3. for each edge:
+        i=0;
+        j=0;
+        int k;
+        bool b;
+        for(int it = 0; it < triangles.size(); it++)
+        {
+            i = triangles[it].v0;
+            j = triangles[it].v1;
+            k = triangles[it].v2;
+            b = triangles[it].boundary;
+            if ((i < j) && (j < k))
+            {
+                lowerStars[k]++;
+                upperStars[i]++;
+                if (b)
+                {
+                    deltaBoundary[k]--;
+                    deltaBoundary[i]++;
+                }
+            }
+        }
+
+        std::cout << "(Triangle)LU\tUS\tdB:" << std::endl;
+        for(int i = 0; i < numVertices; i++)
+        {
+            std::cout << i << "\t" << lowerStars[i] << "\t" << upperStars[i] << "\t" << deltaBoundary[i] << std::endl;
+        }
+
+        // 3. for each tetrahedron:
+        i=0;
+        j=0;
+        k=0;
+        int l;
+        for(int it = 0; it < tetrahedra.size(); it++)
+        {
+            i = tetrahedra[it][0];
+            j = tetrahedra[it][1];
+            k = tetrahedra[it][2];
+            l = tetrahedra[it][3];
+
+            if ((i < j) && (j < k) && (k < l))
+            {
+                lowerStars[l]--;
+                upperStars[i]--;
+            }
+        }
+
+        std::cout << "(Tet)LU\tUS\tdB:" << std::endl;
+        for(int i = 0; i < numVertices; i++)
+        {
+            std::cout << i << "\t" << lowerStars[i] << "\t" << upperStars[i] << "\t" << deltaBoundary[i] << std::endl;
+        }
+
+    }
+
+
+
+
+   // 2025-10-11 COMPUTE BETTI NUMBERS FOR EACH REGULAR BRANCH
+   // BASED ON 2004 Pascucci Parallel Computation of the Topology of Level Sets
+    void static ComputeBettiNumbersForRegularArcs(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
+                                                  const ContourTree& contourTree,
+                                                  const vtkm::Id nIterations,
+                                                  vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff, // (output)
+                                                  vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff, // (output)
+                                                  vtkm::cont::ArrayHandle<Coefficients>& supernodeTransferWeightCoeff, // (output)
+                                                  vtkm::cont::ArrayHandle<Coefficients>& hyperarcDependentWeightCoeff, // (output)
+                                                  // Added 2025-01-30
+                                                  // We use simple weights for the branch decomposition
+                                                  FloatArrayType& superarcIntrinsicWeight, // (output)
+                                                  FloatArrayType& superarcDependentWeight, // (output)
+                                                  FloatArrayType& supernodeTransferWeight, // (output)
+                                                  FloatArrayType& hyperarcDependentWeight) // (output))
+    {
+        std::cout << "[ProcessContourTree.h::ComputeBettiNumbersForRegularArcs] Compute Betti Numbers for each Regular Arc" << std::endl;
+        printMemoryUsage("[ProcessContourTree.h::ComputeVolumeWeightsSerialStructCoefficients] Checkpoint 1/4 - START");
+
+        using TetCellSet = vtkm::cont::CellSetSingleType<>;
+        const auto& unknown = input.GetCellSet();
+
+
+        std::vector<int> lowerStars;
+        std::vector<int> upperStars;
+        std::vector<int> deltaBoundary;
+        if (unknown.IsType<TetCellSet>())
+        {
+            const auto& cellSet = unknown.AsCellSet<TetCellSet>();
+            vtkm::Id numCells = cellSet.GetNumberOfCells();
+
+            std::vector<std::vector<int>> tetlistSorted(numCells,                 // size
+                                                        std::vector<int> (4, 0)); // 4 ints (vertices) per tet initialised to 0
+
+            std::cout << "Number of tets: " << numCells << std::endl;
+
+            for (vtkm::Id cellId = 0; cellId < numCells; ++cellId)
+            {
+                vtkm::IdComponent npts = cellSet.GetNumberOfPointsInCell(cellId);
+                vtkm::Id ptIds[4];
+                cellSet.GetCellPointIds(cellId, ptIds);
+                // process tetrahedron here
+                std::cout << cellId << "\t" << ptIds[0] << "\t" << ptIds[1] << "\t" << ptIds[2] << "\t" << ptIds[3] << std::endl;
+                tetlistSorted[cellId][0] = ptIds[0];
+                tetlistSorted[cellId][1] = ptIds[1];
+                tetlistSorted[cellId][2] = ptIds[2];
+                tetlistSorted[cellId][3] = ptIds[3];
+            }
+
+            std::cout << "Tetrahedra | Expecting Last:\n383\t0\t1\t6\t124" << std::endl;
+
+            //  Sort connected tetrahedral vertices in increasing order
+            // (then we can assume the first vertex of the tet holds the lowest value)
+            for (int i = 0; i < numCells; i++)
+            {// for each tet
+                std::sort(tetlistSorted[i].begin(), tetlistSorted[i].end());
+            }// for each tet
+
+            // Print the sorted tets for checking against a manually computed list:
+            for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
+            {
+                std::cout << i << "\t" << tetlistSorted[i][0]
+                               << "\t" << tetlistSorted[i][1]
+                               << "\t" << tetlistSorted[i][2]
+                               << "\t" << tetlistSorted[i][3] << std::endl;
+            }
+
+            std::cout << "Tetrahedra | Expecting Last:\n383\t0\t1\t6\t124" << std::endl;
+
+            auto triangles = GetTrianglesWithBoundary(input, /*onlyBoundary=*/false);
+
+            int triangle_id = 0;
+            for (const auto& tri : triangles)
+            {
+                std::cout << triangle_id
+                          << "\t" << tri.v0 << "\t" << tri.v1 << "\t" << tri.v2
+                          << "\t" << tri.boundary << "\n";
+                triangle_id++;
+            }
+
+            std::cout << "Triangles | Expecting Last:\n863	112	116	119	0" << std::endl;
+
+            auto edges = GetEdgesFromVTK(input);
+            std::cout << "Number of unique edges: " << edges.size() << "\n";
+
+            int edge_id = 0;
+            for (const auto& e : edges) {
+                std::cout << edge_id
+                          << "\t" << e.v0 << "\t" << e.v1 << "\n";
+            }
+
+            std::cout << "Edges | Expecting Last:\n603	120	124" << std::endl;
+
+            std::cout << "Running LUstars ..." << std::endl;
+            LUstars(contourTree.Arcs.GetNumberOfValues(),
+                    edges,
+                    triangles,
+                    tetlistSorted,
+                    lowerStars,
+                    upperStars,
+                    deltaBoundary);
+
+        }
+
+        std::cout << "Betti Number Regular Instrinsic Pre-Processing:" << std::endl;
+
+        auto nodesPortal = contourTree.Nodes.ReadPortal();
+        auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+        auto supernodesPortal = contourTree.Supernodes.ReadPortal();
+        auto superparentsPortal = contourTree.Superparents.ReadPortal();
+
+        std::vector<vtkm::Id> chi_xij, chi_x;
+        std::vector<vtkm::Id> be_ij,   bei;
+        chi_xij.resize( contourTree.Arcs.GetNumberOfValues(), 0);
+        chi_x.resize(   contourTree.Arcs.GetNumberOfValues(), 0);
+        bei.resize(     contourTree.Arcs.GetNumberOfValues(), 0);
+        be_ij.resize(   contourTree.Arcs.GetNumberOfValues(), 0);
+
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+        {// for each sortedNode
+            vtkm::Id i_sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id i_superparent = superparentsPortal.Get(i_sortID);
+
+            vtkm::Id j_sortID = nodesPortal.Get(sortedNode+1);
+            vtkm::Id j_superparent = superparentsPortal.Get(j_sortID );
+
+            vtkm::Id tailend = supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(i_superparent)));
+
+            vtkm::Id delta = 1;
+
+            if (i_superparent == j_superparent)
+            {
+                tailend = j_sortID;
+            }
+
+            std::cout << sortedNode << "\t" << i_sortID << "\t" << tailend << std::endl;
+
+            if(i_sortID > tailend)
+            {
+                delta = -1;
+            }
+
+            chi_xij[sortedNode] = delta * (chi_x[i_sortID] - upperStars[i_sortID] + lowerStars[i_sortID]);
+            be_ij[sortedNode]   = delta * (bei[i_sortID] + deltaBoundary[i_sortID]);
+
+            chi_x[tailend] += delta * chi_xij[sortedNode];
+            bei[tailend] += delta * be_ij[sortedNode];
+        }
+
+        std::vector<vtkm::Id> regular_nodes_to_insert;
+        std::vector<vtkm::Id> node_ascend;
+
+        std::vector<vtkm::Id> nodes_to_relabel_hyperparent;
+        std::vector<double> nodes_to_relabel_dataflip;
+        std::vector<vtkm::Id> nodes_to_relabel_regularID;
+        int previous_betti1 = 0;
+
+
+        std::cout << "VTK-m FIELDS:" << std::endl;
+        // Loop over all fields
+        const vtkm::cont::Field& field = input.GetPointField("var");
+
+        // Get the UnknownArrayHandle
+        vtkm::cont::UnknownArrayHandle ua = field.GetData();
+
+        // Cast to the correct array type:
+        // (replace float with the actual value type)
+        vtkm::cont::ArrayHandle<double> array;
+        ua.AsArrayHandle(array);
+
+        // Get read-only access
+        auto dataPortal = array.ReadPortal();
+        vtkm::Id n = dataPortal.GetNumberOfValues();
+
+        for (vtkm::Id i = 0; i < n; ++i)
+        {
+            std::cout << i << "\t" << dataPortal.Get(i) << std::endl;
+        }
+
+
+//        auto superparentsPortal = contourTree.Superparents.ReadPortal();
+        auto hyperparentsPortal = contourTree.Hyperparents.ReadPortal();
+        auto hypernodesPortal = contourTree.Hypernodes.ReadPortal();
+        auto hyperarcsPortal = contourTree.Hyperarcs.ReadPortal();
+//        auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+//        auto nodesPortal = contourTree.Nodes.ReadPortal();
+
+
+        std::cout << "Euler chi & delta border edges" << std::endl;
+        for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
+        {
+            vtkm::Id i_sortID = nodesPortal.Get(sortedNode);
+            vtkm::Id i_superparent = superparentsPortal.Get(i_sortID);
+
+            vtkm::Id j_sortID = nodesPortal.Get(sortedNode+1);
+            vtkm::Id j_superparent = superparentsPortal.Get(j_sortID );
+
+            vtkm::Id tailend = supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(i_superparent)));
+
+            vtkm::Id delta = 1;
+
+            if (i_superparent == j_superparent)
+            {
+                tailend = j_sortID;
+            }
+
+            vtkm::Id betti0 = 1;
+            vtkm::Id betti1 = 1;
+            vtkm::Id betti2 = 1;
+
+            if(be_ij[sortedNode] > 0)
+            {
+                betti2 = 0; // no void, border detected
+            }
+
+            betti1 = betti0 + betti2 - chi_xij[sortedNode];
+
+            std::cout << std::setw(10) << i_sortID << "->" << tailend << "\t" << chi_xij[sortedNode] << "\t" << be_ij[sortedNode]
+                                  << "\t" << betti0 << "\t" << betti1 << "\t" << betti2;//<< std::endl;
+
+            std::cout << "\t\t" << i_sortID << "\t" << supernodesPortal.Get(i_superparent);
+            std::cout << "\t\t" << i_sortID << "\t" << supernodesPortal.Get(i_superparent) << std::endl;
+
+
+            if(betti1 != previous_betti1)
+            {
+                regular_nodes_to_insert.push_back(i_sortID);
+
+                nodes_to_relabel_hyperparent.push_back(hyperparentsPortal.Get(i_superparent));
+                nodes_to_relabel_regularID.push_back(i_sortID);
+
+                if(i_sortID > tailend)
+                {
+                    node_ascend.push_back(-1);
+                    nodes_to_relabel_dataflip.push_back(dataPortal.Get(i_sortID) * -1.0);
+                }
+                else
+                {
+                    node_ascend.push_back(1);
+                    nodes_to_relabel_dataflip.push_back(dataPortal.Get(i_sortID) * 1.0);
+                }
+
+            }
+            else
+            {// if betti number didn't change, but dealing with a supernode ...
+             // ... still need to relabel it
+                if(i_sortID == supernodesPortal.Get(i_superparent))
+                {
+                    nodes_to_relabel_hyperparent.push_back(hyperparentsPortal.Get(i_superparent));
+                    nodes_to_relabel_regularID.push_back(i_sortID);
+
+                    if(i_sortID > tailend)
+                    {
+                        node_ascend.push_back(-1);
+                        nodes_to_relabel_dataflip.push_back(dataPortal.Get(i_sortID) * -1.0);
+                    }
+                    else
+                    {
+                        node_ascend.push_back(1);
+                        nodes_to_relabel_dataflip.push_back(dataPortal.Get(i_sortID) * 1.0);
+                    }
+
+                }
+            }
+
+            previous_betti1 = betti1;
+        }
+
+
+        std::cout << "Augment the tree with Betti Numbers ..." << std::endl;
+
+//        for(int i = 0; i < ; i++)
+//        {
+//            vtkm::Id regularId = nodesPortal.Get(sortID);
+//            vtkm::Id superparentId = superparentsPortal.Get(regularId);
+//            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
+//        }
+
+        for(int i = 0; i < regular_nodes_to_insert.size(); i++)
+        {
+            std::cout << regular_nodes_to_insert[i] << std::endl;
+        }
+
+
+        // Augment the tree with Betti Numbers
+//        HierarchicalAugmenter<MESH_TRIANGULATION_T> betti_augmenter;
+//        betti_augmenter.Initialize(block, &hierarchicalTrees[block], &augmentedTrees[block], &meshes[block]);
+//        betti_augmenter.BuildAugmentedTree();
+
+        std::cout << "Nodes" << std::endl;
+        for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
+        {
+            vtkm::Id regularId = nodesPortal.Get(sortID);
+            std::cout << sortID << "\t" << regularId << std::endl;
+        }
+
+        std::cout << "Supernodes:" << std::endl;
+        for(int i = 0; i < supernodesPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << supernodesPortal.Get(i) << std::endl;
+        }
+        std::cout << "Superparents:" << std::endl;
+        for(int i = 0; i < superparentsPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << superparentsPortal.Get(i) << std::endl;
+        }
+        std::cout << "Superarcs:" << std::endl;
+        for(int i = 0; i < superarcsPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsPortal.Get(i));
+            std::cout << i << "\t" << maskedSuperarc << std::endl;
+        }
+
+        std::cout << "Hypernodes:" << std::endl;
+        for(int i = 0; i < hypernodesPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id hypernodeID = hypernodesPortal.Get(i);
+            vtkm::Id hyperparentID = hyperparentsPortal.Get(hypernodeID);
+            std::cout << i << "\t" << hypernodeID << std::endl; //<< "\t" << hyperparentID << std::endl;
+        }
+
+        std::cout << "Hyperparents:" << std::endl;
+        for(int i = 0; i < hyperparentsPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << ") " << hyperparentsPortal.Get(i) << std::endl;
+        }
+
+        std::cout << "Hyperarcs:" << std::endl;
+        for(int i = 0; i < hyperarcsPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id maskedHyperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(hyperarcsPortal.Get(i));
+            std::cout << i << "\t" << maskedHyperarc << std::endl;
+        }
+
+        std::cout << "node->supernode->superarc(superparent)->hypernode->hyperarc(hyperparent) mappings" << std::endl;
+        for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
+        {
+            vtkm::Id regularId = nodesPortal.Get(sortID);
+            vtkm::Id superparentId = superparentsPortal.Get(regularId);
+            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
+
+//            std::cout << sortID << ")" << regularID << "->" << superparentID << "(" << hyperparentID << ")" << std::endl;
+//            std::cout << sortID << "\t" << regularId << "\t" << superparentId << "\t" << hyperparentId << std::endl;
+
+//            std::cout << "Probing HyperPath\n";
+//            std::cout << "Node:        " << sortID << std::endl;
+//            std::cout << "Regular ID: ";
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(regularId, std::cout);
+//            resultStream << "  Value: " << vtkm::cont::ArrayGetValue(regularId, this->DataValues);
+//            resultStream << " Global ID: ";
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(
+//              vtkm::cont::ArrayGetValue(regularId, this->RegularNodeGlobalIds), std::cout);
+//            resultStream << " Regular ID: ";
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(regularId, std::cout);
+//            resultStream << " SNode ID: ";
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(
+//              vtkm::cont::ArrayGetValue(regularId, this->Regular2Supernode), std::cout);
+//            std::cout << "Superparents: ";
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(
+//              vtkm::cont::ArrayGetValue(regularId, contourTree.Superparents), std::cout << "\t");
+
+//            vtkm::Id hypertarget = vtkm::cont::ArrayGetValue(hyperparentId, contourTree.Hyperarcs);
+//            std::cout << "Hypertarget: " << vtkm::cont::ArrayGetValue(hypertarget, contourTree.Hyperarcs) << std::endl;
+//            std::cout << "Hypertargets: ";
+            vtkm::Id hypertarget = vtkm::cont::ArrayGetValue(hyperparentId, contourTree.Hyperarcs);
+            vtkm::Id maskedHypertarget = vtkm::worklet::contourtree_augmented::MaskedIndex(hypertarget);
+//            vtkm::worklet::contourtree_augmented::PrintIndexType(
+//              vtkm::cont::ArrayGetValue(hypertarget, contourTree.Superparents));
+//            std::cout << hypertarget << " - " /*<< vtkm::cont::ArrayGetValue(hypertarget, contourTree.Superparents)*/ << std::endl;
+
+            vtkm::Id supertarget = vtkm::cont::ArrayGetValue(superparentId, contourTree.Superarcs);
+            vtkm::Id maskedSupertarget = vtkm::worklet::contourtree_augmented::MaskedIndex(supertarget);
+//            std::cout << supertarget << " - " /*<< vtkm::cont::ArrayGetValue(supertarget, contourTree.Superparents)*/ << std::endl;
+
+             std::cout << sortID << "\t" << regularId << "\t" << superparentId << "(" << maskedSupertarget << ")"
+                       << "\t" << hyperparentId << "(" << maskedHypertarget << ")" << std::endl;
+        }
+
+
+
+        std::cout << "The BID array for rehooking up the super{hyper}structure:" << std::endl;
+        int num_betti_change_nodes = 10;
+        int bid_size = supernodesPortal.GetNumberOfValues() + num_betti_change_nodes;
+
+        using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
+
+        // following the template to resize arrays (from HierarchicalAugmenter.h ResizeArrays(vtkm::Id roundNumber):959)
+//        vtkm::worklet::contourtree_augmented::ResizeVector(
+//          &contourTree.Supernodes,
+//          bid_size,
+//          vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT);
+
+        // first    : sort on HP
+        // secondary: on data value (with its comparitor) with the flip ascending/descending
+        // tertiary : sort on regular ID (out of paranoia)
+//        std::cout << "id)\thpID\tval_filp\tregularID" << std::endl;
+//        for(int i = 0; i < supernodesPortal.GetNumberOfValues(); i++)
+//        {
+//            vtkm::Id regularId = supernodesPortal.Get(i);
+//            vtkm::Id superparentId = superparentsPortal.Get(regularId);
+//            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
+
+////            vtkm::Id i_sortID = supernodesPortal.Get(i+1);
+////            vtkm::Id i_superparent = superparentsPortal.Get(i_sortID);
+
+//            vtkm::Id regularId_j = supernodesPortal.Get(i+1);
+////            vtkm::Id j_superparent = superparentsPortal.Get(j_sortID );
+
+//            std::cout << i << ")  " << supernodesPortal.Get(i)
+//                      << "\t" << hyperparentId
+//                      << "\t" << regularId
+//                      << "\t(" << supernodesPortal.Get(superparentId) << ")"
+//                      << std::endl;
+//        }
+
+//        for(int i = 0; i < regular_nodes_to_insert.size(); i++)
+//        {
+//            vtkm::Id regularId = regular_nodes_to_insert[i];
+//            vtkm::Id superparentId = superparentsPortal.Get(regularId);
+//            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
+
+//            std::cout << i << ")  " << regular_nodes_to_insert[i]
+//                      << "\t" << hyperparentId
+//                      << "\t" << regularId
+//                      << "\t(" << supernodesPortal.Get(superparentId) << ")"
+//                      << std::endl;
+//        }
+        std::cout << "id)\thpID\tval_filp\tregularID" << std::endl;
+        for(int i = 0; i < nodes_to_relabel_regularID.size(); i++)
+        {
+//            vtkm::Id regularId = nodes_to_relabel_regularID[i];
+            vtkm::Id superparentId = superparentsPortal.Get(nodes_to_relabel_regularID[i]);
+            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
+
+            std::cout << i << ")  " << nodes_to_relabel_hyperparent[i]
+                           << "\t"  << nodes_to_relabel_dataflip[i]
+                           << "\t"  << nodes_to_relabel_regularID[i]
+                           << "\t(" << supernodesPortal.Get(superparentId) << ")"
+                           << std::endl;
+        }
+
+        vtkm::cont::ArrayHandle<vtkm::Id> ah_hyper;
+        ah_hyper.Allocate(nodes_to_relabel_hyperparent.size());
+        auto portal = ah_hyper.WritePortal();
+        for (vtkm::Id i = 0; i < vtkm::Id(nodes_to_relabel_hyperparent.size()); ++i)
+            portal.Set(i, nodes_to_relabel_hyperparent[i]);
+
+        vtkm::cont::ArrayHandle<double> ah_data;
+        ah_data.Allocate(nodes_to_relabel_dataflip.size());
+        auto portal_data = ah_data.WritePortal();
+        for (vtkm::Id i = 0; i < vtkm::Id(nodes_to_relabel_dataflip.size()); ++i)
+            portal_data.Set(i, nodes_to_relabel_dataflip[i]);
+
+        vtkm::cont::ArrayHandle<vtkm::Id> ah_regular;
+        ah_regular.Allocate(nodes_to_relabel_regularID.size());
+        auto portal_regular = ah_regular.WritePortal();
+        for (vtkm::Id i = 0; i < vtkm::Id(nodes_to_relabel_regularID.size()); ++i)
+            portal_regular.Set(i, nodes_to_relabel_regularID[i]);
+
+        // first zip 2 arrays
+        auto zipped12 = vtkm::cont::make_ArrayHandleZip(ah_hyper, ah_data);
+
+        // then zip the previous zip with the final array
+        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, ah_regular);
+
+        // Sort lexicographically
+        vtkm::cont::Algorithm::Sort(zipped123);
+
+        std::cout << "!!!!!!!!!!!!!!!! SORTED !!!!!!!!!!!!!!!!" << std::endl;
+
+        auto zipPortal = zipped123.ReadPortal();
+
+        for (vtkm::Id i = 0; i < zipPortal.GetNumberOfValues(); ++i)
+        {
+            auto triple = zipPortal.Get(i);
+
+            // Because of nested pairs:
+            vtkm::Id hyperparent = triple.first.first;    // (first of outer pair) -> first of inner pair
+            double  dataflip     = triple.first.second;   // (second of inner pair)
+            vtkm::Id regularID   = triple.second;         // (second of outer pair)
+
+            std::cout << i
+                      << ":\t" << hyperparent
+                      << "\t" << dataflip
+                      << "\t" << regularID
+                      << std::endl;
+        }
+
+
+
+
+    }
+
+
     // 2024-11-25 COMPUTE THE STRUCT COEFFICIENTS VERSION OF THE WEIGHTS WITH COEFFICIENTS
     void static ComputeVolumeWeightsSerialStructCoefficients(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
                                                 const ContourTree& contourTree,
@@ -635,7 +1402,7 @@ public:
         auto hyperparentsPortal = contourTree.Hyperparents.ReadPortal();
         auto hypernodesPortal = contourTree.Hypernodes.ReadPortal();
         auto hyperarcsPortal = contourTree.Hyperarcs.ReadPortal();
-        // auto superarcsPortal = contourTree.Superarcs.ReadPortal();
+//         auto superarcsPortal = contourTree.Superarcs.ReadPortal();
         auto nodesPortal = contourTree.Nodes.ReadPortal();
         // auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
 
@@ -653,6 +1420,7 @@ public:
         int num_sweep_values = contourTree.Arcs.GetNumberOfValues() + 1;
 
         // initialise the intrinsic weight array:
+        std::cout << "All REGULAR Nodes by sort ID:" << std::endl;
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {// for each sortedNode
             vtkm::Id sortID = nodesPortal.Get(sortedNode);
@@ -829,9 +1597,9 @@ public:
             vtkm::Vec3f_64 verticesH = (vBD.lerp2point(lerpBDh2));
 
             // Step 3
-            PositionVector a_vol(verticesA, verticesC),
-                           b_vol(verticesA, verticesD),
-                           c_vol(verticesA, verticesB);
+            PositionVector a_vol(verticesA, verticesC), // AC already defined, potentially extranneous
+                           b_vol(verticesA, verticesD), // AD already defined, potentially extranneous
+                           c_vol(verticesA, verticesB); // AB already defined, potentially extranneous
             long double full_tet_vol = (1.0l / 6.0l) * abs(vtkm::Dot(vtkm::Cross(a_vol.difference, b_vol.difference), c_vol.difference));
             min_volume = std::min(min_volume, full_tet_vol);
             max_volume = std::max(max_volume, full_tet_vol);
@@ -844,7 +1612,7 @@ public:
 
             long double beta_h2 = std::max(0.0l, std::min(1.0l,
                                       (long double)(tetlistSorted[i][1]-tetlistSorted[i][0])/(long double)(tetlistSorted[i][3]-tetlistSorted[i][0])));
-            PositionVector a_h1h2_vol = a_vol, b_h1h2_vol = b_vol, c_h1h2_vol = c_vol;
+            PositionVector a_h1h2_vol = a_vol, b_h1h2_vol = b_vol, c_h1h2_vol = c_vol; // makes copies of AC, AD, AB for interpolation
             a_h1h2_vol.lerp(alpha_h2);
             b_h1h2_vol.lerp(beta_h2);
             long double slab1_h1h2_vol = (1.0l/6.0l)*abs(vtkm::Dot(vtkm::Cross(a_h1h2_vol.difference,b_h1h2_vol.difference),c_h1h2_vol.difference));
@@ -952,6 +1720,18 @@ public:
             vx_delta_h2_sum[tetlistSorted[i][3]] += (-b_h3h4);
             vx_delta_h3_sum[tetlistSorted[i][3]] += (-c_h3h4);
             vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
+
+//            for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
+//            {
+//                 // first slab is where the sliced tet produces a triangle face
+//                  vx_delta_sum_slab1[tetlistSorted[i][0]] += vx_delta_slab1;
+//                  fc_delta_sum_slab1[tetlistSorted[i][0]] += fc_delta_slab1;
+//                  ed_delta_sum_slab1[tetlistSorted[i][0]] += ed_delta_slab1;
+//                  // second slab is where the sliced tet produces a quad (two triangle faces)
+//                  // repeat ...
+//                  // third (last) slab is where the sliced tet produces a triangle face
+//                  // repeat ...
+//            }
 
 //            long double tmp;
 
@@ -1198,6 +1978,8 @@ public:
         // TODO: Assumption - for now, treat hyperarcs same as superarcs
         // NOTE: 2025-03-03 ran into the above assumption that breaks the code
 
+        std::cout << "[SWEEP] - Compute Intrinsic, (from deltas, to sums per arc)" << std::endl;
+
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {// per node in sorted order, add its weight to its superparent
             vtkm::Id sortID = nodesPortal.Get(sortedNode);
@@ -1217,6 +1999,8 @@ public:
 
 
 std::cout << "// ================================= ITERATIONS =================================== //" << std::endl;
+
+        std::cout << "[HYPERSWEEP] - Compute Transfers, Dependents" << std::endl;
 
         vtkm::cont::Timer iterations_total_timer;
         iterations_total_timer.Start();

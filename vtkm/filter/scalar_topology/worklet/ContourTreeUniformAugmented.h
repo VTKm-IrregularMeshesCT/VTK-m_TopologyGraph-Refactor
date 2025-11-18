@@ -102,7 +102,7 @@
 #include <unistd.h>
 
 #define PACT_DEBUG 0
-#define WRITE_FILES 0
+#define WRITE_FILES 1
 
 using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
 
@@ -567,16 +567,29 @@ AdjacencyList MakeAdjacencyWithOffsets(
 #if WRITE_FILES
           std::ofstream outFile("CT-full-superdot.gv");
 
-          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
-                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
-                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID;
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE \
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+//          // for CT visualising for 2025 papers enable SHOW_SUPER_STRUCTURE SHOW_SUPERNODE_ID SHOW_SUPERARC_ID SHOW_MESH_SORT_ID
+//                      vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+//                                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+//                                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+//                                            | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID \
+
+//          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+//                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID \
+//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+//                                  | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE; // additional
+//    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+//    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+
+
+          vtkm::Id detailedMask = vtkm::worklet::contourtree_distributed::SHOW_ALL_STRUCTURE \
+                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_SUPERIDS \
+                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
 
           // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):

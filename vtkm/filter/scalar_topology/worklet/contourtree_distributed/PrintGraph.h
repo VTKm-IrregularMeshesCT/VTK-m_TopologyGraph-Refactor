@@ -342,6 +342,31 @@ std::string ContourTreeDotGraphPrintSerial(
 //  auto globalIdsPortal = globalIds.ReadPortal();
   auto dataValuesPortal = field.ReadPortal();
 
+
+  std::ofstream file("ContourTreeGraph--original-fullCT-REGULAR-VALUE-SORT-SP.txt");
+  for (vtkm::Id node = 0; node < contourTree.Nodes.GetNumberOfValues(); node++)
+  { // per node
+    // the nodes array is actually sorted by superarc, but the superarcs array is not
+    // so we ignore the nodes array and work directly with the node #
+    vtkm::Id sortID = nodesPortal.Get(node);
+
+    // retrieve the regular ID
+    vtkm::Id regularID = meshSortOrderPortal.Get(sortID);
+
+    // retrieve the global ID - turned off for serial, since that is its local ID
+//    vtkm::Id globalID = globalIdsPortal.Get(sortID);
+
+    // retrieve the values
+    auto dataValue = dataValuesPortal.Get(regularID);
+
+    // retrieve the superparent
+    vtkm::Id superparent = superparentsPortal.Get(sortID);
+
+    file << regularID << "," << dataValue << "," << sortID << "," << superparent << std::endl;
+
+  }
+
+
   // loop through all of the nodes in the regular list
   for (vtkm::Id node = 0; node < contourTree.Nodes.GetNumberOfValues(); node++)
   { // per node

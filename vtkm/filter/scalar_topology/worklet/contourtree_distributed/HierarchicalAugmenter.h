@@ -483,13 +483,37 @@ void HierarchicalAugmenter<FieldType>::BuildAugmentedTree()
   // 1.  Prepare the data structures for filling in, copying in basic information & organising the attachment points
   this->PrepareAugmentedTree();
   // 2.  Copy the hyperstructure, using the old super IDs for now
-  this->CopyHyperstructure();
+  this->CopyHyperstructure(); // 2025 carries over
   // 3.  Copy the superstructure, inserting additional points as we do
-  this->CopySuperstructure();
+  this->CopySuperstructure(); // 2025 do one round
   // 4.  Update the hyperstructure to use the new super IDs
-  this->UpdateHyperstructure();
+  this->UpdateHyperstructure(); // 2025 need
   // 5.  Copy the remaining regular structure at the bottom level, setting up the regular sort order in the process
   this->CopyBaseRegularStructure();
+
+    // 2025-10 2025 October Supervision notes:
+    // 1. Take array of all supernodes (ignore their superparent)
+    // 2. take their hyperparents of the ones I'm inserting
+    // 3. Take regular IDs of existing AND the ones being inserted
+    // 4. take hyperparent IDs, sort on them, then the data value
+    // That identifies the sequence
+
+    // first    : sort on HP
+    // secondary: on data value (with its comparitor) with the flip ascending/descending
+    // tertiary : sort on regular ID (out of paranoia)
+
+    // then test each element if +1 is same HP (segmented test)
+    // (Supertarget easy to set)
+    // Last in the segment - we know the hyper target, so we take that
+
+    // Reset Hypernodes to point to new supernode IDs
+    // for each new SN, we know its regular ID
+    // ... its regular ID allows to look for the original SP
+    // ... its SP stores the regular ID for the supernode
+    // (all supernodes are their own superparent - except distributed)
+    // look up regular ID -> SP -> if that SP == SP, then it's an old supernode,
+    // .. then set the
+
 } // BuildAugmentedTree()
 
 

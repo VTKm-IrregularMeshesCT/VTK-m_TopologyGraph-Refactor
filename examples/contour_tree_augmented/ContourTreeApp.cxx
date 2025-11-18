@@ -110,7 +110,7 @@ VTKM_THIRDPARTY_POST_INCLUDE
 
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
-#define WRITE_FILES 0
+#define WRITE_FILES 1
 
 //using vtkm::FloatDefault = vtkm::Float64;
 
@@ -979,6 +979,108 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
+
+
+
+
+
+
+
+
+
+
+
+  //////////////////////////////////////////////////////////////////////////////////////
+  // MAIN-3.5 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  std::cout << ORANGE << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << "// MAIN-3.5 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //" << std::endl;
+  std::cout << "//////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+  std::cout << RESET << std::endl;
+
+  int compute_betti = 1;
+
+  if (rank == 0 && compute_betti)
+  {
+      // Time branch decompostion: Volume Weight Computation:
+      vtkm::cont::Timer computeVolumeWeightsTimeDisplay;
+      computeVolumeWeightsTimeDisplay.Start();
+
+      // ---------------------------- FLOAT WEIGHTS ---------------------------- //
+
+      FloatArrayType superarcIntrinsicBetti;
+      FloatArrayType superarcDependentBetti;
+      FloatArrayType supernodeTransferBetti;
+      FloatArrayType hyperarcDependentBetti;
+
+      vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightBetti;
+      vtkm::cont::ArrayHandle<Coefficients> superarcDependentWeightBetti;
+      vtkm::cont::ArrayHandle<Coefficients> supernodeTransferWeightBetti;
+      vtkm::cont::ArrayHandle<Coefficients> hyperarcDependentWeightBetti;
+
+  #if DEBUG_PRINT_PACTBD
+      std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+  #endif
+      std::cout << YELLOW << "\n[STAGE 3.5 Start - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients START ..." << RESET << std::endl;
+  #if SLEEP_ON
+      std::this_thread::sleep_for(std::chrono::seconds(3));
+  #endif
+
+      //    CALLGRIND_START_INSTRUMENTATION;
+      ctaug_ns::ProcessContourTree::ComputeBettiNumbersForRegularArcs(useDataSet,
+                                                                      filter.GetContourTree(),
+                                                                      filter.GetNumIterations(),
+                                                                      // The following four outputs are the coefficient tuples
+                                                                      // (such as h1, h2, h3, h4 pairs)
+                                                                      superarcIntrinsicWeightBetti,  // (output)
+                                                                      superarcDependentWeightBetti,  // (output)
+                                                                      supernodeTransferWeightBetti,  // (output)
+                                                                      hyperarcDependentWeightBetti,
+                                                                      // 2025-01-30 added additional output ...
+                                                                      // ... to have access to "collapsed" TODO termdefine
+                                                                      // ("collapsed" = computed single value weight, ...
+                                                                      //  ... instead of N-length coefficient tuples)
+                                                                      // These "collapsed" weights are used for ...
+                                                                      // ... computing branch weights without relying on ...
+                                                                      // ... the node count on the branches
+                                                                      superarcIntrinsicBetti,  // (output)
+                                                                      superarcDependentBetti,  // (output)
+                                                                      supernodeTransferBetti,  // (output)
+                                                                      hyperarcDependentBetti); // (output)
+
+      //    CALLGRIND_STOP_INSTRUMENTATION;
+      //    CALLGRIND_DUMP_STATS;
+
+      std::cout << YELLOW << "[STAGE 3.5 End - Coeff. Weights (IDThD)] ContourTreeApp.cxx:ComputeVolumeWeightsSerialStructCoefficients ... END\n" << RESET << std::endl;
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   //////////////////////////////////////////////////////////////////////////////////////
   // MAIN-4 Compute the branch decomposition (computeSimplifyBranchDecompTimeDisplay) //
   //////////////////////////////////////////////////////////////////////////////////////
@@ -1101,7 +1203,7 @@ int main(int argc, char* argv[])
     std::cout << "(ContourTreeApp.cxx) Printing the arrays output from the Branch Decomposition to 'ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt'" << std::endl;
     std::cout << "(ContourTreeApp.cxx) whichBranch:";
 
-    std::ofstream file("ContourTreeGraph--original-fullCT-BRANCH-COLLAPSED.txt");
+    std::ofstream file("ContourTreeGraph--original-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
 
     for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
     {
