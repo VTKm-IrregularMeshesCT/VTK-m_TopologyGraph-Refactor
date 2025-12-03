@@ -978,6 +978,7 @@ public:
 
         std::cout << "Betti Number Regular Instrinsic Pre-Processing:" << std::endl;
 
+        auto arcsPortal = contourTree.Arcs.ReadPortal();
         auto nodesPortal = contourTree.Nodes.ReadPortal();
         auto superarcsPortal = contourTree.Superarcs.ReadPortal();
         auto supernodesPortal = contourTree.Supernodes.ReadPortal();
@@ -1161,6 +1162,28 @@ public:
 //        betti_augmenter.Initialize(block, &hierarchicalTrees[block], &augmentedTrees[block], &meshes[block]);
 //        betti_augmenter.BuildAugmentedTree();
 
+        auto augNodesPortal = contourTree.Augmentnodes.ReadPortal();
+        auto augArcsPortal = contourTree.Augmentarcs.ReadPortal();
+        auto transferPortal = contourTree.WhenTransferred.ReadPortal();
+
+        std::cout << "Augmented Nodes (" << augNodesPortal.GetNumberOfValues() << ")" << std::endl;
+        for(int i = 0; i < augNodesPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id augnode = augNodesPortal.Get(i);
+            std::cout << i << "\t" << augnode << std::endl;
+        }
+        std::cout << "Augmented Arcs (" << augArcsPortal.GetNumberOfValues() << ")" << std::endl;
+        for(int i = 0; i < augArcsPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id augarc = augArcsPortal.Get(i);
+            std::cout << i << "\t" << augarc << std::endl;
+        }
+        std::cout << "Transferred When (" << transferPortal.GetNumberOfValues() << ")" << std::endl;
+        for(int i = 0; i < transferPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << vtkm::worklet::contourtree_augmented::MaskedIndex(transferPortal.Get(i)) << std::endl;
+        }
+
         std::cout << "Nodes" << std::endl;
         for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
         {
@@ -1168,7 +1191,17 @@ public:
             std::cout << sortID << "\t" << regularId << std::endl;
         }
 
+        std::cout << "Arcs" << std::endl;
+        for(int sortID = 0; sortID < arcsPortal.GetNumberOfValues(); sortID++)
+        {
+            vtkm::Id regularId = arcsPortal.Get(sortID);
+            vtkm::Id maskedArc = vtkm::worklet::contourtree_augmented::MaskedIndex(regularId);
+            std::cout << sortID << "\t" << regularId << "\t" << maskedArc << std::endl;
+        }
+
+
         std::cout << "Supernodes:" << std::endl;
+//         auto supernodesPortal = contourTree.Supernodes.ReadPortal();
         for(int i = 0; i < supernodesPortal.GetNumberOfValues(); i++)
         {
             std::cout << i << "\t" << supernodesPortal.Get(i) << std::endl;
@@ -1182,7 +1215,7 @@ public:
         for(int i = 0; i < superarcsPortal.GetNumberOfValues(); i++)
         {
             vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsPortal.Get(i));
-            std::cout << i << "\t" << maskedSuperarc << std::endl;
+            std::cout << i << "\t" << superarcsPortal.Get(i) << "\t" << maskedSuperarc << std::endl;
         }
 
         std::cout << "Hypernodes:" << std::endl;
@@ -1203,7 +1236,7 @@ public:
         for(int i = 0; i < hyperarcsPortal.GetNumberOfValues(); i++)
         {
             vtkm::Id maskedHyperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(hyperarcsPortal.Get(i));
-            std::cout << i << "\t" << maskedHyperarc << std::endl;
+            std::cout << i << "\t" << hyperarcsPortal.Get(i) << "\t" << maskedHyperarc << std::endl;
         }
 
         std::cout << "node->supernode->superarc(superparent)->hypernode->hyperarc(hyperparent) mappings" << std::endl;
@@ -1340,28 +1373,341 @@ public:
         // Sort lexicographically
         vtkm::cont::Algorithm::Sort(zipped123);
 
+        std::cout << "!!!!!!!!!!!!!!!! PREVIOUS SUPERNODE LIST MAX ID (LEN) !!!!!!!!!!!!!!!!" << std::endl;
+        int num_original_supernodes = supernodesPortal.GetNumberOfValues();
+        std::cout << num_original_supernodes << std::endl;
+
         std::cout << "!!!!!!!!!!!!!!!! SORTED !!!!!!!!!!!!!!!!" << std::endl;
 
+        std::cout << "i"
+                  << "\t" << "HP"
+                  << "\t" << "valflip"
+                  << "\t" << "regID"
+                  << "\t" << "SP"
+//                  << "\t" << "isNew"
+                  << "\t" << "+1==HP"
+                  << "\t" << "HT"
+//                  << "\t" << "pfixsum"
+                  << "\t" << "relabel"
+                  << "\t" << "new ST"
+                  << std::endl;
+
         auto zipPortal = zipped123.ReadPortal();
+        int new_nodes_pfix_sum = 0;
+
+        std::vector<vtkm::Id> newSuperIDsRelabelled;
+        std::vector<vtkm::Id> newSupernodes;
+
+        newSupernodes.resize(20);
 
         for (vtkm::Id i = 0; i < zipPortal.GetNumberOfValues(); ++i)
         {
             auto triple = zipPortal.Get(i);
+            // Because of nested pairs:
+            vtkm::Id hyperparent = triple.first.first;    // (first of outer pair) -> first of inner pair
+            double  dataflip     = triple.first.second;   // (second of inner pair)
+            vtkm::Id regularID   = triple.second;         // (second of outer pair)
+            vtkm::Id superID     = superparentsPortal.Get(regularID);
 
+            bool isNew = false;
+            vtkm::Id new_superID_relabel = hyperparent;
+
+            if(regularID != supernodesPortal.Get(superID))
+            {
+                isNew = true;
+                new_nodes_pfix_sum++;
+                new_superID_relabel = (num_original_supernodes-1)+new_nodes_pfix_sum;
+            }
+
+            newSuperIDsRelabelled.push_back(new_superID_relabel);
+
+            // superID to regularID NEW mapping:
+            newSupernodes[new_superID_relabel] = regularID;
+
+        }
+
+        bool plus1test = false;
+        vtkm::Id newSuperTarget = -1;
+
+        std::vector<vtkm::Id> newSuperTargets;
+
+        for (vtkm::Id i = 0; i < zipPortal.GetNumberOfValues(); ++i)
+        {
+            plus1test = false;
+            auto triple = zipPortal.Get(i);
             // Because of nested pairs:
             vtkm::Id hyperparent = triple.first.first;    // (first of outer pair) -> first of inner pair
             double  dataflip     = triple.first.second;   // (second of inner pair)
             vtkm::Id regularID   = triple.second;         // (second of outer pair)
 
+
+
+            if(i+1 >= zipPortal.GetNumberOfValues())
+            {
+
+            }
+            else
+            {
+                auto nextTriple = zipPortal.Get(i+1);
+                vtkm::Id nborHyperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair
+
+                if(hyperparent == nborHyperparent)
+                {
+                    plus1test = true;
+                }
+            }
+
+            if(plus1test)
+            {
+//                newSuperTarget = newSuperIDsRelabelled[i+1];
+                newSuperTargets.push_back(newSuperIDsRelabelled[i+1]);
+            }
+            else
+            {
+                // set the supertarget to be the previous hypertarget
+                // (reached end of the last superarc)
+//                newSuperTarget = vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs));
+                newSuperTargets.push_back(vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs)));
+            }
+
+            vtkm::Id superID     = superparentsPortal.Get(regularID);
+
+//            bool isNew = false;
+//            vtkm::Id new_superID_relabel = hyperparent;
+
+//            if(regularID != supernodesPortal.Get(superID))
+//            {
+//                isNew = true;
+//                new_nodes_pfix_sum++;
+
+//                new_superID_relabel = (num_original_supernodes-1)+new_nodes_pfix_sum;
+//            }
+
             std::cout << i
-                      << ":\t" << hyperparent
+                      << "\t" << hyperparent
                       << "\t" << dataflip
                       << "\t" << regularID
+                      << "\t" << supernodesPortal.Get(superID)
+//                      << "\t" << isNew
+                      << "\t" << plus1test
+                      << "\t" << vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs))
+//                      << "\t" << new_nodes_pfix_sum
+                      << "\t" << newSuperIDsRelabelled[i]
+                         << "\t" << newSuperTargets[i]
                       << std::endl;
         }
 
 
+        std::cout << "sortID\tregularID\tSP" << std::endl;
+        for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
+        {
+            vtkm::Id regularId = nodesPortal.Get(sortID);
+            std::cout << sortID << "\t" << regularId << "\t" << superparentsPortal.Get(regularId) << std::endl;
+        }
 
+        auto arcsWritePortal = contourTree.Arcs.WritePortal();
+        auto nodesWritePortal = contourTree.Nodes.WritePortal();
+//        auto supernodesWritePortal = contourTree.Supernodes.WritePortal();
+
+
+        vtkm::Id originalSize = superarcsPortal.GetNumberOfValues();
+
+        std::cout << "ORIGINAL Superarcs:" << std::endl;
+        for(int i = 0; i < superarcsPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsPortal.Get(i));
+            std::cout << i << "\t" << superarcsPortal.Get(i) << "\t" << maskedSuperarc << std::endl;
+        }
+        std::cout << "Increasing array size to: " << originalSize + 10 << std::endl;
+        contourTree.Superarcs.Allocate(contourTree.Superarcs.GetNumberOfValues() + 10, vtkm::CopyFlag::On);
+
+
+
+        auto superarcsWritePortal = contourTree.Superarcs.WritePortal();
+
+
+        // RELABEL SUPERARCS
+        std::cout << "RELABEL SUPERARCS: " << std::endl;
+        for(int i = 0; i < newSuperIDsRelabelled.size(); i++)
+        {
+            if (newSupernodes[newSuperIDsRelabelled[i]] < newSupernodes[newSuperTargets[i]])
+            {
+                superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i] | vtkm::worklet::contourtree_augmented::IS_ASCENDING);
+            }
+            else
+            {
+                superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i]);
+            }
+
+            if(newSuperTargets[i] == 0)
+            {// if root node
+                superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i] | vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT);
+            }
+        }
+
+        auto superarcsReinvPortal = contourTree.Superarcs.ReadPortal();
+        std::cout << "RELABELLED SUPERARCS: " << superarcsReinvPortal.GetNumberOfValues() << std::endl;
+        for(int i = 0; i < superarcsReinvPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsReinvPortal.Get(i));
+            std::cout << i << "\t" << superarcsReinvPortal.Get(i) << "\t" << maskedSuperarc << "\t"
+                      << vtkm::worklet::contourtree_augmented::IsAscending(superarcsReinvPortal.Get(i)) << std::endl;
+
+//            vtkm::worklet::contourtree_augmented::NoSuchElement for finding NAN (such as root) nodes
+//            std::cout << newSupernodes[i] << "\t" << newSupernodes[maskedSuperarc] << std::endl;
+        }
+
+
+        std::cout << "do a regular walk from superarcs to relabel superparents:" << std::endl;
+        std::cout << "from\tto\tset\tgetseg" << std::endl;
+
+        std::vector<vtkm::Id> replaceSuperparentsWith;
+        std::vector<vtkm::Id> targetSegments;
+        std::vector<vtkm::Id> fromRegID;
+        std::vector<vtkm::Id> toRegID;
+
+        for(int i = 0; i < superarcsReinvPortal.GetNumberOfValues(); i++)
+        {
+            vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsReinvPortal.Get(i));
+            std::cout << newSupernodes[i] << "\t" << newSupernodes[maskedSuperarc] << "\t" << i <<  "\t"
+                      << superparentsPortal.Get(newSupernodes[i]);// << std::endl;
+
+            if(i != superparentsPortal.Get(newSupernodes[i]))
+            {
+                targetSegments.push_back(superparentsPortal.Get(newSupernodes[i]));
+                std::cout << "\tadded";
+                fromRegID.push_back(newSupernodes[i]);
+                toRegID.push_back(newSupernodes[maskedSuperarc]);
+
+                replaceSuperparentsWith.push_back(i);
+            }
+
+            std::cout << std::endl;
+        }
+
+        std::vector<vtkm::Id> segmentA, segmentB;
+
+        std::cout << "RELABEL SUPERPARENTS ... " << std::endl;
+        std::cout << "sortID\tregularID\tSP" << std::endl;
+        for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
+        {
+            vtkm::Id regularId = nodesPortal.Get(sortID);
+            std::cout << sortID << "\t" << regularId << "\t" << superparentsPortal.Get(regularId) << std::endl;
+
+            segmentA.push_back(regularId);
+            segmentB.push_back(superparentsPortal.Get(regularId));
+        }
+
+        vtkm::Id targetSegment = 6;
+
+        auto superparentsWritePortal = contourTree.Superparents.WritePortal();
+
+        for(int i = 0; i < targetSegments.size(); i++)
+        {
+            // Find the range of segment
+            auto beginIt = std::lower_bound(
+                segmentB.begin(), segmentB.end(), targetSegments[i]);
+
+            auto endIt = std::upper_bound(
+                segmentB.begin(), segmentB.end(), targetSegments[i]);
+
+            std::size_t begin = std::distance(segmentB.begin(), beginIt);
+            std::size_t end   = std::distance(segmentB.begin(), endIt);
+
+            std::cout << "Segment " << targetSegments[i]
+                      << " reg range: [" << fromRegID[i] << ", " << toRegID[i] << ")\n"
+                      << " idx range: [" << begin << ", " << end << ")\n";
+
+            // Extract corresponding A values
+            for (std::size_t j = begin; j < end; j++)
+            {
+                std::cout << "A[" << j << "] = " << segmentA[j];// << "\n";
+                if(
+                    ( (segmentA[j] <= fromRegID[i]) && (segmentA[j] > toRegID[i]))
+                    ||
+                    ( (segmentA[j] >= fromRegID[i]) && (segmentA[j] < toRegID[i]))
+                  )
+                {
+//                    std::cout << "\t" << superparentsPortal.Get(j) << "\treplace to: " << replaceSuperparentsWith[i];
+                    std::cout << "\t" << superparentsPortal.Get(segmentA[j]) << "\treplace to: " << replaceSuperparentsWith[i];
+//                    superparentsWritePortal.Set(j, replaceSuperparentsWith[i]);
+
+                    // RELABEL SUPERPARENTS:
+                    superparentsWritePortal.Set(segmentA[j], replaceSuperparentsWith[i]);
+
+                }
+                std::cout << std::endl;
+            }
+
+        }
+
+        auto superparentsRewritePortal = contourTree.Superparents.ReadPortal();
+
+        std::cout << "REPLACED SUPERPARENTS ..." << std::endl;
+        for(int i = 0; i < superparentsRewritePortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << superparentsRewritePortal.Get(i) << std::endl;
+        }
+
+        std::cout << "NEW SUPERNODES:" << std::endl;
+        for(int i = 0; i < newSupernodes.size(); i++)
+        {
+            std::cout << i << "\t" << newSupernodes[i] << std::endl;
+        }
+
+        std::cout << "Increasing array size to: " << originalSize + 10 << std::endl;
+//        vtkm::Id num_original_supernodes already defined ...
+        vtkm::Id num_added_supernodes = newSupernodes.size() - contourTree.Supernodes.GetNumberOfValues();
+        contourTree.Supernodes.Allocate(contourTree.Supernodes.GetNumberOfValues() + num_added_supernodes, vtkm::CopyFlag::On);
+
+
+        std::cout << "RELABEL SUPERNODES:" << std::endl;
+        auto supernodesWritePortal = contourTree.Supernodes.WritePortal();
+        for(int i = num_original_supernodes;
+                i < num_original_supernodes + num_added_supernodes;
+                i++)
+        {
+            std::cout << i << "\t" << newSupernodes[i] << std::endl;
+            supernodesWritePortal.Set(i,newSupernodes[i]);
+        }
+
+        std::cout << "RELABELLED SUPERNODES:" << std::endl;
+        auto supernodesRelabelledPortal = contourTree.Supernodes.ReadPortal();
+        for(int i = 0; i < supernodesRelabelledPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << supernodesRelabelledPortal.Get(i) << std::endl;
+//            supernodesWritePortal.Set(i,
+        }
+
+//        vtkm::cont::ArrayHandle<vtkm::Id> Ahandle =
+//            vtkm::cont::make_ArrayHandle(segmentA, vtkm::CopyFlag::Off);
+
+//        vtkm::cont::ArrayHandle<vtkm::Id> Bhandle =
+//            vtkm::cont::make_ArrayHandle(segmentB, vtkm::CopyFlag::Off);
+
+//        // Segment ID(s) to extract
+//        vtkm::cont::ArrayHandle<vtkm::Int32> segments2get =
+//            vtkm::cont::make_ArrayHandle<vtkm::Int32>({ 6 });
+
+//        vtkm::cont::ArrayHandle<vtkm::Id> outputLow =
+//            vtkm::cont::Algorithm::LowerBounds(Bhandle, segments2get);
+
+//        vtkm::cont::ArrayHandle<vtkm::Id> outputHigh =
+//            vtkm::cont::Algorithm::UpperBounds(Bhandle, segments2get);
+
+//        // Portals
+//        auto aPortal  = Ahandle.ReadPortal();
+//        auto olPortal = outputLow.ReadPortal();
+//        auto ohPortal = outputHigh.ReadPortal();
+
+//        // ✅ Correct range extraction
+//        vtkm::Id begin = olPortal.Get(0);
+//        vtkm::Id end   = ohPortal.Get(0);
+
+//        for (vtkm::Id i = begin; i < end; i++)
+//        {
+//            std::cout << aPortal.Get(i) << std::endl;
+//        }
 
     }
 
