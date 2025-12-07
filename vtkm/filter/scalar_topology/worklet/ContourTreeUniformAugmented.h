@@ -573,23 +573,23 @@ AdjacencyList MakeAdjacencyWithOffsets(
 //                                            | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
 //                                            | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID \
 
-//          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-//                                  | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE; // additional
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-//    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+          vtkm::Id detailedMask =   vtkm::worklet::contourtree_distributed::SHOW_SUPER_STRUCTURE \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERNODE_ID \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERARC_ID \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_MESH_SORT_ID \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+                                  | vtkm::worklet::contourtree_distributed::SHOW_DATA_VALUE; // additional
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_SUPERPARENT \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ITERATION \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_HYPER_STRUCTURE \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+    //                              | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
-
-          vtkm::Id detailedMask = vtkm::worklet::contourtree_distributed::SHOW_ALL_STRUCTURE \
-                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
-                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_SUPERIDS \
-                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
+//          // clean tree (2025-12-05)
+//          vtkm::Id detailedMask = vtkm::worklet::contourtree_distributed::SHOW_ALL_STRUCTURE \
+//                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_IDS \
+//                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_SUPERIDS \
+//                                    | vtkm::worklet::contourtree_distributed::SHOW_ALL_HYPERIDS;
 
 
           // Call the function after you've computed ContourTree and your associated data structures (`mesh` and `field`):

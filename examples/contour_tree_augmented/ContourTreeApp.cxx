@@ -1373,8 +1373,8 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 
       usePersistenceSorter = false;
 //      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
-//      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
-       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
+      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
+//       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       /// DEBUG PRINT
        std::cout << YELLOW << "[STAGE 4.4 End - Simplifying to N branches] ContourTreeApp.cxx:branchDecompostionRoot->SimplifyToSize() ... END\n" << RESET << std::endl;
 
@@ -1575,6 +1575,14 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
   VTKM_LOG_S(vtkm::cont::LogLevel::Warn, //Info,
              std::endl
                << ct.PrintHyperStructureStatistics(false) << std::endl);
+
+  std::cout << "When Transferred - local:" << std::endl;
+  auto whenTransferredPortal = ct.WhenTransferred.ReadPortal();
+  for(int i = 0; i < whenTransferredPortal.GetNumberOfValues(); i++)
+  {
+      std::cout << i << "\t" << whenTransferredPortal.Get(i) << "\t"
+                << vtkm::worklet::contourtree_augmented::MaskedIndex(whenTransferredPortal.Get(i)) << std::endl;
+  }
 
   // Flush ouput streams just to make sure everything has been logged (in particular when using MPI)
   std::cout << std::flush;

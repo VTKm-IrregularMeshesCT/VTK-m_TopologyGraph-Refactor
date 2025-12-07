@@ -1532,15 +1532,18 @@ public:
         {
             if (newSupernodes[newSuperIDsRelabelled[i]] < newSupernodes[newSuperTargets[i]])
             {
+                // RELABEL--
                 superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i] | vtkm::worklet::contourtree_augmented::IS_ASCENDING);
             }
             else
             {
+                // RELABEL--
                 superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i]);
             }
 
             if(newSuperTargets[i] == 0)
             {// if root node
+                // RELABEL--
                 superarcsWritePortal.Set(newSuperIDsRelabelled[i], newSuperTargets[i] | vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT);
             }
         }
@@ -1566,11 +1569,16 @@ public:
         std::vector<vtkm::Id> fromRegID;
         std::vector<vtkm::Id> toRegID;
 
+        std::vector<vtkm::Id> oldSuperparents; // used for telling whenTransferred
+        oldSuperparents.resize(superarcsReinvPortal.GetNumberOfValues());
+
         for(int i = 0; i < superarcsReinvPortal.GetNumberOfValues(); i++)
         {
             vtkm::Id maskedSuperarc = vtkm::worklet::contourtree_augmented::MaskedIndex(superarcsReinvPortal.Get(i));
             std::cout << newSupernodes[i] << "\t" << newSupernodes[maskedSuperarc] << "\t" << i <<  "\t"
                       << superparentsPortal.Get(newSupernodes[i]);// << std::endl;
+
+            oldSuperparents[i] = superparentsPortal.Get(newSupernodes[i]);
 
             if(i != superparentsPortal.Get(newSupernodes[i]))
             {
@@ -1618,6 +1626,8 @@ public:
                       << " reg range: [" << fromRegID[i] << ", " << toRegID[i] << ")\n"
                       << " idx range: [" << begin << ", " << end << ")\n";
 
+//            oldSuperparents[replaceSuperparentsWith[i]] =
+
             // Extract corresponding A values
             for (std::size_t j = begin; j < end; j++)
             {
@@ -1630,9 +1640,9 @@ public:
                 {
 //                    std::cout << "\t" << superparentsPortal.Get(j) << "\treplace to: " << replaceSuperparentsWith[i];
                     std::cout << "\t" << superparentsPortal.Get(segmentA[j]) << "\treplace to: " << replaceSuperparentsWith[i];
-//                    superparentsWritePortal.Set(j, replaceSuperparentsWith[i]);
 
                     // RELABEL SUPERPARENTS:
+                    // RELABEL--
                     superparentsWritePortal.Set(segmentA[j], replaceSuperparentsWith[i]);
 
                 }
@@ -1668,6 +1678,7 @@ public:
                 i++)
         {
             std::cout << i << "\t" << newSupernodes[i] << std::endl;
+            // RELABEL--
             supernodesWritePortal.Set(i,newSupernodes[i]);
         }
 
@@ -1676,8 +1687,41 @@ public:
         for(int i = 0; i < supernodesRelabelledPortal.GetNumberOfValues(); i++)
         {
             std::cout << i << "\t" << supernodesRelabelledPortal.Get(i) << std::endl;
-//            supernodesWritePortal.Set(i,
         }
+
+        std::cout << "WhenTransferred" << std::endl;
+//                auto whenTransferredWritePortal = contourTree.WhenTransferred.WritePortal();
+        auto whenTransferredPortal = contourTree.WhenTransferred.ReadPortal();
+
+        std::vector<vtkm::Id> whenTransferredVec;
+
+        for(int i = 0; i < oldSuperparents.size(); i++)
+        {
+
+            std::cout << i << "\t" << oldSuperparents[i] << "\t"
+                      << whenTransferredPortal.Get(oldSuperparents[i]) << "\t"
+                      << vtkm::worklet::contourtree_augmented::MaskedIndex(whenTransferredPortal.Get(oldSuperparents[i]))
+                      << std::endl;
+            whenTransferredVec.push_back(whenTransferredPortal.Get(oldSuperparents[i]));
+        }
+
+        contourTree.WhenTransferred.Allocate(contourTree.WhenTransferred.GetNumberOfValues() + num_added_supernodes, vtkm::CopyFlag::On);
+
+        auto whenTransferredWritePortal = contourTree.WhenTransferred.WritePortal();
+        std::cout << "RELABEL WhenTransferred (" << contourTree.WhenTransferred.GetNumberOfValues() << ")\n";
+        for(int i = 0; i < contourTree.WhenTransferred.GetNumberOfValues(); i++)
+        {
+            // RELABEL--
+            whenTransferredWritePortal.Set(i, whenTransferredVec[i]);
+        }
+
+        std::cout << "RELABELLED WhenTransferred (" << contourTree.WhenTransferred.GetNumberOfValues() << ")\n";
+        auto whenTransferredRelabelPortal = contourTree.WhenTransferred.ReadPortal();
+        for(int i = 0; i < whenTransferredRelabelPortal.GetNumberOfValues(); i++)
+        {
+            std::cout << i << "\t" << whenTransferredRelabelPortal.Get(i) << std::endl;
+        }
+
 
 //        vtkm::cont::ArrayHandle<vtkm::Id> Ahandle =
 //            vtkm::cont::make_ArrayHandle(segmentA, vtkm::CopyFlag::Off);
