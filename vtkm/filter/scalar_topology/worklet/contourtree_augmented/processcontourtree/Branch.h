@@ -93,6 +93,12 @@ public:
   Branch<T>* Parent;                // Pointer to parent, or nullptr if no parent
   std::vector<Branch<T>*> Children; // List of pointers to children
 
+  // 2025-12-15 NEW: adding the Betti-augmented supernode information to each branch
+  // (Then we will be able to get isosurfaces at which topology changes per branch)
+  std::vector<vtkm::Id> BettiChanges; // List of pointers to children
+  std::vector<ValueType> BettiArcVolumes; // List of pointers to children
+
+
   // Create branch decomposition from contour tree
   template <typename StorageType>
   static Branch<T>* ComputeBranchDecomposition(
@@ -122,7 +128,8 @@ public:
     const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
     bool dataFieldIsSorted,
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
-    const FloatArrayType& superarcIntrinsicWeight);
+    const FloatArrayType& superarcIntrinsicWeight,
+    const vtkm::Id& contourTreeRootnode);
 
 
   // Simplify branch composition down to target size (i.e., consisting of targetSize branches)
@@ -185,7 +192,7 @@ public:
 
       if(!branch->Children.empty())
       {
-          std::cout << std::endl << "Children of i=" << bid << std::endl;
+          std::cout << std::endl << "'1'Children of i=" << bid << std::endl;
       }
 
       for(auto child : branch->Children)
@@ -526,10 +533,11 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
   bool dataFieldIsSorted,
   const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincid
-  const FloatArrayType& superarcDependentWeight)
+  const FloatArrayType& superarcDependentWeight,
+  const vtkm::Id& contourTreeRootnode)
 { // C)omputeBranchDecomposition()
 
-  std::cout << "[ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] START" << std::endl;
+  std::cout << "[(Branch.h) ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] START" << std::endl;
 
   auto branchMinimumPortal = branchMinimum.ReadPortal();
   auto branchMaximumPortal = branchMaximum.ReadPortal();
@@ -546,7 +554,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
 
-
+  // 2025-12-10 debugging of the branch decomposition after betti number augmentation
 
 
 
@@ -758,8 +766,22 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
               << branches[i]->VolumeFloat << std::endl << "\t";
 #endif
 
+//    std::cout << "branches[" << i << "]->PrintBranchDecomposition before adding volumes:" << std::endl;
+//    branches[i]->PrintBranchDecomposition(std::cout);
+
+    std::cout << std::endl << "branch i = " << i << " SPs:";// << std::endl;
+
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
+        std::cout << " " << branch_SP_map[i][j] << "(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ") ";
+        if(branch_SP_map[i][j] > contourTreeRootnode) // 9) // 2025-12-15 hack-resolved 2025-12-20
+        {
+            // make note of supernode IDs
+            branches[i]->BettiChanges.push_back(branch_SP_map[i][j]);
+            // ... then the volumes for potential simplification:
+            branches[i]->BettiArcVolumes.push_back(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]));
+        }
+
 #if DEBUG_PRINT_PACTBD
         std::cout << branch_SP_map[i][j] << " ";
 #endif
@@ -777,18 +799,22 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
         if(!branches[branchIDPrint]->Children.empty())
         {
             std::cout << std::endl << "\t";
-            PrintBranchInformation(branches[branchIDPrint]->Children[0], branch_SP_map, branches[branchIDPrint]->OriginalId);
+            // 2025-12-11
+//            PrintBranchInformation(branches[branchIDPrint]->Children[0], branch_SP_map, branches[branchIDPrint]->OriginalId);
+            branches[branchIDPrint]->Children[0]->PrintBranchDecomposition(std::cout);
         }
 
                 for (Branch<T>* c : branches[branchIDPrint]->Children)
                 {
-                    PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+                    // 2025-12-11
+//                    PrintBranchInformation(c, branch_SP_map, c->OriginalId);
+                    c->PrintBranchDecomposition(std::cout);
                     std::cout << c->OriginalId << " -> ";
                 }
 
         if(!branches[i]->Children.empty())
         {
-            std::cout << "Children of i=" << i << std::endl;
+            std::cout << "'2'Children of i=" << i << std::endl;
         }
         else
         {
@@ -803,12 +829,17 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
 
 
+//        std::cout << "branches[" << i << "]->PrintBranchDecomposition after adding volumes:" << std::endl;
+//        branches[i]->PrintBranchDecomposition(std::cout);
+
     }
+
+
 
 #if DEBUG_PRINT_PACTBD
     if(!branches[i]->Children.empty())
     {
-        std::cout << std::endl << "Children of i=" << i << std::endl;
+        std::cout << std::endl << "'3'Children of i=" << i << std::endl;
     }
 
     for (Branch<T>* c : branches[i]->Children)
@@ -854,6 +885,39 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
 
   }
+
+  std::string indent = "\t";
+
+  std::cout << "num of children at branch 0: " << branches[0]->Children.size() << std::endl;
+//  std::cout << indent << " ex:\t"   << branches[0]->Children[0]->Extremum
+//            << indent << " sad:\t"  << branches[0]->Children[0]->Saddle
+//            << indent << " chld:\t" << branches[0]->Children[0]->Children.size()
+//            << std::endl;
+
+//  std::cout << indent << indent << " ex:\t" << branches[0]->Children[0]->Children[0]->Extremum
+//            << indent << indent << " sad:\t" << branches[0]->Children[0]->Children[0]->Saddle
+//            << indent << indent << " chld:\t" << branches[0]->Children[0]->Children[0]->Children.size()
+//            << std::endl;
+
+
+//  std::cout << indent << " ex:\t" << branches[0]->Children[1]->Extremum
+//            << indent << " sad:\t" << branches[0]->Children[1]->Saddle
+//            << indent << " chld:\t" << branches[0]->Children[1]->Children.size()
+//            << std::endl;
+
+  branches[1]->PrintBranchDecomposition(std::cout);
+
+//  std::cout << "============================================================================================" << std::endl;
+//  std::cout << "============================================================================================" << std::endl;
+//  std::cout << "                    PRINTING THE FULL TREE WITH VOLUMES + BRANCHES                          " << std::endl;
+//  std::cout << "============================================================================================" << std::endl;
+//  std::cout << "============================================================================================" << std::endl;
+//  for(int i = 0; i < nBranches; i++)
+//  {
+
+//      std::cout << "branches[" << i << "]->PrintBranchDecomposition after adding volumes:" << std::endl;
+//      branches[i]->PrintBranchDecomposition(std::cout);
+//  }
 
 //  // 2025-03-10 NO LONGER DOING THIS:
 //  int previous_superparent = MaskedIndex(superparentsPortal.Get(0));
@@ -1035,6 +1099,8 @@ void Branch<T>::SimplifyToSize(vtkm::Id targetSize, bool usePersistenceSorter)
 //  std::vector<Branch<T>*> Children; // List of pointers to children
   std::cout << "------------------branchDecompostionRoot-----------------\n" << std::endl;
 
+  std::cout << "targetSize: " << targetSize << std::endl;
+
 
   int num_active_branches = 0;
 
@@ -1174,6 +1240,24 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
   os << std::string(indent, ' ') << "  'Volume' : " << Volume << ","<< std::endl;
   os << std::string(indent, ' ') << "  'VolumeFloat' : " << VolumeFloat << ","<< std::endl;
 
+  if (BettiChanges.size() > 0)
+  {
+    os << std::string(indent, ' ') << "  'Betti Changes' : ["; // << std::endl;
+    for (vtkm::Id c : BettiChanges)
+    {
+      os << c << " ";
+    }
+    os << "]," << std::endl;
+
+    os << std::string(indent, ' ') << "  'Betti Segment Volumes' : ["; // << std::endl;
+    for (ValueType c : BettiArcVolumes)
+    {
+      os << c << " ";
+    }
+    os << "]," << std::endl;
+
+  }
+
   if (!Children.empty())
   {
     os << std::string(indent, ' ') << "  'Children' : [" << std::endl;
@@ -1183,6 +1267,7 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
     }
     os << std::string(indent, ' ') << std::string(indent, ' ') << "  ]," << std::endl;
   }
+
   os << std::string(indent, ' ') << "}," << std::endl;
 } // PrintBranchDecomposition()
 

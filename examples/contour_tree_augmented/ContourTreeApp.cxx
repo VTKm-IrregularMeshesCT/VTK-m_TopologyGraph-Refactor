@@ -1294,6 +1294,8 @@ int main(int argc, char* argv[])
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
+      const vtkm::Id root = 9;
+
       BranchType* branchDecompostionRoot =
           ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
             filter.GetContourTree().Superparents,
@@ -1308,7 +1310,9 @@ int main(int argc, char* argv[])
             dataField,
             dataFieldIsSorted,
             superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,
-            superarcDependentWeightNEW); // used to use manually set values for BD: superarcDependentWeightCorrect );
+            superarcDependentWeightNEW,   // used to use manually set values for BD: superarcDependentWeightCorrect );
+            root); // used to get the augmented betti nodes (which are past the root node in index)
+//            filter.GetContourTree().Rootnode); // used to get the augmented betti nodes (which are past the root node in index)
 
       // The preceding is taken from ProcessContourTree.h and hardcoded here for testing
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;

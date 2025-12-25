@@ -162,6 +162,12 @@ public:
   IdArrayType FirstHypernodePerIteration;
 
 
+  // 2025-12-15 adding the root node explicitly, ...
+  // ... since after betti augmentation the root node will not be guaranteed to be last
+  vtkm::Id Rootnode;
+  std::vector<vtkm::Id> translateSupernodes;
+
+
   // ROUTINES
 
   // initialises contour tree arrays - rest is done by another class
