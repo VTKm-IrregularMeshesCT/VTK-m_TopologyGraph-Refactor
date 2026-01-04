@@ -123,15 +123,19 @@ using ValueType = vtkm::Float64; //vtkm::FloatDefault;
     int intLen = weightPortal.GetNumberOfValues();
     int floatLen = weightFloatPortal.GetNumberOfValues();
 
-//    std::cout << "vtkm::Id Comparator ()" << std::endl;
-//    std::cout << "\tid    len: " << weightPortal.GetNumberOfValues() << std::endl;
-//    std::cout << "\tfloat len: " << weightFloatPortal.GetNumberOfValues() << std::endl;
+    std::cout << "vtkm::Id Comparator ()" << std::endl;
+    std::cout << "\tid    len: " << weightPortal.GetNumberOfValues() << std::endl;
+    std::cout << "\tfloat len: " << weightFloatPortal.GetNumberOfValues() << std::endl;
+//    std::cout << "id1 val: " << weightPortal.Get(i1) << "id2 val: " << weightPortal.Get(i2) << std::endl;
+    std::cout << "float val: " << weightFloatPortal.Get(i1) << "float val: " << weightFloatPortal.Get(i2) << std::endl;
 //    std::cout << "id1 val: " << weightPortal.Get(i1) << "id2 val: " << weightPortal.Get(i2) << std::endl;
 
 
     // get local references to the edge details
     EdgePair e1 = superarcListPortal.Get(i1);
     EdgePair e2 = superarcListPortal.Get(i2);
+
+    std::cout << "e1 edge: " << e1 << "e2 edge: " << e2 << std::endl;
 
     if (pairsAtLowEnd)
     { // pairs at low end
@@ -143,7 +147,7 @@ using ValueType = vtkm::Float64; //vtkm::FloatDefault;
 
       if (intLen > floatLen)
       {
-          // test by volumetric measure
+          // test by integer-volumetric measure
           if (weightPortal.Get(i1) < weightPortal.Get(i2))
             return true;
           if (weightPortal.Get(i1) > weightPortal.Get(i2))
@@ -152,7 +156,7 @@ using ValueType = vtkm::Float64; //vtkm::FloatDefault;
 
       if (floatLen > intLen)
       {
-          // test by volumetric measure
+          // test by floating-point volumetric measure
           if (weightFloatPortal.Get(i1) < weightFloatPortal.Get(i2))
             return true;
           if (weightFloatPortal.Get(i1) > weightFloatPortal.Get(i2))
@@ -238,7 +242,7 @@ public:
     , SuperArcList(superArcList)
     , PairsAtLowEnd(pairsAtLowEnd)
   {
-    //      std::cout << "FloatArrayType Comparator Constructor" << std::endl;
+          std::cout << "FloatArrayType Comparator Constructor" << std::endl;
   }
 
   VTKM_CONT SuperArcVolumetricComparatorImpl PrepareForExecution(vtkm::cont::DeviceAdapterId device,
@@ -248,9 +252,9 @@ public:
       int intLen = this->Weight.GetNumberOfValues();
       int floatLen = this->WeightFloat.GetNumberOfValues();
 
-      //      std::cout << "SuperArcVolumetricComparatorImpl" << std::endl;
-      //      std::cout << "\tid    len: " << this->Weight.GetNumberOfValues() << std::endl;
-      //      std::cout << "\tfloat len: " << this->WeightFloat.GetNumberOfValues() << std::endl;
+            std::cout << "SuperArcVolumetricComparatorImpl" << std::endl;
+            std::cout << "\tid    len: " << this->Weight.GetNumberOfValues() << std::endl;
+            std::cout << "\tfloat len: " << this->WeightFloat.GetNumberOfValues() << std::endl;
 
       if (intLen > floatLen)
       {

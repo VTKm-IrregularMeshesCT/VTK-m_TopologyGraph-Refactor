@@ -754,6 +754,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 #if DEBUG_PRINT_PACTBD
 std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
+
+  std::cout << "Contour Tree Root Node: " << contourTreeRootnode << std::endl;
+
   for(int i = 0; i < nBranches; i++)
   {
 #if DEBUG_PRINT_PACTBD

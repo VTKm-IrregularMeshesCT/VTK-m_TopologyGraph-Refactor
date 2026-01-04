@@ -1294,7 +1294,7 @@ int main(int argc, char* argv[])
       std::cout << "(ContourTreeApp.cxx) -Branch.h->ComputeBranchDecomposition " << std::endl;
       std::cout << "(ContourTreeApp)->ProcessContourTree->Branch.h->ComputeBranchDecomposition()" << std::endl;
 
-      const vtkm::Id root = 9;
+      const vtkm::Id root = filter.GetContourTree().Rootnode;//9; // hack-resolved
 
       BranchType* branchDecompostionRoot =
           ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
