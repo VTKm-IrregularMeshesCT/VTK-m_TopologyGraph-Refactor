@@ -1102,7 +1102,7 @@ public:
             {
                 regular_nodes_to_insert.push_back(i_sortID);
 
-                nodes_to_relabel_superparent.push_back(i_superparent); // 2026-01-03 addition
+                nodes_to_relabel_superparent.push_back(i_superparent); // 2026-01-03 addition (original SPs of nodes to be upgraded to supernodes)
                 nodes_to_relabel_hyperparent.push_back(hyperparentsPortal.Get(i_superparent)); // 2026-01-03 hyperparents failing when not matched
                 nodes_to_relabel_regularID.push_back(i_sortID);
 
@@ -1482,6 +1482,19 @@ public:
 
         std::vector<vtkm::Id> newSuperTargets;
 
+        std::cout << "i"
+                  << "\thyperparent"
+                  << "\tdataflip"
+                  << "\tregularID"
+                  << "\tsupernodesPortal.Get(superID)"
+                  << "\tnborSuperparent"
+                  << "\tplus1test"
+                  << "\tsuperparent"
+                  << "\tsupertarget"
+                  << "\tnewSuperIDsRelabelled[i]"
+                  << "\tnewSuperTargets[i]"
+                  << std::endl;
+
         for (vtkm::Id i = 0; i < zipPortal.GetNumberOfValues(); ++i)
         {
             plus1test = false;
@@ -1492,34 +1505,41 @@ public:
             vtkm::Id regularID   = triple.second.first;         // (second of outer pair) triple.second;
             vtkm::Id superparent   = triple.first.first; //  triple.second.second         // (second of outer pair) // 2026-01-03 was triple.second before
 
-
+            auto nextTriple = zipPortal.Get(i+1);
+//                vtkm::Id nborHyperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair
+//            vtkm::Id nborSuperparent = nextTriple.second.second;    // 2026-01-09 bug found - this is now HP! (first of outer pair) -> first of inner pair 2026-01-03 use SPs
+            vtkm::Id nborSuperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair 2026-01-03 use SPs
 
 
             if(i+1 >= zipPortal.GetNumberOfValues())
             {
-
+                // if the last element, do nothing
             }
             else
             {
-                auto nextTriple = zipPortal.Get(i+1);
-//                vtkm::Id nborHyperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair
-                vtkm::Id nborSuperparent = nextTriple.second.second;    // (first of outer pair) -> first of inner pair 2026-01-03 use SPs
+//                auto nextTriple = zipPortal.Get(i+1);
+////                vtkm::Id nborHyperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair
+//                vtkm::Id nborSuperparent = nextTriple.second.second;    // (first of outer pair) -> first of inner pair 2026-01-03 use SPs
 
                 if(superparent == nborSuperparent)
 //                    if(hyperparent == nborHyperparent)
                 {
+                    // segmented test:
+                    // if the next row in the sort is on the same superarc, ...
+                    // ... set the segmented flag
                     plus1test = true;
                 }
             }
 
             if(plus1test)
-            {
+            { // if not end of segment yet ...
+              // ... set the supertarget as the next new super ID
 //                newSuperTarget = newSuperIDsRelabelled[i+1];
                 newSuperTargets.push_back(newSuperIDsRelabelled[i+1]);
             }
             else
-            {
-                // set the supertarget to be the previous hypertarget
+            {// if it's the end of the segment, ...
+             // ... set the supertarget to be the previous hypertarget (not the next supernode)
                 // (reached end of the last superarc)
 //                newSuperTarget = vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs));
 //                newSuperTargets.push_back(vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs)));
@@ -1545,14 +1565,19 @@ public:
                       << "\t" << dataflip
                       << "\t" << regularID
                       << "\t" << supernodesPortal.Get(superID)
+                      << "\t" << nborSuperparent
 //                      << "\t" << isNew
                       << "\t" << plus1test
-                      << "\t" << vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs))
+//                      << "\t" << vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(hyperparent, contourTree.Hyperarcs))
+                      << "\t" << superparent
+                      << "\t" << vtkm::worklet::contourtree_augmented::MaskedIndex(vtkm::cont::ArrayGetValue(superparent, contourTree.Superarcs))
 //                      << "\t" << new_nodes_pfix_sum
                       << "\t" << newSuperIDsRelabelled[i]
                          << "\t" << newSuperTargets[i]
                       << std::endl;
         }
+
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
 
         std::cout << "sortID\tregularID\tSP" << std::endl;

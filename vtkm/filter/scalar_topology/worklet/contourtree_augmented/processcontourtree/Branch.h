@@ -1302,8 +1302,10 @@ void Branch<T>::PrintDotBranchDecomposition(const vtkm::cont::DataSet& input, //
   // NEW: use the data values passed into the field here:
   // NEW PACTBD-EDIT-FIXED
   vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
-  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
-  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+//  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
+  fakeFieldArray.Allocate(input.GetPointField("hh").GetNumberOfValues()); // switch to regular ID for debug
+  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
+//  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
   auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
 
 
