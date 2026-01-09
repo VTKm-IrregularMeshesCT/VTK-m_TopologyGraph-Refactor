@@ -4419,6 +4419,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     const IdArrayType& branchSaddle,
     const IdArrayType& branchParent,
     const IdArrayType& sortOrder,
+          const vtkm::cont::ArrayHandle<T, StorageType>& valueField,
     const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
     bool dataFieldIsSorted,
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
@@ -4437,6 +4438,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       branchSaddle,
       branchParent,
       sortOrder,
+                valueField,
       dataField,
       dataFieldIsSorted,
       superarcDependentWeight,

@@ -96,6 +96,7 @@ public:
   // 2025-12-15 NEW: adding the Betti-augmented supernode information to each branch
   // (Then we will be able to get isosurfaces at which topology changes per branch)
   std::vector<vtkm::Id> BettiChanges; // List of pointers to children
+  std::vector<vtkm::FloatDefault> BettiChangesDataValue; // List of pointers to children
   std::vector<ValueType> BettiArcVolumes; // List of pointers to children
 
 
@@ -125,6 +126,7 @@ public:
     const IdArrayType& branchSaddle,
     const IdArrayType& branchParent,
     const IdArrayType& sortOrder,
+          const vtkm::cont::ArrayHandle<T, StorageType>& valueField,
     const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
     bool dataFieldIsSorted,
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
@@ -530,6 +532,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const IdArrayType& branchSaddle,
   const IdArrayType& branchParent,
   const IdArrayType& sortOrder,
+        const vtkm::cont::ArrayHandle<T, StorageType>& valueField,
   const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
   bool dataFieldIsSorted,
   const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincid
@@ -546,6 +549,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   auto sortOrderPortal = sortOrder.ReadPortal();
   auto supernodesPortal = contourTreeSupernodes.ReadPortal();
   auto dataFieldPortal = dataField.ReadPortal();
+  auto valueFieldPortal = valueField.ReadPortal();
 
   // NEW: add the read portals for branch intrinsic weights:
   auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
@@ -776,11 +780,16 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
-        std::cout << " " << branch_SP_map[i][j] << "(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ") ";
+        std::cout << " " << branch_SP_map[i][j] << "(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
+        std::cout << "[" << supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) << "]";
+        std::cout << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "} ";
+//        std::cout << "{" << dataFieldPortal.Get( 53353 ) << "} ";
+
         if(branch_SP_map[i][j] > contourTreeRootnode) // 9) // 2025-12-15 hack-resolved 2025-12-20
         {
-            // make note of supernode IDs
+            // make note of supernode IDs where Betti Numbers change
             branches[i]->BettiChanges.push_back(branch_SP_map[i][j]);
+            branches[i]->BettiChangesDataValue.push_back(valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ));
             // ... then the volumes for potential simplification:
             branches[i]->BettiArcVolumes.push_back(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]));
         }
@@ -1245,8 +1254,15 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
 
   if (BettiChanges.size() > 0)
   {
-    os << std::string(indent, ' ') << "  'Betti Changes' : ["; // << std::endl;
+    os << std::string(indent, ' ') << "  'Betti Changes (SPs)' : ["; // << std::endl;
     for (vtkm::Id c : BettiChanges)
+    {
+      os << c << " ";
+    }
+    os << "]," << std::endl;
+
+    os << std::string(indent, ' ') << "  'Betti Changes (val)' : ["; // << std::endl;
+    for (vtkm::FloatDefault c : BettiChangesDataValue)
     {
       os << c << " ";
     }
@@ -1302,10 +1318,10 @@ void Branch<T>::PrintDotBranchDecomposition(const vtkm::cont::DataSet& input, //
   // NEW: use the data values passed into the field here:
   // NEW PACTBD-EDIT-FIXED
   vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
-//  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
-  fakeFieldArray.Allocate(input.GetPointField("hh").GetNumberOfValues()); // switch to regular ID for debug
-  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
-//  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
+//  fakeFieldArray.Allocate(input.GetPointField("hh").GetNumberOfValues()); // switch to regular ID for debug
+//  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
+  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
   auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
 
 

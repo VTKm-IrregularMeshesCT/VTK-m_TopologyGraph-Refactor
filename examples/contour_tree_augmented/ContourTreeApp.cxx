@@ -1307,7 +1307,8 @@ int main(int argc, char* argv[])
             branchSaddle,
             branchParent,
             filter.GetSortOrder(),
-            dataField,
+                  useDataSet.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>(),
+            dataField, //, use sort indices
             dataFieldIsSorted,
             superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,
             superarcDependentWeightNEW,   // used to use manually set values for BD: superarcDependentWeightCorrect );
