@@ -167,6 +167,8 @@ public:
   vtkm::Id Rootnode;
   std::vector<vtkm::Id> translateSupernodes;
 
+//  std::vector<vtkm::Id> SupernodeBetti;
+  IdArrayType SupernodeBetti;
 
   // ROUTINES
 

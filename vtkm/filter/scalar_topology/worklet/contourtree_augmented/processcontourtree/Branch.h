@@ -83,6 +83,8 @@ template <typename T>
 class Branch
 {
 public:
+    vtkm::Id branchId; // 2026-01-16 added branch ID for debug and sanity
+
   vtkm::Id OriginalId;              // Index of the extremum in the mesh
   vtkm::Id Extremum;                // Index of the extremum in the mesh
   T ExtremumVal;                    // Value at the extremum:w
@@ -778,12 +780,45 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
     std::cout << std::endl << "branch i = " << i << " SPs:";// << std::endl;
 
+#if 111 // if write branch decomposition to .gv dot file
+
+    std::ofstream file("ContourTreeGraph--BD-fullCT.txt");
+
+    file << "digraph G\n\
+                 {\n\
+                  size=\"6.5, 9\"\
+                  ratio=\"fill\"\n";
+
+
+#endif
+
+#if 111
+    vtkm::Id rootnodeRegularID = supernodesPortal.Get(sortOrderPortal.Get(contourTreeRootnode));
+    file << "	s" << rootnodeRegularID << "[style=filled,fillcolor=cyan, label=\"" << rootnodeRegularID << "\"]";
+#endif
+
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
+        vtkm::Id regularIDbr = supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j]));
+
         std::cout << " " << branch_SP_map[i][j] << "(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
-        std::cout << "[" << supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) << "]";
+        std::cout << "[" << regularIDbr << "]";
         std::cout << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "} ";
 //        std::cout << "{" << dataFieldPortal.Get( 53353 ) << "} ";
+
+        if((j == 0) || (j == branch_SP_map[i].size() - 3))
+        {// if we are first or last superparent, ...
+         // ... also print the sn's supertarget
+            std::cout << "->" << superparentsPortal.Get(branch_SP_map[i][j+2]);
+        }
+
+#if 111
+
+    file << "	s" << regularIDbr << "[style=filled,fillcolor=red, label=\"" << supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) << "\"]";
+
+
+#endif
+
 
         if(branch_SP_map[i][j] > contourTreeRootnode) // 9) // 2025-12-15 hack-resolved 2025-12-20
         {
@@ -844,6 +879,14 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //        std::cout << "branches[" << i << "]->PrintBranchDecomposition after adding volumes:" << std::endl;
 //        branches[i]->PrintBranchDecomposition(std::cout);
 
+    }
+
+    std::cout << "\tChld\t";
+
+    // debug print the branch IDs that are the children to the current branch:
+    for(int k = 0; k < branches[i]->Children.size(); k++)
+    {
+        std::cout << branches[i]->Children[k]->OriginalId << "\t";
     }
 
 
@@ -1320,8 +1363,8 @@ void Branch<T>::PrintDotBranchDecomposition(const vtkm::cont::DataSet& input, //
   vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
   fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
 //  fakeFieldArray.Allocate(input.GetPointField("hh").GetNumberOfValues()); // switch to regular ID for debug
-//  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
-  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
+//  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
   auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
 
 

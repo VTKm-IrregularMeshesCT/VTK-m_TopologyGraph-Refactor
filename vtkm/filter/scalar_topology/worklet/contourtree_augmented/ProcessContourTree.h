@@ -876,6 +876,8 @@ public:
    // BASED ON 2004 Pascucci Parallel Computation of the Topology of Level Sets
     void static ComputeBettiNumbersForRegularArcs(const vtkm::cont::DataSet& input, // the coefficient-based version additionally requires tetrahedral connections and vertex coordinates
                                                   const ContourTree& contourTree,
+//                                                  ContourTree& contourTree, // modify the contour tree betti numbers, no longer const
+                                                                            // (but only used for explicitly modifying contourTree.SupernodeBetti)
                                                   const vtkm::Id nIterations,
                                                   vtkm::cont::ArrayHandle<Coefficients>& superarcIntrinsicWeightCoeff, // (output)
                                                   vtkm::cont::ArrayHandle<Coefficients>& superarcDependentWeightCoeff, // (output)
@@ -1029,6 +1031,7 @@ public:
         std::vector<vtkm::Id> nodes_to_relabel_hyperparent;
         std::vector<double> nodes_to_relabel_dataflip;
         std::vector<vtkm::Id> nodes_to_relabel_regularID;
+        std::vector<vtkm::Id> nodes_to_relabel_regularID_betti_1;
         int previous_betti1 = 0;
 
 
@@ -1106,6 +1109,9 @@ public:
                 nodes_to_relabel_hyperparent.push_back(hyperparentsPortal.Get(i_superparent)); // 2026-01-03 hyperparents failing when not matched
                 nodes_to_relabel_regularID.push_back(i_sortID);
 
+                // keep track of betti at a regular ID
+                nodes_to_relabel_regularID_betti_1.push_back(betti1);
+
                 if(i_sortID > tailend)
                 {
                     node_ascend.push_back(-1);
@@ -1128,6 +1134,10 @@ public:
                     nodes_to_relabel_superparent.push_back(i_superparent);
                     nodes_to_relabel_hyperparent.push_back(hyperparentsPortal.Get(i_superparent)); // 2026-01-03 hyperparents failing when not matched
                     nodes_to_relabel_regularID.push_back(i_sortID);
+
+                    // keep track of betti at a regular ID
+                    nodes_to_relabel_regularID_betti_1.push_back(-betti1); // - minus betti to show if it's a supernode from before (for debug)
+
 
                     if(i_sortID > tailend)
                     {
@@ -1158,10 +1168,12 @@ public:
 //            vtkm::Id hyperparentId = hyperparentsPortal.Get(superparentId);
 //        }
 
-        for(int i = 0; i < regular_nodes_to_insert.size(); i++)
+        for(int i = 0; i < nodes_to_relabel_regularID.size(); i++)
         {
-            std::cout << regular_nodes_to_insert[i] << std::endl;
+            std::cout << nodes_to_relabel_regularID[i] << "\t" << nodes_to_relabel_regularID_betti_1[i] << std::endl;
         }
+
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
 
         // Augment the tree with Betti Numbers
@@ -1355,6 +1367,11 @@ public:
 //                      << std::endl;
 //        }
         std::cout << "id)\thpID\tval_filp\tregularID\tSP" << std::endl;
+
+//        contourTree.SupernodeBetti.resize(nodes_to_relabel_regularID.size()); // resize to write at [i]
+        contourTree.SupernodeBetti.Allocate(nodes_to_relabel_regularID.size()); // resize to write at [i]
+        auto ct_betti_portal = contourTree.SupernodeBetti.WritePortal();
+
         for(int i = 0; i < nodes_to_relabel_regularID.size(); i++)
         {
 //            vtkm::Id regularId = nodes_to_relabel_regularID[i];
@@ -1366,8 +1383,16 @@ public:
                            << "\t"  << nodes_to_relabel_regularID[i]
                            << "\t(" << supernodesPortal.Get(superparentId) << ")"
                            << "\t"  << nodes_to_relabel_superparent[i]
+                           << "\t"  << nodes_to_relabel_regularID_betti_1[i] // include betti numbers for superparents
                            << std::endl;
         }
+
+        vtkm::cont::ArrayHandle<vtkm::Id> ah_betti;
+        ah_betti.Allocate(nodes_to_relabel_regularID_betti_1.size());
+        auto portal_betti = ah_betti.WritePortal();
+        for (vtkm::Id i = 0; i < vtkm::Id(nodes_to_relabel_regularID_betti_1.size()); ++i)
+            portal_betti.Set(i, nodes_to_relabel_regularID_betti_1[i]);
+
 
         vtkm::cont::ArrayHandle<vtkm::Id> ah_super;
         ah_super.Allocate(nodes_to_relabel_superparent.size());
@@ -1400,11 +1425,13 @@ public:
 
         auto zipped12 = vtkm::cont::make_ArrayHandleZip(ah_super, ah_data);
         auto zipped34 = vtkm::cont::make_ArrayHandleZip(ah_regular, ah_hyper); // 2026-01-03
+        auto zipped345 = vtkm::cont::make_ArrayHandleZip(zipped34, ah_betti); // 2026-01-03
 
         // then zip the previous zip with the final array
 //        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, ah_regular); // 2026-01-03
 //        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, ah_regular); // 2026-01-03
-        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, zipped34); // 2026-01-03
+//        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, zipped34); // 2026-01-03
+        auto zipped123 = vtkm::cont::make_ArrayHandleZip(zipped12, zipped345); // 2026-01-15
 
         // Sort lexicographically
         vtkm::cont::Algorithm::Sort(zipped123);
@@ -1444,10 +1471,12 @@ public:
         {
             auto triple = zipPortal.Get(i);
             // Because of nested pairs:
-            vtkm::Id hyperparent = triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
+//            auto zipped34 = vtkm::cont::make_ArrayHandleZip(ah_regular, ah_hyper); // 2026-01-03
+//            auto zipped345 = vtkm::cont::make_ArrayHandleZip(zipped34, ah_betti); // 2026-01-03
             double  dataflip     = triple.first.second;   // (second of inner pair)
-            vtkm::Id regularID   = triple.second.first;         // (second of outer pair) triple.second;
             vtkm::Id superparent   = triple.first.first; //  triple.second.second         // (second of outer pair) // 2026-01-03 was triple.second before
+            vtkm::Id hyperparent = triple.second.first.second; //triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
+            vtkm::Id regularID   = triple.second.first.first;   // triple.second.first;         // (second of outer pair) triple.second;
             vtkm::Id superID     = superparentsPortal.Get(regularID);
 
             bool isNew = false;
@@ -1464,6 +1493,7 @@ public:
 
             // superID to regularID NEW mapping:
             newSupernodes[new_superID_relabel] = regularID;
+
 
         }
 
@@ -1493,6 +1523,7 @@ public:
                   << "\tsupertarget"
                   << "\tnewSuperIDsRelabelled[i]"
                   << "\tnewSuperTargets[i]"
+                  << "\taug_betti_num"
                   << std::endl;
 
         for (vtkm::Id i = 0; i < zipPortal.GetNumberOfValues(); ++i)
@@ -1500,10 +1531,15 @@ public:
             plus1test = false;
             auto triple = zipPortal.Get(i);
             // Because of nested pairs:
-            vtkm::Id hyperparent = triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
+//            vtkm::Id hyperparent = triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
             double  dataflip     = triple.first.second;   // (second of inner pair)
-            vtkm::Id regularID   = triple.second.first;         // (second of outer pair) triple.second;
+//            vtkm::Id regularID   = triple.second.first;         // (second of outer pair) triple.second;
             vtkm::Id superparent   = triple.first.first; //  triple.second.second         // (second of outer pair) // 2026-01-03 was triple.second before
+
+            vtkm::Id hyperparent = triple.second.first.second; //triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
+            vtkm::Id regularID   = triple.second.first.first;   // triple.second.first;         // (second of outer pair) triple.second;
+
+            vtkm::Id aug_betti_num   = triple.second.second;   // triple.second.first;         // (second of outer pair) triple.second;
 
             auto nextTriple = zipPortal.Get(i+1);
 //                vtkm::Id nborHyperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair
@@ -1574,13 +1610,18 @@ public:
 //                      << "\t" << new_nodes_pfix_sum
                       << "\t" << newSuperIDsRelabelled[i]
                          << "\t" << newSuperTargets[i]
+                            << "\t" << aug_betti_num
                       << std::endl;
+
+            // keep track of betti numbers per supernode:
+//            contourTree.SupernodeBetti[newSuperIDsRelabelled] = aug_betti_num;
+            ct_betti_portal.Set(newSuperIDsRelabelled[i], aug_betti_num);
         }
 
+        std::cout << "sortID\tregularID\tSP" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
 
-        std::cout << "sortID\tregularID\tSP" << std::endl;
         for(int sortID = 0; sortID < nodesPortal.GetNumberOfValues(); sortID++)
         {
             vtkm::Id regularId = nodesPortal.Get(sortID);
@@ -2917,10 +2958,16 @@ for(int i = 0; i < iterationSupernodes[iteration].size(); i++)
 //                vtkm::Id lastHPSuperarc = hyperparents.size() - 1 - std::distance(hyperparents.rbegin(), it);
                 std::cout << "lasthp(" << lastSuperarc << ")\n";
 
-                step3Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h1;
-                step3Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h2;
-                step3Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h3;
-                step3Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h4;
+                // 2026-01-17 this broke the intrinsic weight computation
+//                step3Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h1;
+//                step3Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h2;
+//                step3Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h3;
+//                step3Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 - superarcDependentWeightCoeffPortal.Get(lastSuperarc).h4;
+                // restored to as before:
+                step3Dependent.h1 = superarcDependentWeightCoeffPortal.Get(supernode).h1 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h1;
+                step3Dependent.h2 = superarcDependentWeightCoeffPortal.Get(supernode).h2 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h2;
+                step3Dependent.h3 = superarcDependentWeightCoeffPortal.Get(supernode).h3 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h3;
+                step3Dependent.h4 = superarcDependentWeightCoeffPortal.Get(supernode).h4 - superarcDependentWeightCoeffPortal.Get(hyperparentSuperID - 1).h4;
 
                 std::cout << supernode << "\t" << superarcDependentWeightPortal.Get(supernode) << std::endl;
             }
@@ -3418,7 +3465,7 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
           // ... after the Betti augmentation, supernodes are not processed in a continuous order
           // we use the first index as the iteration, following by the array of supernodes to be processed:
 
-          std::cout << sortID << "\t" << superparent << "\t" << loopIteration << "\t" << MaskedIndex(whenTransferredPortal.Get(superparent)) << std::endl;
+//          std::cout << sortID << "\t" << superparent << "\t" << loopIteration << "\t" << MaskedIndex(whenTransferredPortal.Get(superparent)) << std::endl;
 
           if(loopIteration != MaskedIndex(whenTransferredPortal.Get(superparent)))
           {
@@ -3436,12 +3483,12 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
 
       std::cout << "translateSupernodes.size() = " << translateSupernodes.size() << std::endl;
 
-      for(int i = 0; i < translateSupernodes.size(); i++)
-      {
-//          std::cout << i << ")\t" << translateSupernodes[i] << "\t";
-          std::cout << translateSupernodes[i] << std::endl; //<< "\t";
-      }
-      std::cout << std::endl;
+//      for(int i = 0; i < translateSupernodes.size(); i++)
+//      {
+////          std::cout << i << ")\t" << translateSupernodes[i] << "\t";
+//          std::cout << translateSupernodes[i] << std::endl; //<< "\t";
+//      }
+//      std::cout << std::endl;
 
 //      // original iteration sequence: 2025-12-10
 //      translateSupernodes.push_back({0, 1, 2, 3});

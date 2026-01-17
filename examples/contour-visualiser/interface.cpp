@@ -262,6 +262,53 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     }
     else if ("pactbd" == decompositionType)
     {
+
+        int compute_betti = 1;
+
+        if (compute_betti)
+        {
+            // Time branch decompostion: Volume Weight Computation:
+            vtkm::cont::Timer computeVolumeWeightsTimeDisplay;
+            computeVolumeWeightsTimeDisplay.Start();
+
+            // ---------------------------- FLOAT WEIGHTS ---------------------------- //
+
+            FloatArrayType superarcIntrinsicBetti;
+            FloatArrayType superarcDependentBetti;
+            FloatArrayType supernodeTransferBetti;
+            FloatArrayType hyperarcDependentBetti;
+
+            vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightBetti;
+            vtkm::cont::ArrayHandle<Coefficients> superarcDependentWeightBetti;
+            vtkm::cont::ArrayHandle<Coefficients> supernodeTransferWeightBetti;
+            vtkm::cont::ArrayHandle<Coefficients> hyperarcDependentWeightBetti;
+
+            //    CALLGRIND_START_INSTRUMENTATION;
+            ctaug_ns::ProcessContourTree::ComputeBettiNumbersForRegularArcs(inputData,
+                                                                            ct,
+                                                                            ctNumIterations,
+                                                                            // The following four outputs are the coefficient tuples
+                                                                            // (such as h1, h2, h3, h4 pairs)
+                                                                            superarcIntrinsicWeightBetti,  // (output)
+                                                                            superarcDependentWeightBetti,  // (output)
+                                                                            supernodeTransferWeightBetti,  // (output)
+                                                                            hyperarcDependentWeightBetti,
+                                                                            // 2025-01-30 added additional output ...
+                                                                            // ... to have access to "collapsed" TODO termdefine
+                                                                            // ("collapsed" = computed single value weight, ...
+                                                                            //  ... instead of N-length coefficient tuples)
+                                                                            // These "collapsed" weights are used for ...
+                                                                            // ... computing branch weights without relying on ...
+                                                                            // ... the node count on the branches
+                                                                            superarcIntrinsicBetti,  // (output)
+                                                                            superarcDependentBetti,  // (output)
+                                                                            supernodeTransferBetti,  // (output)
+                                                                            hyperarcDependentBetti); // (output)
+
+            //    CALLGRIND_STOP_INSTRUMENTATION;
+            //    CALLGRIND_DUMP_STATS;
+        }
+
         std::cout << "Branch Weights Chosen: PACTBD" << std::endl;
 
         vtkm::cont::ArrayHandle<Coefficients> superarcIntrinsicWeightCoeffs;

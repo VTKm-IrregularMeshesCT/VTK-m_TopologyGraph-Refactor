@@ -1378,7 +1378,7 @@ std::cout << "(ContourTreeApp) PRINTING DOT FORMAT: The Branch Decomposition:\n"
 
       usePersistenceSorter = false;
 //      branchDecompostionRoot->SimplifyToSize(2, usePersistenceSorter);
-      branchDecompostionRoot->SimplifyToSize(10, usePersistenceSorter);
+      branchDecompostionRoot->SimplifyToSize(20, usePersistenceSorter);
 //       branchDecompostionRoot->SimplifyToSize(numComp, usePersistenceSorter);
       /// DEBUG PRINT
        std::cout << YELLOW << "[STAGE 4.4 End - Simplifying to N branches] ContourTreeApp.cxx:branchDecompostionRoot->SimplifyToSize() ... END\n" << RESET << std::endl;
