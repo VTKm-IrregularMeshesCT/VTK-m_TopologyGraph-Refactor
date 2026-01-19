@@ -98,8 +98,12 @@ public:
   // 2025-12-15 NEW: adding the Betti-augmented supernode information to each branch
   // (Then we will be able to get isosurfaces at which topology changes per branch)
   std::vector<vtkm::Id> BettiChanges; // List of pointers to children
-  std::vector<vtkm::FloatDefault> BettiChangesDataValue; // List of pointers to children
-  std::vector<ValueType> BettiArcVolumes; // List of pointers to children
+  std::vector<vtkm::FloatDefault> BettiChangesDataValue; // List data values at which there is a Betti number change
+  std::vector<ValueType> BettiArcVolumes; // List of volumes for arcs that have betti number changes
+  std::vector<vtkm::Id> Betti1Numbers;     // Betti value of the branch
+
+  vtkm::Id           TopBetti1Number;     // Betti value of the branch
+  vtkm::FloatDefault TopBettiChangeDataValue;     // Betti value of the branch
 
 
   // Create branch decomposition from contour tree
@@ -133,7 +137,9 @@ public:
     bool dataFieldIsSorted,
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
     const FloatArrayType& superarcIntrinsicWeight,
-    const vtkm::Id& contourTreeRootnode);
+          const vtkm::Id& contourTreeRootnode,
+          const IdArrayType& contourTreeSuperodeBetti,
+          std::vector<Branch<T>*>& branches);
 
 
   // Simplify branch composition down to target size (i.e., consisting of targetSize branches)
@@ -537,9 +543,11 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
         const vtkm::cont::ArrayHandle<T, StorageType>& valueField,
   const vtkm::cont::ArrayHandle<T, StorageType>& dataField,
   bool dataFieldIsSorted,
-  const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincid
-  const FloatArrayType& superarcDependentWeight,
-  const vtkm::Id& contourTreeRootnode)
+  const FloatArrayType& superarcIntrinsicWeight,            // NEW: passed intrincic ...
+  const FloatArrayType& superarcDependentWeight,            // ... and dependent weights
+  const vtkm::Id& contourTreeRootnode,                      // added explicit root node because after betti augmentation the root not guaranteed to be last
+  const IdArrayType& contourTreeSuperodeBetti,              // NEW: added Supernode-Betti number mappings after implementing Betti augmentation
+        std::vector<Branch<T>*>& branches)                   // output
 { // C)omputeBranchDecomposition()
 
   std::cout << "[(Branch.h) ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] START" << std::endl;
@@ -552,6 +560,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   auto supernodesPortal = contourTreeSupernodes.ReadPortal();
   auto dataFieldPortal = dataField.ReadPortal();
   auto valueFieldPortal = valueField.ReadPortal();
+  auto supernodeBettiPortal = contourTreeSuperodeBetti.ReadPortal();
 
   // NEW: add the read portals for branch intrinsic weights:
   auto superarcIntrinsicWeightPortal = superarcIntrinsicWeight.ReadPortal();
@@ -591,9 +600,9 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 
 
   vtkm::Id nBranches = branchSaddle.GetNumberOfValues();
-  std::vector<Branch<T>*> branches;
+//  std::vector<Branch<T>*> branches; now made an output by passed-in array
   Branch<T>* root = nullptr;
-  branches.reserve(static_cast<std::size_t>(nBranches));
+//  branches.reserve(static_cast<std::size_t>(nBranches));
 
 
   std::cout << "Number of Branches, for the Branch Decomposition:" << nBranches << std::endl;
@@ -701,6 +710,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   int current_superparent;
   int supernode_tailend;
   std::vector<std::vector<vtkm::Id>> branch_SP_map(nBranches);
+  std::vector<std::vector<vtkm::Id>> branch_SP_Betti_map(nBranches);
 
 // 2025-03-10 Commented out the branch initialisation, replaced with a branch-parent-array
 #if DEBUG_PRINT_PACTBD
@@ -778,7 +788,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //    std::cout << "branches[" << i << "]->PrintBranchDecomposition before adding volumes:" << std::endl;
 //    branches[i]->PrintBranchDecomposition(std::cout);
 
-    std::cout << std::endl << "branch i = " << i << " SPs:";// << std::endl;
+    std::cout << std::endl << "branch i SPs\t" << i << "\t";// << std::endl;
 
 #if 111 // if write branch decomposition to .gv dot file
 
@@ -797,20 +807,22 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
     file << "	s" << rootnodeRegularID << "[style=filled,fillcolor=cyan, label=\"" << rootnodeRegularID << "\"]";
 #endif
 
+    ValueType TopBettiArcVolume = 0.f; // List of volumes for arcs that have betti number changes
+
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
         vtkm::Id regularIDbr = supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j]));
 
-        std::cout << " " << branch_SP_map[i][j] << "(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
+        std::cout << branch_SP_map[i][j] << "(" << supernodeBettiPortal.Get(branch_SP_map[i][j]) << ")"; //"(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
         std::cout << "[" << regularIDbr << "]";
-        std::cout << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "} ";
+        std::cout << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "}\t";
 //        std::cout << "{" << dataFieldPortal.Get( 53353 ) << "} ";
 
-        if((j == 0) || (j == branch_SP_map[i].size() - 3))
-        {// if we are first or last superparent, ...
-         // ... also print the sn's supertarget
-            std::cout << "->" << superparentsPortal.Get(branch_SP_map[i][j+2]);
-        }
+//        if((j == 0) || (j == branch_SP_map[i].size() - 3))
+//        {// if we are first or last superparent, ...
+//         // ... also print the sn's supertarget
+//            std::cout << "->" << superparentsPortal.Get(branch_SP_map[i][j+2]);
+//        }
 
 #if 111
 
@@ -827,6 +839,15 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
             branches[i]->BettiChangesDataValue.push_back(valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ));
             // ... then the volumes for potential simplification:
             branches[i]->BettiArcVolumes.push_back(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]));
+            branches[i]->Betti1Numbers.push_back(supernodeBettiPortal.Get(branch_SP_map[i][j]));
+
+            if(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume)
+            {
+                TopBettiArcVolume = superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
+                branches[i]->TopBetti1Number = supernodeBettiPortal.Get(branch_SP_map[i][j]);     // Betti value of the branch
+                branches[i]->TopBettiChangeDataValue = valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) );    // Betti value of the branch
+            }
+
         }
 
 #if DEBUG_PRINT_PACTBD
@@ -881,13 +902,19 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
     }
 
-    std::cout << "\tChld\t";
-
-    // debug print the branch IDs that are the children to the current branch:
-    for(int k = 0; k < branches[i]->Children.size(); k++)
+    std::cout << "\n            \t \t";
+    for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
-        std::cout << branches[i]->Children[k]->OriginalId << "\t";
+        std::cout << supernodeBettiPortal.Get(branch_SP_map[i][j]) << "\t";
     }
+
+//    std::cout << "\tChld\t";
+
+//    // debug print the branch IDs that are the children to the current branch:
+//    for(int k = 0; k < branches[i]->Children.size(); k++)
+//    {
+//        std::cout << branches[i]->Children[k]->OriginalId << "\t";
+//    }
 
 
 
@@ -1288,6 +1315,7 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
 { // PrintBranchDecomposition()
 
   os << std::string(indent, ' ') << "{" << std::endl;
+  os << std::string(indent, ' ') << "  'ID' : " << OriginalId << "," << std::endl;
   os << std::string(indent, ' ') << "  'Saddle' : " << SaddleVal << ","
      << std::endl;
   os << std::string(indent, ' ') << "  'Extremum' : " << ExtremumVal << ","
@@ -1297,22 +1325,34 @@ void Branch<T>::PrintBranchDecomposition(std::ostream& os, std::string::size_typ
 
   if (BettiChanges.size() > 0)
   {
+
+      os << std::string(indent, ' ') << "  'TopBettiChangeDataValue' : " << TopBettiChangeDataValue << ","<< std::endl;
+      os << std::string(indent, ' ') << "  'TopBetti1Number' : " << TopBetti1Number << ","<< std::endl;
+
+      os << std::string(indent, ' ') << "  'Betti Changes (val)' : ["; // << std::endl;
+      for (vtkm::FloatDefault c : BettiChangesDataValue)
+      {
+        os << c << " ";
+      }
+      os << "]," << std::endl;
+
+      os << std::string(indent, ' ') << "  'Betti 1 Changes' : ["; // << std::endl;
+      for (ValueType c : Betti1Numbers)
+      {
+          os << c << " ";
+      }
+      os << "]," << std::endl;
+
+
+      os << std::string(indent, ' ') << "  'Betti Segment Volumes' : ["; // << std::endl;
+      for (ValueType c : BettiArcVolumes)
+      {
+        os << c << " ";
+      }
+      os << "]," << std::endl;
+
     os << std::string(indent, ' ') << "  'Betti Changes (SPs)' : ["; // << std::endl;
     for (vtkm::Id c : BettiChanges)
-    {
-      os << c << " ";
-    }
-    os << "]," << std::endl;
-
-    os << std::string(indent, ' ') << "  'Betti Changes (val)' : ["; // << std::endl;
-    for (vtkm::FloatDefault c : BettiChangesDataValue)
-    {
-      os << c << " ";
-    }
-    os << "]," << std::endl;
-
-    os << std::string(indent, ' ') << "  'Betti Segment Volumes' : ["; // << std::endl;
-    for (ValueType c : BettiArcVolumes)
     {
       os << c << " ";
     }

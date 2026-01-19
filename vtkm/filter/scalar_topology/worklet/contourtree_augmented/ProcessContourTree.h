@@ -1110,7 +1110,8 @@ public:
                 nodes_to_relabel_regularID.push_back(i_sortID);
 
                 // keep track of betti at a regular ID
-                nodes_to_relabel_regularID_betti_1.push_back(betti1);
+//                nodes_to_relabel_regularID_betti_1.push_back(betti1);
+                nodes_to_relabel_regularID_betti_1.push_back(previous_betti1);
 
                 if(i_sortID > tailend)
                 {
@@ -4471,10 +4472,12 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
     bool dataFieldIsSorted,
     const FloatArrayType& superarcDependentWeight,            // NEW: passed intrincid
     const FloatArrayType& superarcIntrinsicWeight,
-          const vtkm::Id& contourTreeRootnode)                // NEW: used to get the augmented betti nodes (which are past the root node in index)
+          const vtkm::Id& contourTreeRootnode,                // NEW: used to get the augmented betti nodes (which are past the root node in index)
+          const IdArrayType& contourTreeSupernodeBetti,       // NEW: added Supernode-Betti number mappings after implementing Betti augmentation
+          std::vector<process_contourtree_inc_ns::Branch<T>*>& branches) // output
   {
     std::cout << "ContourTreeApp->(ProcessContourTree)->Branch.h->ComputeBranchDecomposition()" << std::endl;
-
+    // Branch double-call (Branch function called from here, not just via ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>)
     return process_contourtree_inc_ns::Branch<T>::ComputeBranchDecomposition(
       contourTreeSuperparents,
       contourTreeSupernodes,
@@ -4490,7 +4493,9 @@ for(int i = 0; i < superarcIntrinsicWeightPortal.GetNumberOfValues(); i++)
       dataFieldIsSorted,
       superarcDependentWeight,
       superarcIntrinsicWeight,
-                contourTreeRootnode);
+                contourTreeRootnode,
+                contourTreeSupernodeBetti,
+                branches);
   }
 
 

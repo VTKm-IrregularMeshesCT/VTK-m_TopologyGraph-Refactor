@@ -61,6 +61,8 @@
 //#include <vtkm/filter/scalar_topology/worklet/ContourTreeUniformAugmented.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
 
+using BranchType = vtkm::worklet::contourtree_augmented::process_contourtree_inc::Branch<ValueType>;
+
 using AdjacencyList = std::unordered_map<vtkm::Id, std::set<vtkm::Id>>;
 
 struct DelaunayMesh
@@ -228,6 +230,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     FloatArrayType supernodeTransferWeightNEW;
     FloatArrayType hyperarcDependentWeightNEW;
 
+    BranchType* branchDecompostionRoot; // for traversing additional Betti number information
+    std::vector<BranchType*> branches;
+
     // compute the branch decomposition by volume (these remain the same for PACT-BD)
     // The following arrays are already defined
     //        ctaug_ns::IdArrayType whichBranch;
@@ -346,6 +351,40 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                                                                                   branchMaximum, // (output)
                                                                                   branchSaddle,  // (output)
                                                                                   branchParent); // (output)
+
+        // NEW
+        const vtkm::Id root = ct.Rootnode;//9; // hack-resolved
+        bool dataFieldIsSorted = true;
+        vtkm::cont::ArrayHandle<vtkm::Float64> dataField;
+        dataField.Allocate(inputData.GetPointField("hh").GetNumberOfValues());
+        dataField = inputData.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+
+        vtkm::Id nBranches = branchSaddle.GetNumberOfValues();
+        // branches array defined above
+        branches.reserve(static_cast<std::size_t>(nBranches));
+
+        branchDecompostionRoot =
+            ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
+              ct.Superparents,
+              ct.Supernodes,
+              ct.Superarcs,
+              whichBranch,
+              branchMinimum,
+              branchMaximum,
+              branchSaddle,
+              branchParent,
+              ctSortOrder,
+                    inputData.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>(),
+              dataField, //, use sort indices
+              dataFieldIsSorted,
+              superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,
+              superarcDependentWeightNEW,   // used to use manually set values for BD: superarcDependentWeightCorrect );
+                  root,
+                  ct.SupernodeBetti,       // used to get the augmented betti nodes (which are past the root node in index)
+                    branches); // output
+
+
+
     }
 
     else if("height" == decompositionType)
@@ -408,6 +447,14 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     // Each point has it's own isovalue
     cont::ArrayHandle<Float64> branchPointVolumeArray;
     branchPointVolumeArray.Allocate(branchMinimum.GetNumberOfValues());
+
+    // branches should be here
+
+
+    // Each point has it's own betti changes (=>0 or more 0+)
+    cont::ArrayHandle<Float64> branchPointBettiIsovalueArray;
+    // by default, get 2 isovalues for betti change for each branch
+    branchPointBettiIsovalueArray.Allocate(branchMinimum.GetNumberOfValues()*2);
 
     // Endpoints of path in the contour tree
     cont::ArrayHandle<Id> branchHeightArray;
@@ -768,6 +815,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     // Get branch decomposition & simplify and get relevant isovalues.
     vector<std::pair<vtkm::Float64, vtkm::Id>> vals;
 
+    // betti information:
+    vector<std::pair<vtkm::Id, vtkm::Id>> betti_changes_per_branch;
+
     if ("sort" == selectionType)
     {
         vector<Id> branchOrder = getBranchesSortedOrder(branchImportance, branchImportanceSecondary);
@@ -806,7 +856,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
     std::cout << "Branches to extract: " << numberOfBranches << " vs requested: " << vals.size()<< std::endl;
 
-    std::cout << "[";
+    std::cout << "extracting branches: [";
     for (int k = 0 ; k < numberOfBranches; k++)
     {
         //
@@ -814,15 +864,52 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         //
         std::cout << "'" << vals[k].second << "',";
     }
-    std::cout << "]" << std::endl;
+    std::cout << "]?" << std::endl;
+    std::cout << "a" << std::endl;
+    std::cout << "b" << std::endl;
+    std::cout << "at isovalues: [";
+
+    // fill in how many isosurfaces to generate (with betti changes as well)
+    //               branchID  isosurface     bettiNum
+    vector<std::tuple<vtkm::Id, vtkm::Float64, vtkm::Id>> flexIsosurfaces;
 
     for (int k = 0 ; k < numberOfBranches; k++)
     {
+        std::cout << "k=" << k << std::endl;
         //
         // Compute MC Triangles for each isovalue and filter out the triangles that do not belong to the current branch
         //
         const Id branchId = vals[k].second;
         const Float64 branchIsovalue = vals[k].first;
+
+        std::cout << branches.size() << std::endl;
+        std::cout << branchId << " " << branchIsovalue << "?" << branches[branchId]->BettiChanges.size() << std::endl;
+
+        if (branches[branchId]->BettiChanges.size() == 0)
+        {
+            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+        }
+        else
+        {
+            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+            flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue, branches[branchId]->TopBetti1Number);
+        }
+    }
+
+//    for (int k = 0 ; k < numberOfBranches; k++) old
+    for (int k = 0 ; k < flexIsosurfaces.size(); k++)
+    {
+        //
+        // Compute MC Triangles for each isovalue and filter out the triangles that do not belong to the current branch
+        //
+        /*
+        const Id branchId = vals[k].second;
+        const Float64 branchIsovalue = vals[k].first;*/
+        const Id branchId = std::get<0>(flexIsosurfaces[k]); //.first;
+        const Float64 branchIsovalue = std::get<1>(flexIsosurfaces[k]); //flexIsosurfaces[k].second;
+        const Id branchBetti = std::get<2>(flexIsosurfaces[k]); //flexIsosurfaces[k].third;
+
+        std::cout << "'" << vals[k].first << "',";
 
         // 
         // Print some debug info
@@ -1060,6 +1147,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         outputContours.AppendPartition(contourDataSet);
     }
 
+    std::cout << "]" << std::endl;
 
     std::cout << "[";
     for (int k = 0 ; k < numberOfBranches; k++)
