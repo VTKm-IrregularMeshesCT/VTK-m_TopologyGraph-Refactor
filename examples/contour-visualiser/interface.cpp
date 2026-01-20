@@ -355,9 +355,24 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         // NEW
         const vtkm::Id root = ct.Rootnode;//9; // hack-resolved
         bool dataFieldIsSorted = true;
-        vtkm::cont::ArrayHandle<vtkm::Float64> dataField;
-        dataField.Allocate(inputData.GetPointField("hh").GetNumberOfValues());
-        dataField = inputData.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+
+//        vtkm::cont::ArrayHandle<vtkm::Float64> dataField;
+//        dataField.Allocate(inputData.GetPointField("hh").GetNumberOfValues());
+//        dataField = inputData.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+
+        auto input_var = inputData.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>();
+
+        std::vector<vtkm::Float64> std_nodes_sorted;
+//        std::vector<vtkm::Id> std_nodes_sorted;
+        std_nodes_sorted.reserve(input_var.GetNumberOfValues() + 1);
+        for (vtkm::Id i = 0; i <= input_var.GetNumberOfValues(); ++i)
+        {
+            std_nodes_sorted.push_back(static_cast<vtkm::Float64>(i));
+//            std_nodes_sorted.push_back(i);
+        }
+//        vtkm::cont::ArrayHandle<vtkm::Float64> dataField =
+        vtkm::cont::ArrayHandle<vtkm::Float64> dataField =
+          vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
 
         vtkm::Id nBranches = branchSaddle.GetNumberOfValues();
         // branches array defined above
@@ -375,6 +390,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
               branchParent,
               ctSortOrder,
                     inputData.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>(),
+//                    input_var,
               dataField, //, use sort indices
               dataFieldIsSorted,
               superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,

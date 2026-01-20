@@ -446,7 +446,11 @@ inline void ContourTreeMaker::ComputeHyperAndSuperStructure()
     this->ContourTreeResult.NumIterations + 1,
     this->ContourTreeResult.Hypernodes.GetNumberOfValues());
 
+#if DEBUG_PRINT_PACTBD
   DebugPrint("Contour Tree Super Structure Constructed", __FILE__, __LINE__);
+#endif
+
+  std::cout << "Contour Tree Super Structure Constructed" << __FILE__ << " " << __LINE__;
   std::cout << "Num. of Supernodes: " << this->ContourTreeResult.Supernodes.GetNumberOfValues() << std::endl;
 
   // 2025-12-15 - set the root node explicitly, ...

@@ -61,6 +61,7 @@
 #include <cmath>
 #include <algorithm>
 
+#define WRITE_FILES 0
 #define DEBUG_PRINT_PACTBD 0
 #define SLEEP_ON 0
 
@@ -771,7 +772,10 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
 
-  std::cout << "Contour Tree Root Node: " << contourTreeRootnode << std::endl;
+#if DEBUG_PRINT_PACTBD
+    std::ofstream filebsp("ContourTreeBranches--branchSPs.txt");
+    std::cout << "Contour Tree Root Node: " << contourTreeRootnode << std::endl;
+#endif
 
   for(int i = 0; i < nBranches; i++)
   {
@@ -788,23 +792,9 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //    std::cout << "branches[" << i << "]->PrintBranchDecomposition before adding volumes:" << std::endl;
 //    branches[i]->PrintBranchDecomposition(std::cout);
 
+#if DEBUG_PRINT_PACTBD
     std::cout << std::endl << "branch i SPs\t" << i << "\t";// << std::endl;
-
-#if 111 // if write branch decomposition to .gv dot file
-
-    std::ofstream file("ContourTreeGraph--BD-fullCT.txt");
-
-    file << "digraph G\n\
-                 {\n\
-                  size=\"6.5, 9\"\
-                  ratio=\"fill\"\n";
-
-
-#endif
-
-#if 111
-    vtkm::Id rootnodeRegularID = supernodesPortal.Get(sortOrderPortal.Get(contourTreeRootnode));
-    file << "	s" << rootnodeRegularID << "[style=filled,fillcolor=cyan, label=\"" << rootnodeRegularID << "\"]";
+    filebsp << std::endl << "branch i SPs\t" << i << "\t";// << std::endl;
 #endif
 
     ValueType TopBettiArcVolume = 0.f; // List of volumes for arcs that have betti number changes
@@ -813,9 +803,15 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
     {
         vtkm::Id regularIDbr = supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j]));
 
+#if DEBUG_PRINT_PACTBD
         std::cout << branch_SP_map[i][j] << "(" << supernodeBettiPortal.Get(branch_SP_map[i][j]) << ")"; //"(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
+        filebsp   << branch_SP_map[i][j] << "(" << supernodeBettiPortal.Get(branch_SP_map[i][j]) << ")"; //"(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
         std::cout << "[" << regularIDbr << "]";
+        filebsp   << "[" << regularIDbr << "]";
         std::cout << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "}\t";
+        filebsp   << "{" << valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) ) << "}\t";
+#endif
+
 //        std::cout << "{" << dataFieldPortal.Get( 53353 ) << "} ";
 
 //        if((j == 0) || (j == branch_SP_map[i].size() - 3))
@@ -823,13 +819,6 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //         // ... also print the sn's supertarget
 //            std::cout << "->" << superparentsPortal.Get(branch_SP_map[i][j+2]);
 //        }
-
-#if 111
-
-    file << "	s" << regularIDbr << "[style=filled,fillcolor=red, label=\"" << supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) << "\"]";
-
-
-#endif
 
 
         if(branch_SP_map[i][j] > contourTreeRootnode) // 9) // 2025-12-15 hack-resolved 2025-12-20
@@ -902,11 +891,13 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
     }
 
+#if DEBUG_PRINT_PACTBD
     std::cout << "\n            \t \t";
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
         std::cout << supernodeBettiPortal.Get(branch_SP_map[i][j]) << "\t";
     }
+#endif
 
 //    std::cout << "\tChld\t";
 
@@ -969,8 +960,10 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
   }
 
   std::string indent = "\t";
-
+#if DEBUG_PRINT_PACTBD
   std::cout << "num of children at branch 0: " << branches[0]->Children.size() << std::endl;
+#endif
+
 //  std::cout << indent << " ex:\t"   << branches[0]->Children[0]->Extremum
 //            << indent << " sad:\t"  << branches[0]->Children[0]->Saddle
 //            << indent << " chld:\t" << branches[0]->Children[0]->Children.size()
@@ -987,7 +980,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //            << indent << " chld:\t" << branches[0]->Children[1]->Children.size()
 //            << std::endl;
 
-  branches[1]->PrintBranchDecomposition(std::cout);
+//  branches[1]->PrintBranchDecomposition(std::cout);
 
 //  std::cout << "============================================================================================" << std::endl;
 //  std::cout << "============================================================================================" << std::endl;
@@ -1400,11 +1393,21 @@ void Branch<T>::PrintDotBranchDecomposition(const vtkm::cont::DataSet& input, //
 
   // NEW: use the data values passed into the field here:
   // NEW PACTBD-EDIT-FIXED
-  vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
-  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
-//  fakeFieldArray.Allocate(input.GetPointField("hh").GetNumberOfValues()); // switch to regular ID for debug
-  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
-//  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+//  vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray;
+//  fakeFieldArray.Allocate(input.GetPointField("var").GetNumberOfValues());
+//  fakeFieldArray = input.GetPointField("hh").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>(); // switch to regular ID for debug
+////  fakeFieldArray = input.GetPointField("var").GetData().AsArrayHandle<cont::ArrayHandle<vtkm::Float64>>();
+
+  std::vector<vtkm::Float64> std_nodes_sorted;
+  vtkm::Id num_nodes = input.GetPointField("var").GetNumberOfValues();
+  std_nodes_sorted.reserve(num_nodes + 1);
+  for (vtkm::Id i = 0; i <= num_nodes; ++i)
+  {
+      std_nodes_sorted.push_back(static_cast<vtkm::Float64>(i));
+  }
+  vtkm::cont::ArrayHandle<vtkm::Float64> fakeFieldArray =
+    vtkm::cont::make_ArrayHandle(std_nodes_sorted, vtkm::CopyFlag::Off);
+
   auto fakeFieldArrayReadPortal = fakeFieldArray.ReadPortal();
 
 
