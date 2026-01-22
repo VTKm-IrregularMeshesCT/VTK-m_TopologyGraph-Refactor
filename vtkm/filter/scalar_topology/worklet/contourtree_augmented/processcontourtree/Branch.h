@@ -549,7 +549,7 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
   const vtkm::Id& contourTreeRootnode,                      // added explicit root node because after betti augmentation the root not guaranteed to be last
   const IdArrayType& contourTreeSuperodeBetti,              // NEW: added Supernode-Betti number mappings after implementing Betti augmentation
         std::vector<Branch<T>*>& branches)                   // output
-{ // C)omputeBranchDecomposition()
+{ // ComputeBranchDecomposition()
 
   std::cout << "[(Branch.h) ContourTreeApp->ProcessContourTree->Branch.h::ComputeBranchDecomposition()] START" << std::endl;
 
@@ -772,18 +772,18 @@ Branch<T>* Branch<T>::ComputeBranchDecomposition(
 std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
 
-#if DEBUG_PRINT_PACTBD
+#if WRITE_FILES
     std::ofstream filebsp("ContourTreeBranches--branchSPs.txt");
     std::cout << "Contour Tree Root Node: " << contourTreeRootnode << std::endl;
 #endif
 
   for(int i = 0; i < nBranches; i++)
   {
-#if DEBUG_PRINT_PACTBD
+#if WRITE_FILES
       std::cout << "branch[" << i << "] "  << "\t";
 #endif
 
-#if DEBUG_PRINT_PACTBD
+#if WRITE_FILES
     std::cout << i << " -> "
               << branches[i]->Extremum << "->" << branches[i]->Saddle << " = "
               << branches[i]->VolumeFloat << std::endl << "\t";
@@ -792,7 +792,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //    std::cout << "branches[" << i << "]->PrintBranchDecomposition before adding volumes:" << std::endl;
 //    branches[i]->PrintBranchDecomposition(std::cout);
 
-#if DEBUG_PRINT_PACTBD
+#if WRITE_FILES
     std::cout << std::endl << "branch i SPs\t" << i << "\t";// << std::endl;
     filebsp << std::endl << "branch i SPs\t" << i << "\t";// << std::endl;
 #endif
@@ -803,7 +803,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
     {
         vtkm::Id regularIDbr = supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j]));
 
-#if DEBUG_PRINT_PACTBD
+#if WRITE_FILES
         std::cout << branch_SP_map[i][j] << "(" << supernodeBettiPortal.Get(branch_SP_map[i][j]) << ")"; //"(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
         filebsp   << branch_SP_map[i][j] << "(" << supernodeBettiPortal.Get(branch_SP_map[i][j]) << ")"; //"(" << dataFieldPortal.Get(branch_SP_map[i][j]) << ")";
         std::cout << "[" << regularIDbr << "]";
@@ -830,6 +830,8 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
             branches[i]->BettiArcVolumes.push_back(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]));
             branches[i]->Betti1Numbers.push_back(supernodeBettiPortal.Get(branch_SP_map[i][j]));
 
+            // add an additional filter just to get Betti1 changes:
+//            if ((supernodeBettiPortal.Get(branch_SP_map[i][j]) == 2) && (superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume))
             if(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume)
             {
                 TopBettiArcVolume = superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
@@ -1090,6 +1092,15 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 
 //  }
 
+
+//#if WRITE_FILES
+  std::ofstream filebranchvolumes("ContourTreeBranches--BranchVolumes.txt");
+  for(int i = 0; i < nBranches; i++)
+  {
+    filebranchvolumes << i << "\t" << branches[i]->VolumeFloat << std::endl;
+
+//#endif
+  }
 
 
   if (root)
