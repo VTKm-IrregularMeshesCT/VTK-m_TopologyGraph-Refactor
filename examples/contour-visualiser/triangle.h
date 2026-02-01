@@ -33,7 +33,8 @@
 #pragma once
 
 #include <iosfwd>
-#include "/home/sc17dd/local-installs/vtk-m-untouched/include/vtkm-2.2/vtkm/Types.h"
+//#include "/home/sc17dd/local-installs/vtk-m-untouched/include/vtkm-2.2/vtkm/Types.h"
+#include "/users/sc17dd/Projects/Internal/VTK-m-Original-Timed/Installs/Release/include/vtkm-2.1/vtkm/Types.h" // AIRE 
 
 namespace cv1k
 {
