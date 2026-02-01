@@ -102,7 +102,7 @@
 #include <unistd.h>
 
 #define PACT_DEBUG 0
-#define WRITE_FILES 1
+#define WRITE_FILES 0
 
 using vtkm::worklet::contourtree_augmented::NO_SUCH_ELEMENT;
 

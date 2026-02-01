@@ -61,6 +61,8 @@
 //#include <vtkm/filter/scalar_topology/worklet/ContourTreeUniformAugmented.h>
 #include <vtkm/filter/scalar_topology/worklet/contourtree_augmented/meshtypes/ContourTreeMesh.h>
 
+#define WRITE_FILES 0
+
 using BranchType = vtkm::worklet::contourtree_augmented::process_contourtree_inc::Branch<ValueType>;
 
 using AdjacencyList = std::unordered_map<vtkm::Id, std::set<vtkm::Id>>;
@@ -502,6 +504,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
             auto bt_whichBranchPortal = bt_whichBranch.WritePortal();
             auto whichBranchPortal = whichBranch.WritePortal();
 
+#if WRITE_FILES
             std::ofstream file1("ContourTreeGraph--original-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
 
             for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
@@ -510,6 +513,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 file1 << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
             }
             file1.close();
+#endif
 
 //            for(int i = 0; i < whichBranch.GetNumberOfValues(); i++)
             for(int i = 0; i < bt_whichBranch.GetNumberOfValues(); i++)
@@ -535,6 +539,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 whichBranchPortalModified.Set(i, bt_whichBranchPortal.Get(i));
             }
 
+#if WRITE_FILES
             std::ofstream file("ContourTreeGraph--Betti-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
 
             for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
@@ -543,6 +548,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 file << branchID << "," << whichBranchPortalModified.Get(branchID) << std::endl;
             }
             file.close();
+#endif
 
 
 
