@@ -169,6 +169,7 @@ public:
 
   // sortID to Betti1 number map
   IdArrayType SupernodeBetti;
+  IdArrayType BettiOriginalSuperparents;
 
   // ROUTINES
 

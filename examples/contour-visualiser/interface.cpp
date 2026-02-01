@@ -424,14 +424,19 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         std::vector<ValueType> originalBranchVolumeFloats;
         originalBranchVolumeFloats.resize(branches.size());
 
+        std::ofstream filebranchvolumes("ContourTreeBranches--BranchVolumes-NoBetti.txt");
         for(int i = 0; i < branches.size(); i++)
         {
             originalBranchVolumeFloats[i] = branches[i]->VolumeFloat;
+            filebranchvolumes << i << "\t" << branches[i]->VolumeFloat << std::endl;
         }
 
 
         std::cout << "ct.root = " << ct.Rootnode << " ctBetti.root = " << ctBetti.Rootnode << " original.root = " << originalRoot << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::cout << "whichBranch.size() = " << whichBranch.GetNumberOfValues()
+                  << " branchSaddle.size() = " << branchSaddle.GetNumberOfValues() << std::endl;
+        std::cout << "ctBetti.SupernodeBetti.size() = " << ctBetti.SupernodeBetti.GetNumberOfValues() << std::endl;
+//        std::this_thread::sleep_for(std::chrono::seconds(3));
 
         if (compute_betti)
         {
@@ -466,6 +471,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                                                                                       bt_supernodeTransferWeightNEW,  // (output)
                                                                                       bt_hyperarcDependentWeightNEW); // (output)
 
+
+
             cont::ArrayHandle<vtkm::Id> bt_whichBranch;
             cont::ArrayHandle<vtkm::Id> bt_branchMinimum;
             cont::ArrayHandle<vtkm::Id> bt_branchMaximum;
@@ -481,6 +488,65 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                                                                                       bt_branchSaddle,  // (output)
                                                                                       bt_branchParent); // (output)
 
+            std::cout << "bt_whichBranch.size() = " << bt_whichBranch.GetNumberOfValues() << std::endl;
+//            std::this_thread::sleep_for(std::chrono::seconds(3));
+
+
+
+
+
+
+
+            auto ctBetti_BettiOriginalSuperparents_portal = ctBetti.BettiOriginalSuperparents.ReadPortal();
+
+            auto bt_whichBranchPortal = bt_whichBranch.WritePortal();
+            auto whichBranchPortal = whichBranch.WritePortal();
+
+            std::ofstream file1("ContourTreeGraph--original-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
+
+            for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+            {
+                // std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+                file1 << branchID << "," << whichBranchPortal.Get(branchID) << std::endl;
+            }
+            file1.close();
+
+//            for(int i = 0; i < whichBranch.GetNumberOfValues(); i++)
+            for(int i = 0; i < bt_whichBranch.GetNumberOfValues(); i++)
+            {
+                if(i < originalRoot)
+                {
+//                    bt_whichBranch[i] = whichBranch[i];
+                    bt_whichBranchPortal.Set(i, whichBranchPortal.Get(i));
+
+                }
+                else
+                {
+//                    bt_whichBranch[i] = whichBranch[ctBetti_BettiOriginalSuperparents_portal[i]];
+                    bt_whichBranchPortal.Set(i, whichBranchPortal.Get(ctBetti_BettiOriginalSuperparents_portal.Get(i)));
+                }
+            }
+
+            whichBranch.Allocate(bt_whichBranch.GetNumberOfValues());
+            auto whichBranchPortalModified = whichBranch.WritePortal();
+
+            for(int i = 0; i < bt_whichBranch.GetNumberOfValues(); i++)
+            {
+                whichBranchPortalModified.Set(i, bt_whichBranchPortal.Get(i));
+            }
+
+            std::ofstream file("ContourTreeGraph--Betti-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
+
+            for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+            {
+                // std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+                file << branchID << "," << whichBranchPortalModified.Get(branchID) << std::endl;
+            }
+            file.close();
+
+
+
+
 
 
 
@@ -491,16 +557,17 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
             branchDecompostionRoot =
                 ctaug_ns::ProcessContourTree::ComputeBranchDecomposition<ValueType>(
-                        ctBetti.Superparents,
-                        ctBetti.Supernodes,
-                        ctBetti.Superarcs,
-                  bt_whichBranch,
-                  bt_branchMinimum,
-                  bt_branchMaximum,
-                  bt_branchSaddle,
-                  bt_branchParent,
-                  ctSortOrder,
-                        inputData.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>(),
+                        ctBetti.Superparents,   // contourTreeSuperparents
+                        ctBetti.Supernodes,     // contourTreeSupernodes
+                        ctBetti.Superarcs,      // contourTreeSuperarcs
+                  whichBranch,               // whichBranch
+//                        bt_whichBranch,               // whichBranch
+                  branchMinimum,             // branchMinimum
+                  branchMaximum,             // branchMaximum
+                  branchSaddle,              // branchSaddle
+                  branchParent,              // branchParent
+                  ctSortOrder,                  // sortOrder
+                  /* valueField */      inputData.GetPointField("var").GetDataAsDefaultFloat().AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>(),
     //                    input_var,
                   dataField, //, use sort indices
                   dataFieldIsSorted,
@@ -518,7 +585,10 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                 branches[i]->VolumeFloat = originalBranchVolumeFloats[i];
             }
 
+
+
             ct = ctBetti;
+//            whichBranch = bt_whichBranch;
 
         }
 
@@ -1012,6 +1082,71 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     //               branchID  isosurface     bettiNum
     vector<std::tuple<vtkm::Id, vtkm::Float64, vtkm::Id>> flexIsosurfaces;
 
+//    flexIsosurfaces.emplace_back(12661, 0.00115, 2); // manual inspection 2M
+//    flexIsosurfaces.emplace_back(1578, 0.00115, 2); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110815, 15); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.001108155, 14); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110816, 16); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110817, 17); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110824, 24); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110825, 25); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110844, 44); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00122307, 2); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00113258, 28); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(1578, 0.00110824, 2); // manual inspection 200K
+
+//    vtkm::Id ring_branch = 1578; //70;
+////    // 200K plot
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00103944, 181); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.0010685, 156); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00110814, 60); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00110817, 22); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00113258, 13); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00117477, 113); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00119938, 43); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00121694, 13); // manual inspection 200K
+//        flexIsosurfaces.emplace_back(ring_branch, 0.00122287, 1); // manual inspection 200K
+
+//    vtkm::Id ring_branch = 12661; //6084; //1578; //70;
+        // 2M plot
+//            flexIsosurfaces.emplace_back(12661, 0.00103944, 622); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.0010685, 312); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.0010685, 312); // manual inspection 200K
+
+//            flexIsosurfaces.emplace_back(12661, 0.00110815, 622); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.00112608, 310); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.0011748, 1292); // manual inspection 200K
+////            flexIsosurfaces.emplace_back(12661, 0.00119938, 86); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.00120782, 558); // manual inspection 200K
+//            flexIsosurfaces.emplace_back(12661, 0.00123028, 2); // manual inspection 200K
+
+    vtkm::Id ring_branch = vals[1].second;//2260;
+    // 2M fakegrid
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00102646, 65); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00107816, 39); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00107864, 15); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00111197, 2); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00117619, 110); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.0011923, 70); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00119602, 92); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00119793, 103); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00120027, 102); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00120235, 93); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00120244, 61); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00120508, 49); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.0012051, 24); // manual inspection 200K
+
+//    // 200k fakegrid branch 357
+//    flexIsosurfaces.emplace_back(ring_branch, 0.000920763, 41); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00101375, 10); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00101581, 6); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00102285, 1); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00103525, 1); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.0010549, 1); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00117022, 41); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00118316, 31); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00119409, 6); // manual inspection 200K
+
     for (int k = 0 ; k < numberOfBranches; k++)
     {
         std::cout << "k=" << k << std::endl;
@@ -1024,38 +1159,104 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         std::cout << branches.size() << std::endl;
         std::cout << branchId << " " << branchIsovalue << "Betti changes? : " << branches[branchId]->BettiChanges.size() << std::endl;
 
+        vtkm::Id extremum = branches[branchId]->Extremum;
+        vtkm::Id saddle = branches[branchId]->Saddle;
+
+//        if (min < saddle)
+//        {
+//            endpoints = {ctSortOrder.ReadPortal().Get(min), ctSortOrder.ReadPortal().Get(saddle)};
+//            regularEndpoints = {min, saddle};
+//            branchHeight = saddle - min;
+//            branchType = 0;
+//            if (0 == branchType)
+//            {
+//                isovalue = b - epsilon;
+//            }
+//        }
+
         if (branches[branchId]->BettiChanges.size() == 0)
         {
-            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+            // experiment - don't add unless has betti changes
+//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
         }
-        else // this adds ANY top Betti change (below changed so that only generates isovalues at Betti1==2
-        {
-            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
-            flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue, branches[branchId]->TopBetti1Number);
-        }
+//        else // this adds ANY top Betti change (below changed so that only generates isovalues at Betti1==2
+//        {
+//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+//            flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue, branches[branchId]->TopBetti1Number);
+//        }
 
         // ALL Betti Changes
+        else
+        {
+            // experiment - don't add unless has betti changes
+//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+//            if (k > 0) // skip the main branch
+            {
+//                vtkm::Id ring_branch = 12661; //6084; //1578; //70;
+                if(branchId == ring_branch)
+                {
+//                    std::string filename = "";
+                    std::ofstream file("ContourTreeBetti--branch-"+std::to_string(ring_branch)+"plot.txt");
+
+                    for (vtkm::Id betti_i = 0; betti_i < branches[branchId]->BettiChanges.size(); betti_i++)
+                    {
+                        // std::cout << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+                        file << betti_i << "\t" << branches[ring_branch]->Betti1Numbers[betti_i]
+                                        << "\t" << branches[ring_branch]->BettiChangesDataValue[betti_i] << std::endl;
+                    }
+                    file.close();
+                }
+
+                for(int i = 0; i < branches[branchId]->BettiChanges.size(); i++)
+                {
+                    if(2 == branches[branchId]->Betti1Numbers[i])
+                    {
+                        flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i], branches[branchId]->Betti1Numbers[i]);
+                        break; // experiment - just get the first genus 1 surface per such branch
+                    }
+                }
+            }
+        }
+
 //        else
 //        {
 //            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
 //            for(int i = 0; i < branches[branchId]->BettiChanges.size(); i++)
 //            {
-//                if(branches[branchId]->Betti1Numbers[i] < 5)
+////                if(branches[branchId]->Betti1Numbers[i] == 2)
 //                {
 //                    flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i], branches[branchId]->Betti1Numbers[i]);
+////                    vtkm::Float64 epsilon   = 0.00000005f;
+////                    if ((extremum < saddle) && (saddle > 0))
+////                    {
+////                        flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i]-epsilon, branches[branchId]->Betti1Numbers[i]);
+////                    }
+////                    else
+////                    {
+////                        flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i]+epsilon, branches[branchId]->Betti1Numbers[i]);
+////                    }
 //                }
 //            }
 //        }
 
-//        else if (2 == branches[branchId]->TopBetti1Number)
+//        else// if (2 == branches[branchId]->TopBetti1Number)
 //        {
 //            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
-//            flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue, branches[branchId]->TopBetti1Number);
+//            vtkm::Float64 epsilon   = 0.000000005f;
+//            if (extremum < saddle)
+//            {
+//                flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue-epsilon, branches[branchId]->TopBetti1Number);
+//            }
+//            else
+//            {
+//                flexIsosurfaces.emplace_back(branchId, branches[branchId]->TopBettiChangeDataValue+epsilon, branches[branchId]->TopBetti1Number);
+//            }
+
 //        }
-//        else // if no Betti1 == 2 topology changes, don't bother generating an isosurface ...
-//        {
-//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
-//        }
+////        else // if no Betti1 == 2 topology changes, don't bother generating an isosurface ...
+////        {
+////            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+////        }
     }
 
 //    for (int k = 0 ; k < numberOfBranches; k++) old version - we had one isosurface per branch, now can have betti changes within the branch
@@ -1514,7 +1715,9 @@ void cv1k::interface::computeAdditionalBranchData(
         }
         else
         {
-            vtkm::Float64 epsilon = 0.00000001f;
+//            vtkm::Float64 epsilon = 0.00000001f;
+//            vtkm::Float64 epsilon = 0.001108155f;
+            vtkm::Float64 epsilon   = 0.000000005f;
             if (0 == branchType)
             {
                 isovalue = b - epsilon;

@@ -898,7 +898,7 @@ public:
                                                   FloatArrayType& superarcDependentWeight, // (output)
                                                   FloatArrayType& supernodeTransferWeight, // (output)
                                                   FloatArrayType& hyperarcDependentWeight) // (output))
-    {
+    { // ComputeBettiNumbersForRegularArcs()
         std::cout << "[ProcessContourTree.h::ComputeBettiNumbersForRegularArcs] Compute Betti Numbers for each Regular Arc" << std::endl;
         printMemoryUsage("[ProcessContourTree.h::ComputeVolumeWeightsSerialStructCoefficients] Checkpoint 1/4 - START");
 
@@ -1137,7 +1137,7 @@ public:
 #endif
 
 
-            if(betti1 != previous_betti1)
+            if((betti1 != previous_betti1) && (betti2 != 0))// 2026-01-31 added betti2 border tet check!
             {
                 regular_nodes_to_insert.push_back(i_sortID);
 
@@ -1442,7 +1442,10 @@ public:
 
 //        contourTree.SupernodeBetti.resize(nodes_to_relabel_regularID.size()); // resize to write at [i]
         contourTree.SupernodeBetti.Allocate(nodes_to_relabel_regularID.size()); // resize to write at [i]
+        contourTree.BettiOriginalSuperparents.Allocate(nodes_to_relabel_regularID.size()); // resize to write at [i]
+
         auto ct_betti_portal = contourTree.SupernodeBetti.WritePortal();
+        auto ct_BettiOriginalSuperparents_portal = contourTree.BettiOriginalSuperparents.WritePortal();
 #if DEBUG_PRINT_PACTBD
         filebettiaug << "The BID array for rehooking up the super{hyper}structure:" << std::endl;
         filebettiaug << "id)\thpID\tval_filp\tregularID\tSP" << std::endl;
@@ -1619,6 +1622,7 @@ public:
         {
             plus1test = false;
             auto triple = zipPortal.Get(i);
+
             // Because of nested pairs:
 //            vtkm::Id hyperparent = triple.second.second; //triple.first.first;    // (first of outer pair) -> first of inner pair
             double  dataflip     = triple.first.second;   // (second of inner pair)
@@ -1635,6 +1639,13 @@ public:
 //            vtkm::Id nborSuperparent = nextTriple.second.second;    // 2026-01-09 bug found - this is now HP! (first of outer pair) -> first of inner pair 2026-01-03 use SPs
             vtkm::Id nborSuperparent = nextTriple.first.first;    // (first of outer pair) -> first of inner pair 2026-01-03 use SPs
 
+            // 2026-01-27 track the changes in betti instead of the betti itself, then use it to get the biggest change instead of raw betti1
+//            vtkm::cont::ArrayHandleZip previousTriple;
+//            if(i > 0)
+//            {
+//                auto previousTriple = zipPortal.Get(i-1);
+//                aug_betti_num = abs(abs(aug_betti_num) - abs(previousTriple.second.second));
+//            }
 
             if(i+1 >= zipPortal.GetNumberOfValues())
             {
@@ -1707,6 +1718,7 @@ public:
             // keep track of betti numbers per supernode:
 //            contourTree.SupernodeBetti[newSuperIDsRelabelled] = aug_betti_num;
             ct_betti_portal.Set(newSuperIDsRelabelled[i], aug_betti_num);
+            ct_BettiOriginalSuperparents_portal.Set(newSuperIDsRelabelled[i], superparent);
         }
 
 #if DEBUG_PRINT_PACTBD
@@ -1861,8 +1873,9 @@ public:
 
                 replaceSuperparentsWith.push_back(i);
             }
-
+#if DEBUG_PRINT_PACTBD
             std::cout << std::endl;
+#endif
         }
 
         std::vector<vtkm::Id> segmentA, segmentB;
@@ -2055,7 +2068,9 @@ public:
 //            std::cout << aPortal.Get(i) << std::endl;
 //        }
 
-    }
+        std::cout << "// ComputeBettiNumbersForRegularArcs() finished" << std::endl;
+
+    } // ComputeBettiNumbersForRegularArcs()
 
 
     // 2024-11-25 COMPUTE THE STRUCT COEFFICIENTS VERSION OF THE WEIGHTS WITH COEFFICIENTS

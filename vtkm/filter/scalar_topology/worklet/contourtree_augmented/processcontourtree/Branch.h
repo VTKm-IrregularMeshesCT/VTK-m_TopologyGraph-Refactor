@@ -798,6 +798,7 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 #endif
 
     ValueType TopBettiArcVolume = 0.f; // List of volumes for arcs that have betti number changes
+    vtkm::Id TopBettiChange = 0; // List of volumes for arcs that have betti number changes
 
     for(int j = 0; j < branch_SP_map[i].size(); j+=3) //j++)
     {
@@ -834,10 +835,20 @@ std::cout << "Printing the supernode/branch mappings" << std::endl;
 //            if ((supernodeBettiPortal.Get(branch_SP_map[i][j]) == 2) && (superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume))
             if(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume)
             {
+                TopBettiChange = supernodeBettiPortal.Get(branch_SP_map[i][j]);
                 TopBettiArcVolume = superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
                 branches[i]->TopBetti1Number = supernodeBettiPortal.Get(branch_SP_map[i][j]);     // Betti value of the branch
                 branches[i]->TopBettiChangeDataValue = valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) );    // Betti value of the branch
             }
+
+//            if(superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]) > TopBettiArcVolume)
+//            if(supernodeBettiPortal.Get(branch_SP_map[i][j]) > TopBettiChange)
+//            {
+//                TopBettiChange = supernodeBettiPortal.Get(branch_SP_map[i][j]);
+//                TopBettiArcVolume = superarcIntrinsicWeightPortal.Get(branch_SP_map[i][j]);
+//                branches[i]->TopBetti1Number = supernodeBettiPortal.Get(branch_SP_map[i][j]);     // Betti value of the branch
+//                branches[i]->TopBettiChangeDataValue = valueFieldPortal.Get( supernodesPortal.Get(sortOrderPortal.Get(branch_SP_map[i][j])) );    // Betti value of the branch
+//            }
 
         }
 
