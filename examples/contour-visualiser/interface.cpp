@@ -272,7 +272,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     else if ("pactbd" == decompositionType)
     {
 
-        int compute_betti = 1;
+        int compute_betti = 0;
 
         ctBetti = ct;
 
@@ -374,6 +374,30 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                                                                                   branchSaddle,  // (output)
                                                                                   branchParent); // (output)
 
+//#if WRITE_FILES
+            auto whichBranchPortal = whichBranch.WritePortal();
+            std::ofstream file("ContourTreeGraph--Betti-fullCT-SN-TO-BRANCH-COLLAPSED.txt");
+
+            for (vtkm::Id branchID = 0; branchID < whichBranch.GetNumberOfValues(); branchID++)
+            {
+                 file << branchID << " = " << whichBranchPortal.Get(branchID) << std::endl;
+//                file << branchID << "," << whichBranchPortalModified.Get(branchID) << std::endl;
+            }
+            file.close();
+//#endif
+
+        std::ofstream fileSN("ContourTreeGraph--SA-INTRINSIC-WEIGHTS.txt");
+
+        auto saIntrinsicWeightsRead = superarcIntrinsicWeightNEW.ReadPortal();
+        std::cout << "Superarc Intrinsic Weights:" << std::endl;
+        for(int i = 0; i < superarcIntrinsicWeightNEW.GetNumberOfValues(); i++)
+        {
+//            std::cout << i << "\t" << saIntrinsicWeightsRead.Get(i) << std::endl;
+            fileSN << i << "\t" << saIntrinsicWeightsRead.Get(i) << std::endl;
+        }
+
+        fileSN.close();
+
         // NEW
         const vtkm::Id root = ct.Rootnode;//9; // hack-resolved
 //        const vtkm::Id root = ctBetti.Rootnode;//9; // hack-resolved
@@ -418,7 +442,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
               dataFieldIsSorted,
               superarcIntrinsicWeightNEW,   // used to use manually set values for BD: superarcIntrinsicWeightCorrect,
               superarcDependentWeightNEW,   // used to use manually set values for BD: superarcDependentWeightCorrect );
-                  root,
+                  ct.Rootnode,
 //                  ct.SupernodeBetti,       // used to get the augmented betti nodes (which are past the root node in index)
                   ct.SupernodeBetti,       // used to get the augmented betti nodes (which are past the root node in index)
                     branches); // output
@@ -647,6 +671,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     // Endpoints of path in the contour tree
     cont::ArrayHandle<Vec<Id, 2>> branchEndpoints;
     branchEndpoints.Allocate(branchMinimum.GetNumberOfValues());
+    // also get min/max isovalues of each branch:
+    cont::ArrayHandle<Vec<Float64, 2>> branchEndpointIsovalues;
+    branchEndpointIsovalues.Allocate(branchMinimum.GetNumberOfValues());
 
     cont::ArrayHandle<Vec<Id, 2>> branchEndpointsRegular;
     branchEndpointsRegular.Allocate(branchMinimum.GetNumberOfValues());
@@ -769,7 +796,8 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                                         branchPointVolumeArray,
                                         superarcIntrinsicWeightNEW,
                                         superarcDependentWeightNEW,
-                                        branchIsovalueFlag);
+                                        branchIsovalueFlag,
+                                        branchEndpointIsovalues);
     }
 
     // Prevent getting more branches than we have available
@@ -1032,6 +1060,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 
     // betti information:
     vector<std::pair<vtkm::Id, vtkm::Id>> betti_changes_per_branch;
+    vector<std::pair<vtkm::Float64, vtkm::Float64>> branch_endpoint_isovalues;
 
     if ("sort" == selectionType)
     {
@@ -1040,6 +1069,11 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         for (int i = 0 ; i  < branchOrder.size() ; i++)
         {
             vals.push_back({branchIsovalueArray.ReadPortal().Get(branchOrder[i]), branchOrder[i]});
+
+            branch_endpoint_isovalues.push_back({branchEndpointIsovalues.ReadPortal().Get(branchOrder[i])[0],
+                                                 branchEndpointIsovalues.ReadPortal().Get(branchOrder[i])[1]});
+
+
         }
     }
     else
@@ -1069,7 +1103,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     // ==================================================================================================================================== //
     // ==================================================================================================================================== //
 
-    std::cout << "Branches to extract: " << numberOfBranches << " vs requested: " << vals.size()<< std::endl;
+    std::cout << "Branches to extract (requested): " << numberOfBranches << " vs total: " << vals.size()<< std::endl;
 
     std::cout << "extracting branches: [";
     for (int k = 0 ; k < numberOfBranches; k++)
@@ -1082,7 +1116,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     std::cout << "]?" << std::endl;
     std::cout << "a" << std::endl;
     std::cout << "b" << std::endl;
-    std::cout << "at isovalues: [";
+
 
     // fill in how many isosurfaces to generate (with betti changes as well)
     //               branchID  isosurface     bettiNum
@@ -1127,6 +1161,14 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //            flexIsosurfaces.emplace_back(12661, 0.00123028, 2); // manual inspection 200K
 
     vtkm::Id ring_branch = vals[1].second;//2260;
+//    vtkm::Id ring_branch = 12661; // 2M PIC data vortex ring branch
+
+    std::cout << "ring_branch=" << ring_branch << std::endl;
+    std::cout << "at isovalues: [";
+
+    // 2M Real PIC data
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00112456, 300); // manual inspection 200K
+//    flexIsosurfaces.emplace_back(ring_branch, 0.00112456, 300); // manual inspection 200K
     // 2M fakegrid
 //    flexIsosurfaces.emplace_back(ring_branch, 0.00102646, 65); // manual inspection 200K
 //    flexIsosurfaces.emplace_back(ring_branch, 0.00107816, 39); // manual inspection 200K
@@ -1153,6 +1195,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //    flexIsosurfaces.emplace_back(ring_branch, 0.00118316, 31); // manual inspection 200K
 //    flexIsosurfaces.emplace_back(ring_branch, 0.00119409, 6); // manual inspection 200K
 
+//    flexIsosurfaces.emplace_back(736, 0.001108157, -1);
+//    flexIsosurfaces.emplace_back(786, 0.001108157, -1);
+
     for (int k = 0 ; k < numberOfBranches; k++)
     {
         std::cout << "k=" << k << std::endl;
@@ -1161,6 +1206,9 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         //
         const Id branchId = vals[k].second;
         const Float64 branchIsovalue = vals[k].first;
+
+        const Float64 branchEndpointA = branch_endpoint_isovalues[k].first;
+        const Float64 branchEndpointB = branch_endpoint_isovalues[k].second;
 
         std::cout << branches.size() << std::endl;
         std::cout << branchId << " " << branchIsovalue << "Betti changes? : " << branches[branchId]->BettiChanges.size() << std::endl;
@@ -1180,10 +1228,13 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
 //            }
 //        }
 
+        // can also comment-out below if want to skip unless has betti changes
         if (branches[branchId]->BettiChanges.size() == 0)
         {
-            // experiment - don't add unless has betti changes
-//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+
+            std::cout << branchId << "\t" << saddle << "\t" << extremum << std::endl;
+            std::cout << branchId << "\t" << branchEndpointA << "\t" << branchEndpointB << std::endl;
         }
 //        else // this adds ANY top Betti change (below changed so that only generates isovalues at Betti1==2
 //        {
@@ -1195,7 +1246,7 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
         else
         {
             // experiment - don't add unless has betti changes
-//            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
+            flexIsosurfaces.emplace_back(branchId, branchIsovalue, -1);
 //            if (k > 0) // skip the main branch
             {
 //                vtkm::Id ring_branch = 12661; //6084; //1578; //70;
@@ -1213,14 +1264,15 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
                     file.close();
                 }
 
-                for(int i = 0; i < branches[branchId]->BettiChanges.size(); i++)
-                {
-                    if(2 == branches[branchId]->Betti1Numbers[i])
-                    {
-                        flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i], branches[branchId]->Betti1Numbers[i]);
-                        break; // experiment - just get the first genus 1 surface per such branch
-                    }
-                }
+//                // 2026-07-08: don't add Betti branches for now - trying to compare basic volumes:
+//                for(int i = 0; i < branches[branchId]->BettiChanges.size(); i++)
+//                {
+//                    if(2 == branches[branchId]->Betti1Numbers[i])
+//                    {
+//                        flexIsosurfaces.emplace_back(branchId, branches[branchId]->BettiChangesDataValue[i], branches[branchId]->Betti1Numbers[i]);
+//                        break; // experiment - just get the first genus 1 surface per such branch
+//                    }
+//                }
             }
         }
 
@@ -1266,6 +1318,50 @@ vtkm::cont::PartitionedDataSet cv1k::interface::computeMostSignificantContours(v
     }
 
 //    for (int k = 0 ; k < numberOfBranches; k++) old version - we had one isosurface per branch, now can have betti changes within the branch
+
+    std::cout << "Top " << flexIsosurfaces.size() << " branches:" << std::endl;
+    for (int k = 0 ; k < flexIsosurfaces.size(); k++)
+    {
+        const Id branchId = std::get<0>(flexIsosurfaces[k]); //.first;
+        const Float64 branchIsovalue = std::get<1>(flexIsosurfaces[k]); //flexIsosurfaces[k].second;
+
+//        printf("%i\t%llu\t%f\t%f\t%f\n",
+          printf("%llu\t%.15f\t%f\n",
+//               /* index %i          */  k,
+               /* branch ID %llu    */  branchId,
+               /* isovalue %f       */  branchIsovalue,
+               /* volume %f         */  branchPointVolumeArray.ReadPortal().Get(branchId) );
+//               /* height %f         */  branchIsovalueHeightArray.ReadPortal().Get(branchId));
+
+    }
+
+    std::cout << "Top " << flexIsosurfaces.size() << " branch start(saddle)-end(extrema) isovalues:" << std::endl;
+    for (int k = 0 ; k < flexIsosurfaces.size(); k++)
+    {
+        const Id branchId = std::get<0>(flexIsosurfaces[k]); //.first;
+        const Float64 branchIsovalue = std::get<1>(flexIsosurfaces[k]); //flexIsosurfaces[k].second;
+
+        const Float64 branchEndpointA = branch_endpoint_isovalues[k].first;
+        const Float64 branchEndpointB = branch_endpoint_isovalues[k].second;
+
+//        printf("%i\t%llu\t%f\t%f\t%f\n",
+        printf(/* branch ID %llu    */ "%llu\t"
+                                       "%.15f\t"
+                                       "%.15f\t"
+                                       "%.15f\t"
+                                       "%.15f\t"
+                                       "%d\n",
+//               /* index %i          */  k,
+               /* branch ID %llu    */  branchId,
+               /* isovalue %f       */  branchIsovalue,
+               /* volume %f         */  branchPointVolumeArray.ReadPortal().Get(branchId),
+               /* saddle %f         */  branchEndpointA,
+               /* extrema %.15f     */  branchEndpointB,
+               /* ascending?        */  branchEndpointB > branchEndpointA);
+
+    }
+
+
     for (int k = 0 ; k < flexIsosurfaces.size(); k++)
     {
         //
@@ -1792,7 +1888,8 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
         cont::ArrayHandle<Float64> &branchPointVolumeArray,
         const cont::ArrayHandle<Float64> superarcIntrinsicWeight,
         const cont::ArrayHandle<Float64> superarcDependentWeight,
-        const std::string branchIsovalueFlag
+        const std::string branchIsovalueFlag,
+        cont::ArrayHandle<Vec<Float64, 2>> &branchEndpointIsovalues
         )
 {
     // Compute the volume of every branch.
@@ -1945,6 +2042,7 @@ void cv1k::interface::computeAdditionalBranchDataFloat(
 
         branchEndpoints.WritePortal().Set(i, {endpoints[0], endpoints[1]});
         branchEndpointsRegular.WritePortal().Set(i, {regularEndpoints[0], regularEndpoints[1]});
+        branchEndpointIsovalues.WritePortal().Set(i, {a, b});
 
 //        std::cout << " iso: " << isovalue << std::endl;
     }

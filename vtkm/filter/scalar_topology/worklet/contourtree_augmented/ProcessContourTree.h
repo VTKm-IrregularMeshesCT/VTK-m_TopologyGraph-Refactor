@@ -1100,6 +1100,12 @@ public:
                               << "\t" << "betti0" << "\t" << "betti1" << "\t" << "betti2";//<< std::endl;
 #endif
 
+#if DEBUG_PRINT_PACTBD
+        std::cout << "2026-02-16" << std::endl;
+        std::cout << "regular nodecount: " << nodesPortal.GetNumberOfValues() << std::endl;
+        std::cout << "regular arc-count: " << contourTree.Arcs.GetNumberOfValues() << std::endl;
+#endif
+
         for (vtkm::Id sortedNode = 0; sortedNode < contourTree.Arcs.GetNumberOfValues(); sortedNode++)
         {
             vtkm::Id i_sortID = nodesPortal.Get(sortedNode);
@@ -1107,6 +1113,11 @@ public:
 
             vtkm::Id j_sortID = nodesPortal.Get(sortedNode+1);
             vtkm::Id j_superparent = superparentsPortal.Get(j_sortID );
+
+#if DEBUG_PRINT_PACTBD
+            // 2026-02-16
+            std::cout << sortedNode << " " << i_sortID << " -> " << sortedNode+1 << " " << j_sortID << std::endl;
+#endif
 
             vtkm::Id tailend = supernodesPortal.Get(MaskedIndex(superarcsPortal.Get(i_superparent)));
 
@@ -1198,7 +1209,8 @@ public:
 
 #if DEBUG_PRINT_PACTBD
         std::ofstream fileregbetti("ContourTreeBetti--RegToBetti.txt");
-        std::cout << "Augment the tree with Betti Numbers ..." << std::endl;
+        std::cout << "DEBUG_PRINT_PACTBD:" << DEBUG_PRINT_PACTBD << std::endl;
+        std::cout << "[CHNG] Augment the tree with Betti Numbers ..." << std::endl;
 
 //        for(int i = 0; i < ; i++)
 //        {
@@ -2261,10 +2273,7 @@ public:
         long double min_volume = 38358000.0l;
         long double max_volume = 0.0l;
 
-        long double max_a, max_b, max_c, max_d;
-        max_a = max_b = max_c = max_d = 0.0l; // -LDBL_MAX;
-        long double min_a, min_b, min_c, min_d;
-        min_a = min_b = min_c = min_d = LDBL_MAX;
+
 
         // Preallocation
         // not using the 2D array, writing directly to vx_delta arrays:
@@ -2276,10 +2285,73 @@ public:
         vx_delta_h3_sum.assign(num_sweep_values, 0.0l);
         vx_delta_h4_sum.assign(num_sweep_values, 0.0l);
 
+//        long double max_a, max_b, max_c, max_d;
+//        max_a = max_b = max_c = max_d = 0.0l; // -LDBL_MAX;
+//        long double min_a, min_b, min_c, min_d;
+//        min_a = min_b = min_c = min_d = LDBL_MAX;
+
+//        // nominator of the summation condition number
+//        long double sumAbsA = 0.0L;
+//        long double sumAbsB = 0.0L;
+//        long double sumAbsC = 0.0L;
+//        long double sumAbsD = 0.0L;
+
+//        // totals of per-coefficient denominators for the summation condition number
+//        long double sumA;
+//        long double sumB;
+//        long double sumC;
+//        long double sumD;
+
+        long double max_dynamic_range_A = 0.0L;
+        long double max_dynamic_range_B = 0.0L;
+        long double max_dynamic_range_C = 0.0L;
+        long double max_dynamic_range_D = 0.0L;
+
+        long double total_dynamic_range_A = 0.0L;
+        long double total_dynamic_range_B = 0.0L;
+        long double total_dynamic_range_C = 0.0L;
+        long double total_dynamic_range_D = 0.0L;
+
+        long double max_condition_A = 0.0L;
+        long double max_condition_B = 0.0L;
+        long double max_condition_C = 0.0L;
+        long double max_condition_D = 0.0L;
+
+        constexpr int NUM_BINS = 21; // E0 ... E20
+        size_t histogram[NUM_BINS] = {};
+
+//        long double total_dynamic_range = 0.0L;
+//        long double total_condition     = 0.0L;
+
+//        long double num_summations = 0.0L;
+        long double num_coef_summations = 0.0L;
+
 
         #pragma omp parallel for
         for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
         {
+
+//            num_summations += 1.0L;
+            num_coef_summations += 1.0L;
+
+            long double max_a, max_b, max_c, max_d;
+            max_a = max_b = max_c = max_d = 0.0l; // -LDBL_MAX;
+            long double min_a, min_b, min_c, min_d;
+            min_a = min_b = min_c = min_d = LDBL_MAX;
+
+            // nominator of the summation condition number
+            long double sumAbsA = 0.0L;
+            long double sumAbsB = 0.0L;
+            long double sumAbsC = 0.0L;
+            long double sumAbsD = 0.0L;
+
+            // totals of per-coefficient denominators for the summation condition number
+            long double sumA;
+            long double sumB;
+            long double sumC;
+            long double sumD;
+
+
             // Step 1
             // Vertices that define the Tetrahedron ABCD (The entire tetrahedron) ...
             // ... with their corresponding isovalues (A holds h1, B - h2, C - h3 and D - h4)
@@ -2407,26 +2479,102 @@ public:
                                        (-a_h2h3 * pow(tetlistSorted[i][1], 3) - b_h2h3 * pow(tetlistSorted[i][1], 2) - c_h2h3 * tetlistSorted[i][1] - d_h2h3_down) );
 
 
-            // Directly accumulate, NO extra memory needed
-            vx_delta_h1_sum[tetlistSorted[i][0]] += a_h1h2;
-            vx_delta_h2_sum[tetlistSorted[i][0]] += b_h1h2;
-            vx_delta_h3_sum[tetlistSorted[i][0]] += c_h1h2;
-            vx_delta_h4_sum[tetlistSorted[i][0]] += (full_tet_vol + d_h1h2_down);
+//            // ----------------------------------------------------- PROPER TETRAHEDRAL VOLUME POLYNOMIALS ----------------------------------------------------- //
+//            // Directly accumulate, NO extra memory needed
+//            vx_delta_h1_sum[tetlistSorted[i][0]] += a_h1h2;
+//            vx_delta_h2_sum[tetlistSorted[i][0]] += b_h1h2;
+//            vx_delta_h3_sum[tetlistSorted[i][0]] += c_h1h2;
+//            vx_delta_h4_sum[tetlistSorted[i][0]] += (full_tet_vol + d_h1h2_down);
 
-            vx_delta_h1_sum[tetlistSorted[i][1]] += (-a_h1h2 + a_h2h3);
-            vx_delta_h2_sum[tetlistSorted[i][1]] += (-b_h1h2 + b_h2h3);
-            vx_delta_h3_sum[tetlistSorted[i][1]] += (-c_h1h2 + c_h2h3);
-            vx_delta_h4_sum[tetlistSorted[i][1]] += (-d_h1h2_down + d_h2h3_down);
+//            vx_delta_h1_sum[tetlistSorted[i][1]] += (-a_h1h2 + a_h2h3);
+//            vx_delta_h2_sum[tetlistSorted[i][1]] += (-b_h1h2 + b_h2h3);
+//            vx_delta_h3_sum[tetlistSorted[i][1]] += (-c_h1h2 + c_h2h3);
+//            vx_delta_h4_sum[tetlistSorted[i][1]] += (-d_h1h2_down + d_h2h3_down);
 
-            vx_delta_h1_sum[tetlistSorted[i][2]] += (-a_h2h3 + a_h3h4);
-            vx_delta_h2_sum[tetlistSorted[i][2]] += (-b_h2h3 + b_h3h4);
-            vx_delta_h3_sum[tetlistSorted[i][2]] += (-c_h2h3 + c_h3h4);
-            vx_delta_h4_sum[tetlistSorted[i][2]] += (-d_h2h3_down + d_h3h4);
+//            vx_delta_h1_sum[tetlistSorted[i][2]] += (-a_h2h3 + a_h3h4);
+//            vx_delta_h2_sum[tetlistSorted[i][2]] += (-b_h2h3 + b_h3h4);
+//            vx_delta_h3_sum[tetlistSorted[i][2]] += (-c_h2h3 + c_h3h4);
+//            vx_delta_h4_sum[tetlistSorted[i][2]] += (-d_h2h3_down + d_h3h4);
 
-            vx_delta_h1_sum[tetlistSorted[i][3]] += (-a_h3h4);
-            vx_delta_h2_sum[tetlistSorted[i][3]] += (-b_h3h4);
-            vx_delta_h3_sum[tetlistSorted[i][3]] += (-c_h3h4);
-            vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
+//            vx_delta_h1_sum[tetlistSorted[i][3]] += (-a_h3h4);
+//            vx_delta_h2_sum[tetlistSorted[i][3]] += (-b_h3h4);
+//            vx_delta_h3_sum[tetlistSorted[i][3]] += (-c_h3h4);
+//            vx_delta_h4_sum[tetlistSorted[i][3]] += (-d_h3h4);
+
+
+
+//            // ------------------------------------------------------ SIMPLIFIED VERTEX COUNT POLYNOMIALS ----------------------------------------------------- //
+
+
+//            // Directly accumulate, NO extra memory needed
+//            vx_delta_h1_sum[tetlistSorted[i][0]] += 0;
+//            vx_delta_h2_sum[tetlistSorted[i][0]] += 0;
+//            vx_delta_h3_sum[tetlistSorted[i][0]] += 0;
+//            vx_delta_h4_sum[tetlistSorted[i][0]] += 1;
+
+//            vx_delta_h1_sum[tetlistSorted[i][1]] += 0;
+//            vx_delta_h2_sum[tetlistSorted[i][1]] += 0;
+//            vx_delta_h3_sum[tetlistSorted[i][1]] += 0;
+//            vx_delta_h4_sum[tetlistSorted[i][1]] += 1;
+
+//            vx_delta_h1_sum[tetlistSorted[i][2]] += 0;
+//            vx_delta_h2_sum[tetlistSorted[i][2]] += 0;
+//            vx_delta_h3_sum[tetlistSorted[i][2]] += 0;
+//            vx_delta_h4_sum[tetlistSorted[i][2]] += 1;
+
+//            vx_delta_h1_sum[tetlistSorted[i][3]] += 0;
+//            vx_delta_h2_sum[tetlistSorted[i][3]] += 0;
+//            vx_delta_h3_sum[tetlistSorted[i][3]] += 0;
+//            vx_delta_h4_sum[tetlistSorted[i][3]] += 1;
+
+
+//                        // Directly accumulate, NO extra memory needed
+//                        vx_delta_h1_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][0]] += full_tet_vol;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][1]] += full_tet_vol;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][2]] += full_tet_vol;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][3]] += full_tet_vol;
+
+
+//                        // Directly accumulate, NO extra memory needed
+//                        vx_delta_h1_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][0]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][0]] += full_tet_vol/4.f;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][1]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][1]] += full_tet_vol/4.f;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][2]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][2]] += full_tet_vol/4.f;
+
+//                        vx_delta_h1_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h2_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h3_sum[tetlistSorted[i][3]] += 0;
+//                        vx_delta_h4_sum[tetlistSorted[i][3]] += full_tet_vol/4.f;
+
+
+
+
+
 
 //            for (vtkm::Id i = 0; i < tetlistSorted.size(); ++i)
 //            {
@@ -2440,87 +2588,255 @@ public:
 //                  // repeat ...
 //            }
 
-//            long double tmp;
+            long double tmp;
 
-//            // Vertex 0
-//            tmp = a_h1h2;
-//            TRACK_MINMAX(tmp, min_a, max_a);
-//            vx_delta_h1_sum[tetlistSorted[i][0]] += tmp;
+            // Vertex 0
+            tmp = a_h1h2;
+            TRACK_MINMAX(tmp, min_a, max_a);
+            sumAbsA += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h1_sum[tetlistSorted[i][0]] += tmp;
 
-//            tmp = b_h1h2;
-//            TRACK_MINMAX(tmp, min_b, max_b);
-//            vx_delta_h2_sum[tetlistSorted[i][0]] += tmp;
+            tmp = b_h1h2;
+            TRACK_MINMAX(tmp, min_b, max_b);
+            sumAbsB += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h2_sum[tetlistSorted[i][0]] += tmp;
 
-//            tmp = c_h1h2;
-//            TRACK_MINMAX(tmp, min_c, max_c);
-//            vx_delta_h3_sum[tetlistSorted[i][0]] += tmp;
+            tmp = c_h1h2;
+            TRACK_MINMAX(tmp, min_c, max_c);
+            sumAbsC += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h3_sum[tetlistSorted[i][0]] += tmp;
 
-//            tmp = full_tet_vol + d_h1h2_down;
-//            TRACK_MINMAX(tmp, min_d, max_d);
-//            vx_delta_h4_sum[tetlistSorted[i][0]] += tmp;
+            tmp = full_tet_vol + d_h1h2_down;
+            TRACK_MINMAX(tmp, min_d, max_d);
+            sumAbsD += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h4_sum[tetlistSorted[i][0]] += tmp;
 
-//            // Vertex 1
-//            tmp = -a_h1h2 + a_h2h3;
-//            TRACK_MINMAX(tmp, min_a, max_a);
-//            vx_delta_h1_sum[tetlistSorted[i][1]] += tmp;
+            // Vertex 1
+            tmp = -a_h1h2 + a_h2h3;
+            TRACK_MINMAX(tmp, min_a, max_a);
+            sumAbsA += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h1_sum[tetlistSorted[i][1]] += tmp;
 
-//            tmp = -b_h1h2 + b_h2h3;
-//            TRACK_MINMAX(tmp, min_b, max_b);
-//            vx_delta_h2_sum[tetlistSorted[i][1]] += tmp;
+            tmp = -b_h1h2 + b_h2h3;
+            TRACK_MINMAX(tmp, min_b, max_b);
+            sumAbsB += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h2_sum[tetlistSorted[i][1]] += tmp;
 
-//            tmp = -c_h1h2 + c_h2h3;
-//            TRACK_MINMAX(tmp, min_c, max_c);
-//            vx_delta_h3_sum[tetlistSorted[i][1]] += tmp;
+            tmp = -c_h1h2 + c_h2h3;
+            TRACK_MINMAX(tmp, min_c, max_c);
+            sumAbsC += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h3_sum[tetlistSorted[i][1]] += tmp;
 
-//            tmp = -d_h1h2_down + d_h2h3_down;
-//            TRACK_MINMAX(tmp, min_d, max_d);
-//            vx_delta_h4_sum[tetlistSorted[i][1]] += tmp;
+            tmp = -d_h1h2_down + d_h2h3_down;
+            TRACK_MINMAX(tmp, min_d, max_d);
+            sumAbsD += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h4_sum[tetlistSorted[i][1]] += tmp;
 
-//            // Vertex 2
-//            tmp = -a_h2h3 + a_h3h4;
-//            TRACK_MINMAX(tmp, min_a, max_a);
-//            vx_delta_h1_sum[tetlistSorted[i][2]] += tmp;
+            // Vertex 2
+            tmp = -a_h2h3 + a_h3h4;
+            TRACK_MINMAX(tmp, min_a, max_a);
+            sumAbsA += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h1_sum[tetlistSorted[i][2]] += tmp;
 
-//            tmp = -b_h2h3 + b_h3h4;
-//            TRACK_MINMAX(tmp, min_b, max_b);
-//            vx_delta_h2_sum[tetlistSorted[i][2]] += tmp;
+            tmp = -b_h2h3 + b_h3h4;
+            TRACK_MINMAX(tmp, min_b, max_b);
+            sumAbsB += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h2_sum[tetlistSorted[i][2]] += tmp;
 
-//            tmp = -c_h2h3 + c_h3h4;
-//            TRACK_MINMAX(tmp, min_c, max_c);
-//            vx_delta_h3_sum[tetlistSorted[i][2]] += tmp;
+            tmp = -c_h2h3 + c_h3h4;
+            TRACK_MINMAX(tmp, min_c, max_c);
+            sumAbsC += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h3_sum[tetlistSorted[i][2]] += tmp;
 
-//            tmp = -d_h2h3_down + d_h3h4;
-//            TRACK_MINMAX(tmp, min_d, max_d);
-//            vx_delta_h4_sum[tetlistSorted[i][2]] += tmp;
+            tmp = -d_h2h3_down + d_h3h4;
+            TRACK_MINMAX(tmp, min_d, max_d);
+            sumAbsD += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h4_sum[tetlistSorted[i][2]] += tmp;
 
-//            // Vertex 3
-//            tmp = -a_h3h4;
-//            TRACK_MINMAX(tmp, min_a, max_a);
-//            vx_delta_h1_sum[tetlistSorted[i][3]] += tmp;
+            // Vertex 3
+            tmp = -a_h3h4;
+            TRACK_MINMAX(tmp, min_a, max_a);
+            sumAbsA += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h1_sum[tetlistSorted[i][3]] += tmp;
 
-//            tmp = -b_h3h4;
-//            TRACK_MINMAX(tmp, min_b, max_b);
-//            vx_delta_h2_sum[tetlistSorted[i][3]] += tmp;
+            tmp = -b_h3h4;
+            TRACK_MINMAX(tmp, min_b, max_b);
+            sumAbsB += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h2_sum[tetlistSorted[i][3]] += tmp;
 
-//            tmp = -c_h3h4;
-//            TRACK_MINMAX(tmp, min_c, max_c);
-//            vx_delta_h3_sum[tetlistSorted[i][3]] += tmp;
+            tmp = -c_h3h4;
+            TRACK_MINMAX(tmp, min_c, max_c);
+            sumAbsC += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h3_sum[tetlistSorted[i][3]] += tmp;
 
-//            tmp = -d_h3h4;
-//            TRACK_MINMAX(tmp, min_d, max_d);
-//            vx_delta_h4_sum[tetlistSorted[i][3]] += tmp;
+            tmp = -d_h3h4;
+            TRACK_MINMAX(tmp, min_d, max_d);
+            sumAbsD += fabsl(tmp); // new - track nominator of sum (abs(tmp) ) for the condition
+            vx_delta_h4_sum[tetlistSorted[i][3]] += tmp;
+
+            sumA = vx_delta_h1_sum[tetlistSorted[i][0]] + vx_delta_h1_sum[tetlistSorted[i][1]] + vx_delta_h1_sum[tetlistSorted[i][2]] + vx_delta_h1_sum[tetlistSorted[i][3]];
+            sumB = vx_delta_h2_sum[tetlistSorted[i][0]] + vx_delta_h2_sum[tetlistSorted[i][1]] + vx_delta_h2_sum[tetlistSorted[i][2]] + vx_delta_h2_sum[tetlistSorted[i][3]];
+            sumC = vx_delta_h3_sum[tetlistSorted[i][0]] + vx_delta_h3_sum[tetlistSorted[i][1]] + vx_delta_h3_sum[tetlistSorted[i][2]] + vx_delta_h3_sum[tetlistSorted[i][3]];
+            sumD = vx_delta_h4_sum[tetlistSorted[i][0]] + vx_delta_h4_sum[tetlistSorted[i][1]] + vx_delta_h4_sum[tetlistSorted[i][2]] + vx_delta_h4_sum[tetlistSorted[i][3]];
+
+
+
+
+
+            long double kappaA =
+                (fabsl(sumA) == 0.0L)
+                    ? -1.0L
+                    : sumAbsA / fabsl(sumA);
+
+            long double kappaB =
+                (fabsl(sumB) == 0.0L)
+                    ? -1.0L
+                    : sumAbsB / fabsl(sumB);
+
+            long double kappaC =
+                (fabsl(sumC) == 0.0L)
+                    ? -1.0L
+                    : sumAbsC / fabsl(sumC);
+
+            long double kappaD =
+                (fabsl(sumD) == 0.0L)
+                    ? -1.0L
+                    : sumAbsD / fabsl(sumD);
+
+
+            if(kappaA > max_condition_A)
+            {
+                max_condition_A = kappaA;
+            }
+
+            if(kappaB > max_condition_B)
+            {
+                max_condition_B = kappaB;
+            }
+
+            if(kappaC > max_condition_C)
+            {
+                max_condition_C = kappaC;
+            }
+
+            if(kappaD > max_condition_D)
+            {
+                max_condition_D = kappaD;
+            }
+
+
+            if(fabsl(max_a) / fabsl(min_a) > max_dynamic_range_A)
+            {
+                max_dynamic_range_A = fabsl(max_a) / fabsl(min_a);
+            }
+            if(fabsl(max_b) / fabsl(min_b) > max_dynamic_range_B)
+            {
+                max_dynamic_range_B = fabsl(max_b) / fabsl(min_b);
+            }
+            if(fabsl(max_c) / fabsl(min_c) > max_dynamic_range_C)
+            {
+                max_dynamic_range_C = fabsl(max_c) / fabsl(min_c);
+            }
+            if(fabsl(max_d) / fabsl(min_d) > max_dynamic_range_D)
+            {
+                max_dynamic_range_D = fabsl(max_d) / fabsl(min_d);
+            }
+
+//            if
+            total_dynamic_range_A += fabsl(max_a) / fabsl(min_a);
+            total_dynamic_range_B += fabsl(max_b) / fabsl(min_b);
+            total_dynamic_range_C += fabsl(max_c) / fabsl(min_c);
+            total_dynamic_range_D += fabsl(max_d) / fabsl(min_d);
+
+            if (fabsl(max_d) / fabsl(min_d) > 0.0L)
+            {
+                int bin = (int)floor(log10l(fabsl(max_d) / fabsl(min_d)));
+
+                if (bin < 0)
+                    bin = 0;
+                if (bin >= NUM_BINS)
+                    bin = NUM_BINS - 1;
+
+                histogram[bin]++;
+            }
+
+
+//            long double total_dynamic_range = 0.0L;
+//            long double total_condition     = 0.0L;
+
+//            long double num_summations = 0.0L;
 
         }
 
-//        printf("Dynamic range A: %Le - %Le\n", max_a, min_a);
-//        printf("Dynamic range B: %Le - %Le\n", max_b, min_b);
-//        printf("Dynamic range C: %Le - %Le\n", max_c, min_c);
-//        printf("Dynamic range D: %Le - %Le\n", max_d, min_d);
+        printf("Max Dynamic range A: %Le\n", max_dynamic_range_A);
+        printf("Max Dynamic range B: %Le\n", max_dynamic_range_B);
+        printf("Max Dynamic range C: %Le\n", max_dynamic_range_C);
+        printf("Max Dynamic range D: %Le\n", max_dynamic_range_D);
+
+        printf("AVG Dynamic range A: %Le\n", total_dynamic_range_A/num_coef_summations);
+        printf("AVG Dynamic range B: %Le\n", total_dynamic_range_B/num_coef_summations);
+        printf("AVG Dynamic range C: %Le\n", total_dynamic_range_C/num_coef_summations);
+        printf("AVG Dynamic range D: %Le\n", total_dynamic_range_D/num_coef_summations);
+
+        std::cout << "MAX'es" << std::endl;
+        printf("%Le\t%Le\t%Le\t%Le\n", max_dynamic_range_A, max_dynamic_range_B, max_dynamic_range_C, max_dynamic_range_D);
+        std::cout << "AVG'es" << std::endl;
+        printf("%Le\t%Le\t%Le\t%Le\n", total_dynamic_range_A/num_coef_summations,
+                                       total_dynamic_range_B/num_coef_summations,
+                                       total_dynamic_range_C/num_coef_summations,
+                                       total_dynamic_range_D/num_coef_summations);
+
+        for (int i = 0; i < NUM_BINS; i++)
+        {
+            printf("E%-2d (1e%-2d - 1e%-2d): %zu\n",
+                   i, i, i + 1, histogram[i]);
+        }
+
+        printf("Max Summation condition A: %Le\n", max_condition_A);
+        printf("Max Summation condition B: %Le\n", max_condition_B);
+        printf("Max Summation condition C: %Le\n", max_condition_C);
+        printf("Max Summation condition D: %Le\n", max_condition_D);
+
+
+//        printf("Range: Max D - Min A: %Le - %Le\n", max_a, min_a);
+//        printf("Range: Max C - Min B: %Le - %Le\n", max_b, min_b);
+//        printf("Range: Max B - Min C: %Le - %Le\n", max_c, min_c);
+//        printf("Range: Max A - Min D: %Le - %Le\n", max_d, min_d);
 
 //        printf("Dynamic range A: %Le\n", fabsl(max_a) / fabsl(min_a));
 //        printf("Dynamic range B: %Le\n", fabsl(max_b) / fabsl(min_b));
 //        printf("Dynamic range C: %Le\n", fabsl(max_c) / fabsl(min_c));
 //        printf("Dynamic range D: %Le\n", fabsl(max_d) / fabsl(min_d));
+
+//        //long double sumA = vx_delta_h1_sum[tetlistSorted[i][0]] + vx_delta_h1_sum[tetlistSorted[i][1]] + vx_delta_h1_sum[tetlistSorted[i][2]] + vx_delta_h1_sum[tetlistSorted[i][3]];
+//        //long double sumB = vx_delta_h2_sum[tetlistSorted[i][0]] + vx_delta_h2_sum[tetlistSorted[i][1]] + vx_delta_h2_sum[tetlistSorted[i][2]] + vx_delta_h2_sum[tetlistSorted[i][3]];
+//        //long double sumC = vx_delta_h3_sum[tetlistSorted[i][0]] + vx_delta_h3_sum[tetlistSorted[i][1]] + vx_delta_h3_sum[tetlistSorted[i][2]] + vx_delta_h3_sum[tetlistSorted[i][3]];
+//        //long double sumD = vx_delta_h4_sum[tetlistSorted[i][0]] + vx_delta_h4_sum[tetlistSorted[i][1]] + vx_delta_h4_sum[tetlistSorted[i][2]] + vx_delta_h4_sum[tetlistSorted[i][3]];
+
+//        long double kappaA =
+//            (fabsl(sumA) == 0.0L)
+//                ? INFINITY
+//                : sumAbsA / fabsl(sumA);
+
+//        long double kappaB =
+//            (fabsl(sumB) == 0.0L)
+//                ? INFINITY
+//                : sumAbsB / fabsl(sumB);
+
+//        long double kappaC =
+//            (fabsl(sumC) == 0.0L)
+//                ? INFINITY
+//                : sumAbsC / fabsl(sumC);
+
+//        long double kappaD =
+//            (fabsl(sumD) == 0.0L)
+//                ? INFINITY
+//                : sumAbsD / fabsl(sumD);
+
+//        printf("Summation condition A: %Le\n", kappaA);
+//        printf("Summation condition B: %Le\n", kappaB);
+//        printf("Summation condition C: %Le\n", kappaC);
+//        printf("Summation condition D: %Le\n", kappaD);
 
 
 
@@ -2818,6 +3134,33 @@ std::cout << "// ================================= ITERATIONS ==================
 #endif
 
 
+
+        // for all iterations:
+        long double minTerm, termMin;
+        minTerm = termMin = 0.0l; // -LDBL_MAX;
+        long double maxTerm, termMax;
+        termMax = maxTerm = LDBL_MAX;
+
+        // nominator of the summation condition number
+        long double sumAbsA = 0.0L;
+        long double sumAbsB = 0.0L;
+        long double sumAbsC = 0.0L;
+        long double sumAbsD = 0.0L;
+
+        // totals of per-coefficient denominators for the summation condition number
+        long double sumA;
+        long double sumB;
+        long double sumC;
+        long double sumD;
+
+        long double max_dynamic_range = 0.0L;
+        long double max_condition     = 0.0L;
+
+        long double total_dynamic_range = 0.0L;
+        long double total_condition     = 0.0L;
+
+        long double num_summations = 0.0L;
+
         for (vtkm::Id iteration = 0; iteration < nIterations+1; iteration++)
         {// per iteration
           std::cout << iteration << " ";
@@ -2957,7 +3300,31 @@ std::cout << "// ================================= ITERATIONS ==================
               superarcDependentWeightCoeffPortal.Set(supernode, step2Dependent);
           }
 
+//          // per iteration:
+//          long double minTerm, termMin;
+//          minTerm = termMin = 0.0l; // -LDBL_MAX;
+//          long double maxTerm, termMax;
+//          termMax = maxTerm = LDBL_MAX;
 
+//          // nominator of the summation condition number
+//          long double sumAbsA = 0.0L;
+//          long double sumAbsB = 0.0L;
+//          long double sumAbsC = 0.0L;
+//          long double sumAbsD = 0.0L;
+
+//          // totals of per-coefficient denominators for the summation condition number
+//          long double sumA;
+//          long double sumB;
+//          long double sumC;
+//          long double sumD;
+
+//          long double max_dynamic_range = 0.0L;
+//          long double max_condition     = 0.0L;
+
+//          long double total_dynamic_range = 0.0L;
+//          long double total_condition     = 0.0L;
+
+//          long double num_summations = 0.0L;
 
 
 // !!! CONVERTING FROM COEFFICIENT BASED TO SIMPLE(VALUE-TYPE) FOR DEPENDENT WEIGHTS !!! //
@@ -2978,6 +3345,60 @@ for(int i = 0; i < iterationSupernodes[iteration].size(); i++)
     long double c_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
     long double d_coeff = superarcDependentWeightCoeffPortal.Get(supernode).h4;
 
+    sumAbsA += fabsl(a_coeff);
+    sumAbsB += fabsl(b_coeff);
+    sumAbsC += fabsl(c_coeff);
+    sumAbsD += fabsl(d_coeff);
+
+    sumA = fabsl(a_coeff + b_coeff + c_coeff + d_coeff);
+
+
+//    TRACK_MINMAX(a_coeff, minTerm, maxTerm);
+//    TRACK_MINMAX(b_coeff, minTerm, maxTerm);
+//    TRACK_MINMAX(c_coeff, minTerm, maxTerm);
+//    TRACK_MINMAX(d_coeff, minTerm, maxTerm);
+
+    termMin = std::min({fabsl(a_coeff),
+                        fabsl(b_coeff),
+                        fabsl(c_coeff),
+                        fabsl(d_coeff)});
+
+    termMax = std::max({fabsl(a_coeff),
+                        fabsl(b_coeff),
+                        fabsl(c_coeff),
+                        fabsl(d_coeff)});
+
+//    printf("Polynomial Term Dynamic Range (with termMin/Max): %Le\n", termMax / termMin);
+//    printf("Polynomial Term Dynamic Range (with TRACK_MINMAX): %Le\n", maxTerm / minTerm);
+
+    long double kappa =
+        (fabsl(sumA) == 0.0L)
+            ? 0.0L
+            : (sumAbsA + sumAbsB + sumAbsC + sumAbsD) / fabsl(sumA);
+
+//    printf("Polynomial condition number: %Le\n", kappa);
+
+    if( (termMax / termMin) > max_dynamic_range)
+    {
+        if (termMin > DBL_EPSILON)
+            max_dynamic_range = (termMax / termMin);
+    }
+
+    if( kappa > max_condition)
+    {
+        max_condition = kappa;
+    }
+
+    if (termMin > DBL_EPSILON)
+    {
+        total_dynamic_range  +=(termMax / termMin);
+    }
+    total_condition      += kappa;
+
+    num_summations+= 1.0L;
+
+
+
     // NEW: 2025-01-24 actually save the value to the dependent array SADWP:
     superarcDependentWeightPortal.Set(supernode, a_coeff + b_coeff + c_coeff + d_coeff);
 #if DEBUG_PRINT_PACTBD
@@ -2985,6 +3406,12 @@ for(int i = 0; i < iterationSupernodes[iteration].size(); i++)
 #endif
 
 }
+//    // per iteration
+//    printf("Max Polynomial Term Dynamic Range (with termMin/Max): %Le\n", max_dynamic_range);
+//    printf("Max Polynomial condition number: %Le\n", max_condition);
+//    printf("AVG Polynomial condition number: %Le\n", total_condition / num_summations);
+//    printf("AVG Polynomial Term Dynamic Range (with termMin/Max): %Le\n", total_dynamic_range / num_summations);
+
 
 
 //        std::vector<vtkm::Id> hyperparents = {0,1,2,3,4,5,6,7,8,9,// }; //,
@@ -3342,6 +3769,18 @@ for(int i = 0; i < iterationSupernodes[iteration].size(); i++)
             // NEW: 2025-01-24 actually save the value to the dependent array SADWP:
             superarcDependentWeightPortal.Set(supernode, a_coeff + b_coeff + c_coeff + d_coeff);
 
+
+//            TRACK_MINMAX(a_coeff, minTerm, maxTerm);
+//            TRACK_MINMAX(b_coeff, minTerm, maxTerm);
+//            TRACK_MINMAX(c_coeff, minTerm, maxTerm);
+//            TRACK_MINMAX(d_coeff, minTerm, maxTerm);
+
+//        //    termMin = std::min(fabsl(a_coeff), fabsl(b_coeff), fabsl(c_coeff), fabsl(d_coeff));
+//        //    termMax = std::max(fabsl(a_coeff), fabsl(b_coeff), fabsl(c_coeff), fabsl(d_coeff));
+
+//        //    printf("Polynomial Term Dynamic Range (with termMin/Max): %Le\n", termMax / termMin);
+//            printf("Polynomial Term Dynamic Range (with TRACK_MINMAX): %Le\n", maxTerm / minTerm);
+
             a_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h1 * std::pow(tailends[superNode], 3);
             b_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h2 * std::pow(tailends[superNode], 2);
             c_coeff = supernodeTransferWeightCoeffPortal.Get(supernode).h3 * tailends[superNode];
@@ -3354,6 +3793,13 @@ for(int i = 0; i < iterationSupernodes[iteration].size(); i++)
 
 
         }// per iteration
+
+        std::cout << std::endl;
+
+        printf("Max Polynomial Term Dynamic Range (with termMin/Max): %Le\n", max_dynamic_range);
+        printf("AVG Polynomial Term Dynamic Range (with termMin/Max): %Le\n", total_dynamic_range / num_summations);
+        printf("Max Polynomial condition number: %Le\n", max_condition);
+        printf("AVG Polynomial condition number: %Le\n", total_condition / num_summations);
 
 #if DEBUG_PRINT_PACTBD
 std::cout << std::endl << "REINITILISING TRANSFER" << std::endl;

@@ -84,7 +84,8 @@ namespace cv1k
                 vtkm::cont::ArrayHandle<vtkm::Float64>&,
                 vtkm::cont::ArrayHandle<vtkm::Float64>,
                 vtkm::cont::ArrayHandle<vtkm::Float64>,
-                std::string
+                std::string,
+                vtkm::cont::ArrayHandle<vtkm::Vec<vtkm::Float64, 2>>&
                 );
 
         std::vector<vtkm::Id> getBranchesSortedOrder(vtkm::cont::ArrayHandle<vtkm::Float64>, vtkm::cont::ArrayHandle<vtkm::Float64>);
